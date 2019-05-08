@@ -1,12 +1,10 @@
 /*----- System Includes -----*/
 
-#include <dart.h>
 #include <vector>
 #include <string>
 #include <limits>
 #include <iostream>
 #include <algorithm>
-#include <extern/catch.h>
 
 /*----- Local Includes -----*/
 

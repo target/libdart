@@ -1,11 +1,13 @@
+/*----- Local Includes -----*/
+
+#include "dart_tests.h"
+
 /*----- System Includes -----*/
 
-#include <dart.h>
 #include <vector>
 #include <string>
 #include <fstream>
 #include <sstream>
-#include <extern/catch.h>
 
 // YAML test validates against a known JSON parser and file,
 // so figure out which one to use.

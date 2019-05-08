@@ -1,9 +1,11 @@
 /*----- System Includes -----*/
 
-#include <dart.h>
 #include <unordered_map>
 #include <unordered_set>
-#include <extern/catch.h>
+
+/*----- Local Includes -----*/
+
+#include "dart_tests.h"
 
 /*----- Function Implementations -----*/
 

@@ -1,6 +1,5 @@
 /*----- System Includes -----*/
 
-#include <dart.h>
 #include <unordered_set>
 
 /*----- Local Includes -----*/

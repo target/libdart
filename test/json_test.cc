@@ -1,12 +1,14 @@
+/*----- Local Includes -----*/
+
+#include "dart_tests.h"
+
 /*----- System Includes -----*/
 
-#include <dart.h>
 #include <vector>
 #include <string>
 #include <iostream>
 #include <istream>
 #include <fstream>
-#include <extern/catch.h>
 
 #if DART_HAS_RAPIDJSON
 # include <rapidjson/document.h>

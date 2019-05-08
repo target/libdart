@@ -1,10 +1,8 @@
 /*----- System Includes -----*/
 
-#include <dart.h>
 #include <vector>
 #include <string>
 #include <unordered_set>
-#include <extern/catch.h>
 
 /*----- Local Includes -----*/
 

@@ -4,10 +4,8 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
-#include <dart/ptrs.h>
 #include <unordered_set>
 #include <unordered_map>
-#include <extern/catch.h>
 
 /*----- Local Includes -----*/
 

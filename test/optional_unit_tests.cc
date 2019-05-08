@@ -1,7 +1,9 @@
-/*----- System Includes -----*/
+/*----- Local Includes -----*/
 
-#include <dart/optional.h>
-#include <extern/catch.h>
+#include "dart_tests.h"
+#include "dart/optional.h"
+
+/*---- Type Declarations -----*/
 
 struct move_checker {
   move_checker() : has_value(true) {}

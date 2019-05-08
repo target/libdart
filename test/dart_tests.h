@@ -1,10 +1,13 @@
 #ifndef DART_TESTS_H
 #define DART_TESTS_H
 
-/*----- System Includes -----*/
+/*----- Local Includes -----*/
 
-#include <dart.h>
-#include <extern/catch.h>
+// Yuck
+// Bad, but fixes the problem of some platforms including
+// the wrong thing if the library is already installed
+#include "../include/dart.h"
+#include "../include/extern/catch.h"
 
 /*----- Macros -----*/
 

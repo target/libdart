@@ -1,8 +1,6 @@
-/*----- System Includes -----*/
+/*----- Local Includes -----*/
 
-#include <dart.h>
-#include <dart/ptrs.h>
-#include <extern/catch.h>
+#include "dart_tests.h"
 
 /*----- Function Implementations -----*/
 
