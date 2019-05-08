@@ -1,0 +1,637 @@
+#ifndef DART_ARR_IMPL_H
+#define DART_ARR_IMPL_H
+
+/*----- Local Includes -----*/
+
+#include "dart_intern.h"
+
+/*----- Function Implementations -----*/
+
+namespace dart {
+
+  template <class Array>
+  template <class Arr, class>
+  basic_array<Array>::basic_array(Arr&& arr) {
+    if (!arr.is_array()) throw type_error("dart::packet::array can only be constructed from an array");
+    this->val = std::forward<Arr>(arr);
+  }
+
+  template <template <class> class RefCount>
+  template <class... Args>
+  basic_heap<RefCount> basic_heap<RefCount>::make_array(Args&&... elems) {
+    return basic_heap(detail::array_tag {}, std::forward<Args>(elems)...);
+  }
+
+  template <template <class> class RefCount>
+  template <class... Args>
+  basic_packet<RefCount> basic_packet<RefCount>::make_array(Args&&... elems) {
+    return basic_packet(detail::array_tag {}, std::forward<Args>(elems)...);
+  }
+
+  template <class Array>
+  template <class ValueType, class>
+  basic_array<Array>& basic_array<Array>::push_front(ValueType&& value) & {
+    val.push_front(std::forward<ValueType>(value));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_heap<RefCount>& basic_heap<RefCount>::push_front(ValueType&& value) & {
+    insert(0, std::forward<ValueType>(value));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_packet<RefCount>& basic_packet<RefCount>::push_front(ValueType&& value) & {
+    get_heap().push_front(std::forward<ValueType>(value));
+    return *this;
+  }
+
+  template <class Array>
+  template <class ValueType, class>
+  basic_array<Array>&& basic_array<Array>::push_front(ValueType&& value) && {
+    auto&& tmp = std::move(val).push_front(std::forward<ValueType>(value));
+    (void) tmp;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_heap<RefCount>&& basic_heap<RefCount>::push_front(ValueType&& value) && {
+    push_front(std::forward<ValueType>(value));
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_packet<RefCount>&& basic_packet<RefCount>::push_front(ValueType&& value) && {
+    push_front(std::forward<ValueType>(value));
+    return std::move(*this);
+  }
+  
+  template <class Array>
+  template <class, class>
+  basic_array<Array>& basic_array<Array>::pop_front() & {
+    val.pop_front();
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount>& basic_heap<RefCount>::pop_front() & {
+    erase(0);
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>& basic_packet<RefCount>::pop_front() & {
+    get_heap().pop_front();
+    return *this;
+  }
+
+  template <class Array>
+  template <class, class>
+  basic_array<Array>&& basic_array<Array>::pop_front() && {
+    auto&& tmp = std::move(val).pop_front();
+    (void) tmp;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount>&& basic_heap<RefCount>::pop_front() && {
+    pop_front();
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::pop_front() && {
+    pop_front();
+    return std::move(*this);
+  }
+
+  template <class Array>
+  template <class ValueType, class>
+  basic_array<Array>& basic_array<Array>::push_back(ValueType&& value) & {
+    val.push_back(std::forward<ValueType>(value));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_heap<RefCount>& basic_heap<RefCount>::push_back(ValueType&& value) & {
+    insert(size(), std::forward<ValueType>(value));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_packet<RefCount>& basic_packet<RefCount>::push_back(ValueType&& value) & {
+    get_heap().push_back(std::forward<ValueType>(value));
+    return *this;
+  }
+
+  template <class Array>
+  template <class ValueType, class>
+  basic_array<Array>&& basic_array<Array>::push_back(ValueType&& value) && {
+    auto&& tmp = std::move(val).push_back(std::forward<ValueType>(value));
+    (void) tmp;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_heap<RefCount>&& basic_heap<RefCount>::push_back(ValueType&& value) && {
+    push_back(std::forward<ValueType>(value));
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  basic_packet<RefCount>&& basic_packet<RefCount>::push_back(ValueType&& value) && {
+    push_back(std::forward<ValueType>(value));
+    return std::move(*this);
+  }
+
+  template <class Array>
+  template <class, class>
+  basic_array<Array>& basic_array<Array>::pop_back() & {
+    val.pop_back();
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount>& basic_heap<RefCount>::pop_back() & {
+    erase(size() - 1);
+    return *this;
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>& basic_packet<RefCount>::pop_back() & {
+    get_heap().pop_back();
+    return *this;
+  }
+
+  template <class Array>
+  template <class, class>
+  basic_array<Array>&& basic_array<Array>::pop_back() && {
+    auto&& tmp = std::move(val).pop_back();
+    (void) tmp;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount>&& basic_heap<RefCount>::pop_back() && {
+    pop_back();
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::pop_back() && {
+    pop_back();
+    return std::move(*this);
+  }
+
+  template <class Array>
+  template <class Index, class ValueType, class>
+  auto basic_array<Array>::insert(Index&& idx, ValueType&& value) -> iterator {
+    return val.insert(std::forward<Index>(idx), std::forward<ValueType>(value));
+  }
+
+  template <class Array>
+  template <class Index, class>
+  auto basic_array<Array>::erase(Index const& idx) -> iterator {
+    return val.erase(idx);
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  auto basic_heap<RefCount>::erase(basic_number<Number> const& idx) -> iterator {
+    return erase(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  auto basic_packet<RefCount>::erase(basic_number<Number> const& idx) -> iterator {
+    return erase(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  auto basic_heap<RefCount>::erase(size_type pos) -> iterator {
+    // Make sure we copy out if our heap is shared.
+    copy_on_write();
+
+    // Attempt to perform the erase.
+    auto& elements = get_elements();
+    if (pos >= elements.size()) return end();
+    auto new_it = elements.erase(elements.begin() + pos);
+    return detail::dn_iterator<RefCount> {new_it, [] (auto& it) { return *it; }};
+  }
+
+  template <template <class> class RefCount>
+  auto basic_packet<RefCount>::erase(size_type pos) -> iterator {
+    return get_heap().erase(pos);
+  }
+
+  template <class Array>
+  template <class Index, class>
+  auto basic_array<Array>::operator [](Index const& idx) const& -> value_type {
+    return val[idx];
+  }
+
+  template <class Array>
+  template <class Index, class>
+  decltype(auto) basic_array<Array>::operator [](Index const& idx) && {
+    return std::move(val)[idx];
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_heap<RefCount> basic_heap<RefCount>::operator [](basic_number<Number> const& idx) const {
+    return (*this)[idx.integer()];
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_buffer<RefCount> basic_buffer<RefCount>::operator [](basic_number<Number> const& idx) const& {
+    return (*this)[idx.integer()];
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_packet<RefCount> basic_packet<RefCount>::operator [](basic_number<Number> const& idx) const& {
+    return (*this)[idx.integer()];
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](basic_number<Number> const& idx) && {
+    return std::move(*this)[idx.integer()];
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_packet<RefCount>&& basic_packet<RefCount>::operator [](basic_number<Number> const& idx) && {
+    return std::move(*this)[idx.integer()];
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::operator [](size_type index) const {
+    return get(index);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::operator [](size_type index) const& {
+    return get(index);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::operator [](size_type index) const& {
+    return get(index);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](size_type index) && {
+    return std::move(*this).get(index);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::operator [](size_type index) && {
+    return std::move(*this).get(index);
+  }
+
+  template <class Array>
+  template <class Index, class>
+  auto basic_array<Array>::get(Index const& idx) const& -> value_type {
+    return val.get(idx);
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_heap<RefCount> basic_heap<RefCount>::get(basic_number<Number> const& idx) const {
+    return get(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_buffer<RefCount> basic_buffer<RefCount>::get(basic_number<Number> const& idx) const& {
+    return get(idx.integer());
+  }
+
+  template <class Array>
+  template <class Index, class>
+  decltype(auto) basic_array<Array>::get(Index const& idx) && {
+    return std::move(val).get(idx);
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::get(basic_number<Number> const& idx) && {
+    return std::move(*this).get(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_packet<RefCount> basic_packet<RefCount>::get(basic_number<Number> const& idx) const& {
+    return get(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_packet<RefCount>&& basic_packet<RefCount>::get(basic_number<Number> const& idx) && {
+    return std::move(*this).get(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::get(size_type index) const {
+    return get_elements().at(index);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::get(size_type index) const& {
+    return basic_buffer(detail::get_array<RefCount>(raw)->get_elem(index), buffer_ref);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::get(size_type index) const& {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.get(index); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::get(size_type index) && {
+    raw = detail::get_array<RefCount>(raw)->get_elem(index);
+    if (is_null()) buffer_ref = nullptr;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::get(size_type index) && {
+    shim::visit([&] (auto& v) { v = std::move(v).get(index); }, impl);
+    return std::move(*this);
+  }
+  
+  template <class Array>
+  template <class KeyType, class T, class>
+  auto basic_array<Array>::get_or(KeyType const& idx, T&& opt) const -> value_type {
+    return val.get_or(idx, std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class Number, class T, class>
+  basic_heap<RefCount> basic_heap<RefCount>::get_or(basic_number<Number> const& idx, T&& opt) const {
+    return get_or(idx.integer(), std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class Number, class T, class>
+  basic_packet<RefCount> basic_packet<RefCount>::get_or(basic_number<Number> const& idx, T&& opt) const {
+    return get_or(idx.integer(), std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  basic_heap<RefCount> basic_heap<RefCount>::get_or(size_type index, T&& opt) const {
+    if (is_array() && size() > static_cast<size_t>(index)) return get(index);
+    else return convert::cast<basic_heap>(std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  basic_packet<RefCount> basic_packet<RefCount>::get_or(size_type index, T&& opt) const {
+    if (is_array() && size() > static_cast<size_t>(index)) return get(index);
+    else return convert::cast<basic_packet>(std::forward<T>(opt));
+  }
+
+  template <class Array>
+  auto basic_array<Array>::front() const -> value_type {
+    return val.front();
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::front() const {
+    auto& elements = get_elements();
+    if (elements.empty()) throw std::out_of_range("dart::heap is empty and cannot access front");
+    return elements.front();
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::front() const& {
+    auto* arr = detail::get_array<RefCount>(raw);
+    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access front");
+    return basic_buffer(arr->get_elem(0), buffer_ref);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::front() && {
+    auto* arr = detail::get_array<RefCount>(raw);
+    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access front");
+    raw = arr->get_elem(0);
+    if (is_null()) buffer_ref = nullptr;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::front() const& {
+    return shim::visit([] (auto& v) -> basic_packet { return v.front(); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::front() && {
+    shim::visit([] (auto& v) { v = std::move(v).front(); }, impl);
+    return std::move(*this);
+  }
+  
+  template <class Array>
+  template <class T, class>
+  auto basic_array<Array>::front_or(T&& opt) const -> value_type {
+    return val.front_or(std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  basic_heap<RefCount> basic_heap<RefCount>::front_or(T&& opt) const {
+    if (is_array() && !empty()) return front();
+    else return convert::cast<basic_heap>(std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  basic_packet<RefCount> basic_packet<RefCount>::front_or(T&& opt) const {
+    return get_heap().front_or(std::forward<T>(opt));
+  }
+
+  template <class Array>
+  auto basic_array<Array>::back() const -> value_type {
+    return val.back();
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::back() const {
+    auto& elements = get_elements();
+    if (elements.empty()) throw std::out_of_range("dart::heap is empty and cannot access back");
+    return elements.back();
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::back() const& {
+    auto* arr = detail::get_array<RefCount>(raw);
+    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access back");
+    return basic_buffer(arr->get_elem(size() - 1), buffer_ref);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::back() && {
+    auto* arr = detail::get_array<RefCount>(raw);
+    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access back");
+    raw = arr->get_elem(size() - 1);
+    if (is_null()) buffer_ref = nullptr;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::back() const& {
+    return shim::visit([] (auto& v) -> basic_packet { return v.back(); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::back() && {
+    shim::visit([] (auto& v) { v = std::move(v).back(); }, impl);
+    return std::move(*this);
+  }
+
+  template <class Array>
+  template <class T, class>
+  auto basic_array<Array>::back_or(T&& opt) const -> value_type {
+    return val.back_or(std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  basic_heap<RefCount> basic_heap<RefCount>::back_or(T&& opt) const {
+    if (is_array() && !empty()) return back();
+    else return convert::cast<basic_heap>(std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  basic_packet<RefCount> basic_packet<RefCount>::back_or(T&& opt) const {
+    return get_heap().back_or(std::forward<T>(opt));
+  }
+
+  template <template <class> class RefCount>
+  template <class... Args>
+  basic_heap<RefCount>::basic_heap(detail::array_tag, Args&&... the_args) :
+    data(make_shareable<RefCount<packet_elements>>())
+  {
+    append_elems(std::forward<Args>(the_args)...);
+  }
+
+  template <template <class> class RefCount>
+  template <class Elem, class... Elems>
+  void basic_heap<RefCount>::append_elems(Elem&& elem, Elems&&... elems) {
+    push_back(std::forward<Elem>(elem));
+    append_elems(std::forward<Elems>(elems)...);
+  }
+
+  template <template <class> class RefCount>
+  auto basic_heap<RefCount>::iterator_index(iterator pos) const -> size_type {
+    // Dig all the way down and get the underlying iterator layout.
+    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+    return shim::visit(
+      shim::compose_together(
+        [] (elements_type const& elems, elements_layout& layout) -> size_type {
+          return layout.it - elems->begin();
+        },
+        [] (fields_type const&, auto&) -> size_type {
+          throw type_error("dart::heap is an object, and cannot perform array operations");
+        },
+        [] (auto&, auto&) -> size_type {
+          throw type_error("dart::heap is not an array, "
+            "or was provided an invalid iterator, and cannot perform array operations");
+        }
+      ),
+      data,
+      pos.impl->impl
+    );
+  }
+
+  namespace detail {
+
+    // FIXME: Audit this function. A LOT has changed since it was written.
+    template <template <class> class RefCount>
+    array<RefCount>::array(packet_elements<RefCount> const* elems) noexcept : elems(elems->size()) {
+      // Iterate over our elements and write each one into the buffer.
+      array_entry* entry = vtable();
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems->size()]) - DART_FROM_THIS_MUT;
+      for (auto const& elem : *elems) {
+        // Using the current offset, align a pointer for the next element type.
+        auto* unaligned = DART_FROM_THIS_MUT + offset;
+        auto* aligned = detail::align_pointer<RefCount>(unaligned, elem.get_raw_type());
+        offset += aligned - unaligned;
+
+        // Add an entry to the vtable.
+        new(entry++) array_entry(elem.get_raw_type(), offset);
+
+        // Recurse.
+        offset += elem.layout(aligned);
+      }
+
+      // array is laid out, write in our final size.
+      bytes = offset;
+    }
+
+    template <template <class> class RefCount>
+    size_t array<RefCount>::size() const noexcept {
+      return elems;
+    }
+
+    template <template <class> class RefCount>
+    size_t array<RefCount>::get_sizeof() const noexcept {
+      return bytes;
+    }
+
+    template <template <class> class RefCount>
+    auto array<RefCount>::begin() const noexcept -> ll_iterator<RefCount> {
+      return detail::ll_iterator<RefCount>(0, DART_FROM_THIS, load_elem);
+    }
+
+    template <template <class> class RefCount>
+    auto array<RefCount>::end() const noexcept -> ll_iterator<RefCount> {
+      return detail::ll_iterator<RefCount>(size(), DART_FROM_THIS, load_elem);
+    }
+
+    template <template <class> class RefCount>
+    auto array<RefCount>::get_elem(size_t index) const -> raw_element {
+      // Validate.
+      if (index < 0 || index >= size()) throw std::out_of_range("requested index is out of range for dart::packet");
+
+      // Get it.
+      auto const& meta = vtable()[index];
+      return {meta.get_type(), DART_FROM_THIS + meta.get_offset()};
+    }
+
+    template <template <class> class RefCount>
+    auto array<RefCount>::load_elem(gsl::byte const* base, size_t idx) noexcept
+      -> typename ll_iterator<RefCount>::value_type
+    {
+      auto const& entry = get_array<RefCount>({raw_type::array, base})->vtable()[idx];
+      return {entry.get_type(), base + entry.get_offset()};
+    }
+
+    template <template <class> class RefCount>
+    array_entry* array<RefCount>::vtable() noexcept {
+      auto* base = DART_FROM_THIS_MUT + sizeof(bytes) + sizeof(elems);
+      return shim::launder(reinterpret_cast<array_entry*>(base));
+    }
+
+    template <template <class> class RefCount>
+    array_entry const* array<RefCount>::vtable() const noexcept {
+      auto* base = DART_FROM_THIS + sizeof(bytes) + sizeof(elems);
+      return shim::launder(reinterpret_cast<array_entry const*>(base));
+    }
+
+  }
+
+}
+
+#endif

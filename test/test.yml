@@ -1,0 +1,126 @@
+---
+tests:
+- arr:
+  - 1
+  - 2
+  - 3
+  - 4
+  - a
+  - b
+  - c
+  - foo: bar
+    core: dump
+  - true
+  - false
+  - true
+  - true
+  - null
+  - false
+- arr: []
+- arr:
+  - {}
+- {}
+- arr:
+  - - - - - {}
+- arr:
+  - {}
+  - {}
+  - {}
+  - {}
+  - {}
+- arr:
+  - - {}
+  - - {}
+  - - {}
+  - - {}
+- asdf:
+    fdsa:
+      jkl:
+        lkj:
+          '1234':
+            '4321': {}
+- 'true': true
+  'false': false
+  "{}": {}
+  "[]": []
+  '0': 0
+  '0.0': 0.0
+  " ": " "
+  'null': null
+- fifteencharssss: null
+- arr:
+  - ''
+- arr:
+  - "\x12 escaped control character"
+- arr:
+  - false
+- arr:
+  - 100000000000
+- arr:
+  - -100000000000
+- arr:
+  - -123
+- arr:
+  - -1
+- arr:
+  - 0
+- arr:
+  - 0.0
+- arr:
+  - null
+- arr:
+  - ", one-byte UTF-8"
+- arr:
+  - 0.01
+- arr:
+  - 100.0
+- arr:
+  - 1.0e+22
+- arr:
+  - 1.23e+47
+- arr:
+  - 1.23456e+80
+- arr:
+  - 0.01
+- arr:
+  - 100.0
+- arr:
+  - a
+- arr:
+  - 'abcdefghijklmnopqrstuvwxyz1234567890 '
+- arr:
+  - 0
+- arr:
+  - 1
+- arr:
+  - 123
+- a: []
+- arr:
+  - 123.456789
+- arr:
+  - "\"\\/\b\f\n\r\t"
+- arr:
+  - ࠡ three-byte UTF-8
+- arr:
+  - true
+- arr:
+  - ģ two-byte UTF-8
+- arr:
+  - "€þıœəßð some utf-8 ĸʒ×ŋµåäö\U0001D11E"
+- arr:
+  - "\U0001D11E surrogate, four-byte UTF-8"
+- a:
+    b:
+      c:
+        d: {}
+      d: {}
+    c:
+      d: {}
+    d: {}
+  b:
+    c:
+      d: {}
+    d: {}
+  c:
+    d: {}
+  d: {}

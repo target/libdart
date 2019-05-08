@@ -1,0 +1,395 @@
+#ifndef DART_OPERATORS_IMPL_H
+#define DART_OPERATORS_IMPL_H
+
+/*----- Local Includes -----*/
+
+#include "dart.h"
+
+/*----- Function Definitions -----*/
+
+namespace dart {
+
+  /*----- Wrapper Equality Operations -----*/
+
+#define DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(wrapper)                                                         \
+  template <template <class> class RefCount,                                                                    \
+           template <template <class> class> class LhsPacket,                                                   \
+           template <template <class> class> class RhsPacket>                                                   \
+  bool operator ==(wrapper<LhsPacket<RefCount>> const& lhs, wrapper<RhsPacket<RefCount>> const& rhs) {          \
+    auto tmp_lhs = LhsPacket<RefCount> {lhs};                                                                   \
+    auto tmp_rhs = RhsPacket<RefCount> {rhs};                                                                   \
+    return tmp_lhs == tmp_rhs;                                                                                  \
+  }                                                                                                             \
+  template <template <class> class RefCount,                                                                    \
+           template <template <class> class> class LhsPacket,                                                   \
+           template <template <class> class> class RhsPacket>                                                   \
+  bool operator !=(wrapper<LhsPacket<RefCount>> const& lhs, wrapper<RhsPacket<RefCount>> const& rhs) {          \
+    return !(lhs == rhs);                                                                                       \
+  }
+
+  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_object);
+  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_array);
+  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_string);
+  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_number);
+  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_flag);
+  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_null);
+#undef DART_DEFINE_WRAPPER_EQUALITY_OPERATORS
+
+#define DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(lhs_wrapper, rhs_wrapper)                                  \
+  template <template <class> class RefCount,                                                                    \
+           template <template <class> class> class LhsPacket,                                                   \
+           template <template <class> class> class RhsPacket>                                                   \
+  constexpr bool                                                                                                \
+  operator ==(lhs_wrapper<LhsPacket<RefCount>> const&, rhs_wrapper<RhsPacket<RefCount>> const&) {               \
+    return false;                                                                                               \
+  }                                                                                                             \
+  template <template <class> class RefCount,                                                                    \
+           template <template <class> class> class LhsPacket,                                                   \
+           template <template <class> class> class RhsPacket>                                                   \
+  constexpr bool                                                                                                \
+  operator !=(lhs_wrapper<LhsPacket<RefCount>> const& lhs, rhs_wrapper<RhsPacket<RefCount>> const& rhs) {       \
+    return !(lhs == rhs);                                                                                       \
+  }                                                                                                             \
+  template <template <class> class RefCount,                                                                    \
+           template <template <class> class> class LhsPacket,                                                   \
+           template <template <class> class> class RhsPacket>                                                   \
+  constexpr bool                                                                                                \
+  operator ==(rhs_wrapper<LhsPacket<RefCount>> const&, lhs_wrapper<RhsPacket<RefCount>> const&) {               \
+    return false;                                                                                               \
+  }                                                                                                             \
+  template <template <class> class RefCount,                                                                    \
+           template <template <class> class> class LhsPacket,                                                   \
+           template <template <class> class> class RhsPacket>                                                   \
+  constexpr bool                                                                                                \
+  operator !=(rhs_wrapper<LhsPacket<RefCount>> const& rhs, lhs_wrapper<RhsPacket<RefCount>> const& lhs) {       \
+    return !(rhs == lhs);                                                                                       \
+  }
+
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_object, basic_array);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_object, basic_string);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_object, basic_number);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_object, basic_flag);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_object, basic_null);
+
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_array, basic_string);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_array, basic_number);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_array, basic_flag);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_array, basic_null);
+
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_string, basic_number);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_string, basic_flag);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_string, basic_null);
+
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_number, basic_flag);
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_number, basic_null);
+
+  DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_flag, basic_null);
+#undef DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS
+
+#if DART_HAS_RAPIDJSON
+#define DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(wrapper)                                                           \
+  template <class Packet>                                                                                       \
+  std::ostream& operator <<(std::ostream& out, wrapper<Packet> const& dart) {                                   \
+    out << dart.to_json();                                                                                      \
+    return out;                                                                                                 \
+  }
+
+  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_object);
+  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_array);
+  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_string);
+  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_number);
+  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_flag);
+  DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(basic_null);
+#undef DART_DEFINE_WRAPPER_OSTREAM_OPERATOR
+#endif
+
+  /*----- Cross-type Equality Operators -----*/
+
+  template <template <class> class RefCount>
+  bool operator ==(basic_buffer<RefCount> const& lhs, basic_heap<RefCount> const& rhs) {
+    // Make sure they're at least of the same type.
+    if (lhs.get_type() != rhs.get_type()) return false;
+
+    // Perform type specific comparisons.
+    switch (lhs.get_type()) {
+      case detail::type::object:
+        {
+          // Bail early if we can.
+          if (lhs.size() != rhs.size()) return false;
+
+          // Ouch.
+          // Iterates over rhs and looks up into lhs because lhs is the finalized
+          // object and lookups should be significantly faster on it.
+          typename basic_heap<RefCount>::iterator k, v;
+          std::tie(k, v) = rhs.kvbegin();
+          while (v != rhs.end()) {
+            if (*v != lhs[*k]) return false;
+            ++k, ++v;
+          }
+          return true;
+        }
+      case detail::type::array:
+        {
+          // Bail early if we can.
+          if (lhs.size() != rhs.size()) return false;
+
+          // Ouch.
+          for (auto i = 0U; i < lhs.size(); ++i) {
+            if (lhs[i] != rhs[i]) return false;
+          }
+          return true;
+        }
+      case detail::type::string:
+        return lhs.strv() == rhs.strv();
+      case detail::type::integer:
+        return lhs.integer() == rhs.integer();
+      case detail::type::decimal:
+        return lhs.decimal() == rhs.decimal();
+      case detail::type::boolean:
+        return lhs.boolean() == rhs.boolean();
+      default:
+        DART_ASSERT(lhs.is_null());
+        return true;
+    }
+  }
+
+  template <template <class> class RefCount>
+  bool operator ==(basic_heap<RefCount> const& lhs, basic_buffer<RefCount> const& rhs) {
+    return rhs == lhs;
+  }
+
+  template <template <class> class RefCount>
+  bool operator ==(basic_buffer<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+    return shim::visit([&] (auto& v) { return lhs == v; }, rhs.impl);
+  }
+
+  template <template <class> class RefCount>
+  bool operator ==(basic_heap<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+    return shim::visit([&] (auto& v) { return lhs == v; }, rhs.impl);
+  }
+
+  template <template <class> class RefCount>
+  bool operator !=(basic_buffer<RefCount> const& lhs, basic_heap<RefCount> const& rhs) {
+    return !(lhs == rhs);
+  }
+
+  template <template <class> class RefCount>
+  bool operator !=(basic_heap<RefCount> const& lhs, basic_buffer<RefCount> const& rhs) {
+    return !(lhs == rhs);
+  }
+
+  template <template <class> class RefCount>
+  bool operator !=(basic_buffer<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+    return !(lhs == rhs);
+  }
+
+  template <template <class> class RefCount>
+  bool operator !=(basic_heap<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+    return !(lhs == rhs);
+  }
+
+  /*----- String Comparison -----*/
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(Packet<RefCount> const& dart, shim::string_view str) noexcept {
+    if (!dart.is_str() || dart.size() != static_cast<size_t>(str.size())) return false;
+    return str == dart.str();
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(shim::string_view str, Packet<RefCount> const& dart) noexcept {
+    return dart == str;
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(Packet<RefCount> const& dart, char const* str) noexcept {
+    return dart == shim::string_view(str);
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(char const* str, Packet<RefCount> const& dart) noexcept {
+    return shim::string_view(str) == dart;
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(Packet<RefCount> const& dart, shim::string_view str) noexcept {
+    return !(dart == str);
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(shim::string_view str, Packet<RefCount> const& dart) noexcept {
+    return !(str == dart);
+  }
+  
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(Packet<RefCount> const& dart, char const* str) noexcept {
+    return !(dart == shim::string_view(str));
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(char const* str, Packet<RefCount> const& dart) noexcept {
+    return !(shim::string_view(str) == dart);
+  }
+
+  /*----- Decimal Comparison -----*/
+
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_floating_point<T>::value
+    >
+  >
+  bool operator ==(Packet<RefCount> const& dart, T val) noexcept {
+    return dart.is_decimal() ? dart.decimal() == val : false;
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_floating_point<T>::value
+    >
+  >
+  bool operator ==(T val, Packet<RefCount> const& dart) noexcept {
+    return dart == val;
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_floating_point<T>::value
+    >
+  >
+  bool operator !=(Packet<RefCount> const& dart, T val) noexcept {
+    return !(dart == val);
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_floating_point<T>::value
+    >
+  >
+  bool operator !=(T val, Packet<RefCount> const& dart) noexcept {
+    return !(val == dart);
+  }
+
+  /*----- Integer Comparison -----*/
+
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_integral<T>::value
+      &&
+      !std::is_same<
+        std::decay_t<T>,
+        bool
+      >::value
+    >
+  >
+  bool operator ==(Packet<RefCount> const& dart, T const& val) noexcept {
+    // Oh C++, the things you make me do to avoid a single warning.
+    return dart::shim::compose_together(
+      [] (auto& d, auto v, std::true_type) {
+        return d.is_integer() ? static_cast<uint64_t>(d.integer()) == v : false;
+      },
+      [] (auto& d, auto v, std::false_type) {
+        return d.is_integer() ? d.integer() == v : false;
+      }
+    )(dart, val, std::is_unsigned<T> {});
+  }
+
+  // Some unfortunate template machinery to allow integers and booleans
+  // to coexist in peace.
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_integral<T>::value
+      &&
+      !std::is_same<
+        std::decay_t<T>,
+        bool
+      >::value
+    >
+  >
+  bool operator ==(T const& val, Packet<RefCount> const& dart) noexcept {
+    return dart == val;
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_integral<T>::value
+      &&
+      !std::is_same<
+        std::decay_t<T>,
+        bool
+      >::value
+    >
+  >
+  bool operator !=(Packet<RefCount> const& dart, T const& val) noexcept {
+    return !(dart == val);
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
+    std::enable_if_t<
+      std::is_integral<T>::value
+      &&
+      !std::is_same<
+        std::decay_t<T>,
+        bool
+      >::value
+    >
+  >
+  bool operator !=(T const& val, Packet<RefCount> const& dart) noexcept {
+    return !(val == dart);
+  }
+
+  /*----- Boolean Comparison -----*/
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(Packet<RefCount> const& dart, bool val) noexcept {
+    return dart.is_boolean() ? dart.boolean() == val : false;
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(bool val, Packet<RefCount> const& dart) noexcept {
+    return dart == val;
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(Packet<RefCount> const& dart, bool val) noexcept {
+    return !(dart == val);
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(bool val, Packet<RefCount> const& dart) noexcept {
+    return !(val == dart);
+  }
+
+  /*----- Null Comparison -----*/
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(Packet<RefCount> const& dart, std::nullptr_t) noexcept {
+    return dart.is_null();
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator ==(std::nullptr_t, Packet<RefCount> const& dart) noexcept {
+    return dart.is_null();
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(Packet<RefCount> const& dart, std::nullptr_t) noexcept {
+    return !dart.is_null();
+  }
+
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  bool operator !=(std::nullptr_t, Packet<RefCount> const& dart) noexcept {
+    return !dart.is_null();
+  }
+
+  // Lazy, but effective.
+#if DART_HAS_RAPIDJSON
+  template <template <template <class> class> class Packet, template <class> class RefCount>
+  std::ostream& operator <<(std::ostream& out, Packet<RefCount> const& dart) {
+    out << dart.to_json();
+    return out;
+  }
+#endif
+
+}
+
+#endif

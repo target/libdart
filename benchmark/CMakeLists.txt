@@ -1,0 +1,21 @@
+# Make sure gbench is installed.
+find_path(libsajson sajson.h)
+find_library(libbenchmark benchmark)
+find_library(libflatbuffers flatbuffers)
+if (NOT libbenchmark)
+  message(FATAL_ERROR "Google benchmark must be installed")
+endif (NOT libbenchmark)
+
+# Define our benchmark executable.
+add_executable(static_bench static.cc)
+target_compile_options(static_bench PUBLIC -O3 -DNDEBUG)
+target_link_libraries(static_bench pthread ${libbenchmark})
+if (libyaml)
+  target_link_libraries(static_bench ${libyaml})
+endif (libyaml)
+if (libflatbuffers)
+  target_compile_options(static_bench PUBLIC -DDART_HAS_FLEXBUFFERS)
+endif ()
+if (libsajson)
+  target_compile_options(static_bench PUBLIC -DDART_HAS_SAJSON -Wno-unused-parameter)
+endif ()
