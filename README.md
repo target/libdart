@@ -161,6 +161,7 @@ user defined conversions like so:
 ```c++
 #include <dart.h>
 #include <string>
+#include <iostream>
 
 // A simple custom string class that Dart doesn't know about.
 struct my_string {
@@ -285,7 +286,7 @@ assert(data.is_finalized());
 
 // Key lookups are now much faster, but we can no longer mutate the packet.
 // The following line would throw:
-data.add_field("can't", "do it") // <-- BOOM
+data.add_field("can't", "do it"); // <-- BOOM
 
 // We can also now get access to a contiguous buffer of bytes representing the packet,
 // ready to be written out to a file/over the network/etc.
@@ -370,15 +371,11 @@ dart::packet::array dynarr {1, "fish", 2, "fish"};
 // Definitely a mutable array.
 dart::heap::array mutarr {"red", "fish", "blue", "fish"};
 
-// You get the picture.
-dart::buffer::array immutarr {"good book?", true};
-
 assert(dynamic == mut);
 assert(mut == immut);
 assert(immut == dynamic);
 assert(dynamic != dynarr);
 assert(mut != mutarr);
-assert(immut != immutarr);
 ```
 
 A variety of conversions between the APIs are defined, but generally speaking, if

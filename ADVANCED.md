@@ -37,6 +37,8 @@ interact with legacy reference counter implementations, we can go even a step fu
 
 Consider the following "reference counter":
 ```c++
+#include <dart.h>
+
 template <class T>
 struct obtuse_ptr {
   obtuse_ptr() = delete;
@@ -52,7 +54,8 @@ int main() {
 }
 ```
 
-If we attempt to compile this, we'll receiving something like the following error:
+The precise error message will depend on the toolchain we're using, but if we attempt
+to compile this, we'll receiving _something_ like the following:
 ```c
 error: static_assert failed due to requirement
 'refcount::has_element_type<obtuse_ptr<const byte>>::value'
