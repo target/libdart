@@ -151,7 +151,25 @@ namespace dart {
       };
       template <>
       struct caster_impl<dart_tag> {
-        template <class TargetPacket, class Packet>
+        template <class TargetPacket, class Packet,
+          std::enable_if_t<
+            std::is_same<
+              TargetPacket,
+              std::decay_t<Packet>
+            >::value
+          >* = nullptr
+        >
+        static Packet&& cast(Packet&& pkt) {
+          return std::forward<Packet>(pkt);
+        }
+        template <class TargetPacket, class Packet,
+          std::enable_if_t<
+            !std::is_same<
+              TargetPacket,
+              std::decay_t<Packet>
+            >::value
+          >* = nullptr
+        >
         static TargetPacket cast(Packet&& pkt) {
           return TargetPacket {std::forward<Packet>(pkt)};
         }

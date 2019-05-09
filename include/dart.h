@@ -5518,7 +5518,7 @@ namespace dart {
         bool operator ==(dynamic_string_layout const& other) const noexcept;
         bool operator !=(dynamic_string_layout const& other) const noexcept;
 
-        skinny_ptr<char[]> ptr;
+        std::shared_ptr<char> ptr;
         size_type len;
       };
       struct inline_string_layout {

@@ -107,7 +107,10 @@ namespace dart {
           ptr[val.size()] = '\0';
 
           // Move the data in.
-          data = dynamic_string_layout {std::move(ptr), val.size()};
+          // FIXME: Turns out there's no portable way to use std::make_shared
+          // to allocate an array of characters in C++14.
+          auto shared = std::shared_ptr<char> {ptr.release(), +[] (char* ptr) { delete[] ptr; }};
+          data = dynamic_string_layout {std::move(shared), val.size()};
           break;
         }
       default:

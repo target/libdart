@@ -304,7 +304,7 @@ void benchmark_helper::TearDown(benchmark::State const&) {
 
 unsafe_packet benchmark_helper::generate_dynamic_flat_packet() const {
   std::string album = "dark side of the moon";
-  auto base = unsafe_packet::object("speak to me", album, "breathe", album, "on the run", album, "time", album);
+  auto base = unsafe_packet::make_object("speak to me", album, "breathe", album, "on the run", album, "time", album);
   base.add_field("the great gig in the sky", album).add_field("money", album).add_field("us and them", album);
   base.add_field("any colour you like", album).add_field("brain damage", album).add_field("eclipse", album);
   album = "wish you were here";
@@ -313,15 +313,15 @@ unsafe_packet benchmark_helper::generate_dynamic_flat_packet() const {
 }
 
 unsafe_packet benchmark_helper::generate_dynamic_nested_packet() const {
-  auto base = unsafe_packet::object();
+  auto base = unsafe_packet::make_object();
 
   // Construct our first album.
-  auto album = unsafe_packet::array("speak to me", "breathe", "on the run", "time", "the great gig in the sky");
+  auto album = unsafe_packet::make_array("speak to me", "breathe", "on the run", "time", "the great gig in the sky");
   album.push_back("money").push_back("us and them").push_back("any colour you like").push_back("brain damage").push_back("eclipse");
   base.add_field("dark side of the moon", std::move(album));
 
   // Construct our second album.
-  album = unsafe_packet::array("shine on you crazy diamond 1-5", "welcome to the machine", "have a cigar");
+  album = unsafe_packet::make_array("shine on you crazy diamond 1-5", "welcome to the machine", "have a cigar");
   album.push_back("wish you were here").push_back("shine on you crazy diamond 6-9");
   base.add_field("wish you were here", std::move(album));
   return base;

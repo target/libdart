@@ -550,12 +550,12 @@ namespace dart {
 
     // Perform the insertion.
     if (tmp_key.is_str()) {
-      auto val = std::make_pair(std::forward<decltype(tmp_key)>(tmp_key), std::forward<decltype(tmp_value)>(tmp_value));
+      auto val = std::make_pair(std::forward<decltype(tmp_key)>(tmp_key), tmp_value);
       auto res = get_fields().insert(std::move(val));
 
       // If the key was already present, insert will fail without consuming our value.
       // Overwrite it.
-      if (!res.second) res.first->second = std::move(val.second);
+      if (!res.second) res.first->second = std::move(tmp_value);
       return detail::dn_iterator<RefCount> {res.first, [] (auto& it) { return it->second; }};
     } else if (tmp_key.is_integer()) {
       auto& elements = get_elements();
