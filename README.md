@@ -1,7 +1,8 @@
 Dart
 ==============
-### A High Performance, Network Optimized, JSON Manipulation Library
 
+[![Build Status](https://travis-ci.com/target/libdart.svg?branch=master)](https://travis-ci.com/target/libdart)
+### A High Performance, Network Optimized, JSON Manipulation Library
 **Dart** is both a wire-level binary `JSON` protocol, along with a high performance,
 and surprisingly high level, `C++` API to interact with that `JSON`.
 It is primarily optimized for on-the-wire representation size along with
