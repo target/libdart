@@ -2,9 +2,9 @@ Dart
 ==============
 ### A High Performance, Network Optimized, JSON Manipulation Library
 
-**Dart** is both a wire-level binary `JSON` protocol, along with an
-extremely high performance, and surprisingly high level, `C++` API to interact with
-that `JSON`. It is primarily optimized for on-the-wire representation size along with
+**Dart** is both a wire-level binary `JSON` protocol, along with a high performance,
+and surprisingly high level, `C++` API to interact with that `JSON`.
+It is primarily optimized for on-the-wire representation size along with
 efficiency of receiver-side interaction, however, it also allows for reasonably 
 performant dynamic modification when necessary. Dart can be used in any application
 as a dead-simple and lightweight `JSON` parser, but first and foremost it targets
@@ -21,7 +21,7 @@ As **Dart** can also be useful when working with config files, it also supports 
 
 ## Performance
 ![Dart vs Google Flexbuffers](benchmark/dart.png)
-For more in depth performance details, see our [Performance](PERFORMANCE.md) document
+For more in depth performance details, see our [performance](PERFORMANCE.md) document
 
 ## Compilation and Installation
 **Dart** is implemented using modern C++, and requires both Microsoft's Guidelines
