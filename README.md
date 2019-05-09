@@ -35,7 +35,7 @@ Linux/OS X, and can be built in the following manner:
 
 ```bash
 # Clone it down.
-git clone git@github.com/target/libdart.git
+git clone git@github.com:target/libdart.git
 cd libdart/
 
 # Create the cmake build directory and prepare a build
@@ -51,6 +51,9 @@ ctest
 make install
 
 # Generate documentation (if desired).
+# Doxygen must have already been installed.
+# Generates documentation inside the directory "docs"
+cd ..
 doxygen
 ```
 **Dart** can optionally leverage [RapidJSON](https://github.com/Tencent/rapidjson),
