@@ -949,6 +949,15 @@ namespace dart {
       else return raw_type::decimal;
     }
 
+#if DART_USING_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wnoexcept-type"
+#elif DART_USING_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc++17-compat-mangling"
+#endif
+
     template <class Packet, class T>
     T safe_optional_access(Packet const& that, T opt,
         bool (Packet::* guard) () const noexcept, T (Packet::* accessor) () const) {
@@ -960,6 +969,12 @@ namespace dart {
         return opt;
       }
     }
+
+#if DART_USING_GCC
+#pragma GCC diagnostic pop
+#elif DART_USING_CLANG
+#pragma clang diagnostic pop
+#endif
 
   }
 

@@ -1,0 +1,58 @@
+# Basic config
+language: cpp
+dist: xenial
+sudo: required
+
+# Common packages.
+addons:
+  apt:
+    packages:
+      - curl
+
+# Common external dependencies.
+before_install:
+  # Install GSL
+  # Easy for mac, difficult for linux
+  - |
+    if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      BUILD_DIR=$(mktemp -d)
+      pushd $BUILD_DIR
+      curl -sL "https://github.com/microsoft/GSL/archive/v2.0.0.tar.gz" | tar xzf -
+      cd GSL-2.0.0
+      sudo cp -r include/gsl /usr/local/include/gsl
+      popd
+      rm -rf $BUILD_DIR
+    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      brew update
+      brew install cpp-gsl
+    fi
+
+# Final environment configs.
+install:
+  - |
+    if [ -n "${VERSION}" ]; then
+      export CC="${CC}-${VERSION}"
+      export CXX="${CXX}-${VERSION}"
+    fi
+  - ${CXX} --version
+
+# Build matrix
+matrix:
+  include:
+    - env: VERSION=6
+      os: linux
+      compiler: gcc
+      addons:
+        apt:
+          packages:
+            - g++-6
+    - os: osx
+      compiler: clang
+      osx_image: xcode10.1
+
+script:
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - ctest
