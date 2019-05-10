@@ -106,6 +106,9 @@ matrix:
             - g++-7
     - os: osx
       compiler: clang
+      osx_image: xcode8.3
+    - os: osx
+      compiler: clang
       osx_image: xcode9.4
     - os: osx
       compiler: clang
