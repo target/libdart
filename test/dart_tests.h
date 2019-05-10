@@ -67,10 +67,10 @@ namespace dart {
     using make_index_range = make_integer_range<size_t, Begin, End>;
 
     template <class... Types, size_t... idxs>
-    auto slice_tuple(std::tuple<Types...>& tuple, std::index_sequence<idxs...>) ->
-      std::tuple<decltype(std::get<idxs>(std::move(tuple)))...>
+    auto slice_tuple(std::tuple<Types...>& tuple, std::index_sequence<idxs...>)
     {
-      return {std::get<idxs>(std::move(tuple))...};
+      using sliced_tuple = std::tuple<decltype(std::get<idxs>(std::move(tuple)))...>;
+      return sliced_tuple {std::get<idxs>(std::move(tuple))...};
     }
 
     template <bool... conds, class... Args>

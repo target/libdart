@@ -627,25 +627,25 @@ namespace dart {
     inline type simplify_type(raw_type type) noexcept {
       switch (type) {
         case raw_type::object:
-          return type::object;
+          return detail::type::object;
         case raw_type::array:
-          return type::array;
+          return detail::type::array;
         case raw_type::small_string:
         case raw_type::string:
         case raw_type::big_string:
-          return type::string;
+          return detail::type::string;
         case raw_type::short_integer:
         case raw_type::integer:
         case raw_type::long_integer:
-          return type::integer;
+          return detail::type::integer;
         case raw_type::decimal:
         case raw_type::long_decimal:
-          return type::decimal;
+          return detail::type::decimal;
         case raw_type::boolean:
-          return type::boolean;
+          return detail::type::boolean;
         default:
           DART_ASSERT(type == raw_type::null);
-          return type::null;
+          return detail::type::null;
       }
     }
 
@@ -981,6 +981,6 @@ namespace dart {
 }
 
 // Include main header file for all implementation files.
-#include <dart.h>
+#include "../dart.h"
 
 #endif

@@ -2020,17 +2020,17 @@ namespace dart {
 
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::kvbegin() const -> std::tuple<iterator, iterator> {
-    return {key_begin(), begin()};
+    return std::tuple<iterator, iterator> {key_begin(), begin()};
   }
 
   template <template <class> class RefCount>
   auto basic_buffer<RefCount>::kvbegin() const -> std::tuple<iterator, iterator> {
-    return {key_begin(), begin()};
+    return std::tuple<iterator, iterator> {key_begin(), begin()};
   }
 
   template <template <class> class RefCount>
   auto basic_packet<RefCount>::kvbegin() const -> std::tuple<iterator, iterator> {
-    return {key_begin(), begin()};
+    return std::tuple<iterator, iterator> {key_begin(), begin()};
   }
 
   template <class Object>
@@ -2040,17 +2040,17 @@ namespace dart {
 
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::kvend() const -> std::tuple<iterator, iterator> {
-    return {key_end(), end()};
+    return std::tuple<iterator, iterator> {key_end(), end()};
   }
 
   template <template <class> class RefCount>
   auto basic_buffer<RefCount>::kvend() const -> std::tuple<iterator, iterator> {
-    return {key_end(), end()};
+    return std::tuple<iterator, iterator> {key_end(), end()};
   }
 
   template <template <class> class RefCount>
   auto basic_packet<RefCount>::kvend() const -> std::tuple<iterator, iterator> {
-    return {key_end(), end()};
+    return std::tuple<iterator, iterator> {key_end(), end()};
   }
 
   template <class Object>
@@ -2060,17 +2060,17 @@ namespace dart {
 
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::rkvbegin() const -> std::tuple<reverse_iterator, reverse_iterator> {
-    return {rkey_begin(), rbegin()};
+    return std::tuple<reverse_iterator, reverse_iterator> {rkey_begin(), rbegin()};
   }
 
   template <template <class> class RefCount>
   auto basic_buffer<RefCount>::rkvbegin() const -> std::tuple<reverse_iterator, reverse_iterator> {
-    return {rkey_begin(), rbegin()};
+    return std::tuple<reverse_iterator, reverse_iterator> {rkey_begin(), rbegin()};
   }
 
   template <template <class> class RefCount>
   auto basic_packet<RefCount>::rkvbegin() const -> std::tuple<reverse_iterator, reverse_iterator> {
-    return {rkey_begin(), rbegin()};
+    return std::tuple<reverse_iterator, reverse_iterator> {rkey_begin(), rbegin()};
   }
 
   template <class Object>
@@ -2080,17 +2080,17 @@ namespace dart {
 
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::rkvend() const -> std::tuple<reverse_iterator, reverse_iterator> {
-    return {rkey_end(), rend()};
+    return std::tuple<reverse_iterator, reverse_iterator> {rkey_end(), rend()};
   }
 
   template <template <class> class RefCount>
   auto basic_buffer<RefCount>::rkvend() const -> std::tuple<reverse_iterator, reverse_iterator> {
-    return {rkey_end(), rend()};
+    return std::tuple<reverse_iterator, reverse_iterator> {rkey_end(), rend()};
   }
 
   template <template <class> class RefCount>
   auto basic_packet<RefCount>::rkvend() const -> std::tuple<reverse_iterator, reverse_iterator> {
-    return {rkey_end(), rend()};
+    return std::tuple<reverse_iterator, reverse_iterator> {rkey_end(), rend()};
   }
 
   inline namespace literals {

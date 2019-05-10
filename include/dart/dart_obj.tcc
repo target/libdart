@@ -48,19 +48,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class... Args>
+  template <class... Args, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_object(Args&&... pairs) {
     return basic_heap(detail::object_tag {}, std::forward<Args>(pairs)...);
   }
 
   template <template <class> class RefCount>
-  template <class... Args>
+  template <class... Args, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(Args&&... pairs) {
     return basic_buffer {basic_heap<RefCount>::make_object(std::forward<Args>(pairs)...)};
   }
 
   template <template <class> class RefCount>
-  template <class... Args>
+  template <class... Args, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_object(Args&&... pairs) {
     return basic_packet(detail::object_tag {}, std::forward<Args>(pairs)...);
   }
@@ -495,13 +495,6 @@ namespace dart {
     data(make_shareable<RefCount<packet_fields>>())
   {
     inject_pairs(std::forward<Args>(the_args)...);
-  }
-
-  template <template <class> class RefCount>
-  template <class... T, class B>
-  void basic_heap<RefCount>::inject_pairs(T...) {
-    static_assert(B::value,
-        "object insertion functions must be called with a sequence of key-value PAIRS.");
   }
 
   template <template <class> class RefCount>

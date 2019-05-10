@@ -4041,7 +4041,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
-      template <class... Args>
+      template <class... Args, class =
+        std::enable_if_t<
+          sizeof...(Args) % 2 == 0
+        >
+      >
       static basic_heap make_object(Args&&... pairs);
 
       /**
@@ -5565,8 +5569,6 @@ namespace dart {
       void append_elems(Elem&& elem, Elems&&... elems);
 
       void inject_pairs() {}
-      template <class... T, class B = std::false_type>
-      void inject_pairs(T...);
       template <class KeyType, class ValueType, class... Pairs>
       void inject_pairs(KeyType&& key, ValueType&& value, Pairs&&... pairs);
 
@@ -6128,7 +6130,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::packet string, and the second of
        *  each pair is convertible into a dart::packet of any type.
        */
-      template <class... Args>
+      template <class... Args, class =
+        std::enable_if_t<
+          sizeof...(Args) % 2 == 0
+        >
+      >
       static basic_buffer make_object(Args&&... pairs);
 
       /**
@@ -7744,7 +7750,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::packet string, and the second of
        *  each pair is convertible into a dart::packet of any type.
        */
-      template <class... Args>
+      template <class... Args, class =
+        std::enable_if_t<
+          sizeof...(Args) % 2 == 0
+        >
+      >
       static basic_packet make_object(Args&&... pairs);
 
       /**

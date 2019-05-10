@@ -209,11 +209,59 @@ namespace dart {
 
     }
 
+    /**
+     *  @brief
+     *  Function can be used to convert any registered type to a Dart packet object.
+     *
+     *  @details
+     *  Say you had a simple custom string class along the lines of the following:
+     *  ```
+     *  struct my_string {
+     *    std::string str;
+     *  };
+     *  ```
+     *  And you wanted to be able to perform operations like so:
+     *  ```
+     *  // Add to dart objects directly.
+     *  dart::packet obj = dart::packet::object("hello", my_string {"world"});
+     *
+     *  // Cast into a dart object directly.
+     *  dart::packet str = dart::convert::cast<dart::packet>(my_string {"world"});
+     *  ```
+     *  You can accomplish this by specializing the struct `dart::convert::to_dart`
+     *  with your custom type and implementing a cast function like so:
+     *  ```
+     *  namespace dart::convert {
+     *    template <>
+     *    struct to_dart<my_string> {
+     *      template <class Packet>
+     *      static Packet cast(my_string const& s) {
+     *        return Packet::make_string(s.str);
+     *      }
+     *    };
+     *  }
+     *  ```
+     */
     template <class Packet, class T>
-    Packet cast(T&& val) {
+    decltype(auto) cast(T&& val) {
       return detail::caster_impl<detail::normalize_t<T>>::template cast<Packet>(std::forward<T>(val));
     }
 
+    /**
+     *  @brief
+     *  Meta-function calculates whether a call to dart::convert::cast will be well-formed
+     *  for a particular T and TargetPacket type.
+     *
+     *  @details
+     *  The expression:
+     *  ```
+     *  static_assert(dart::convert::is_castable<T, dart::packet>::value);
+     *  ```
+     *  Will compile successfully for any T that is either a builtin machine type,
+     *  is an STL container of builtin machine types, is a user type for which
+     *  a conversion has been defined using the conversion API, or is an STL container
+     *  of such a user type.
+     */
     template <class T, class TargetPacket, class Normalized = detail::normalize_t<T>>
     struct is_castable : 
       meta::disjunction<

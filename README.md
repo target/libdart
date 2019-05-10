@@ -27,7 +27,7 @@ For more in depth performance details, see our [performance](PERFORMANCE.md) doc
 ## Compilation and Installation
 **Dart** is implemented using modern C++, and requires both Microsoft's Guidelines
 Support Library [GSL](https://github.com/Microsoft/GSL), and a C++14 enabled toolchain
-(`clang` >= 5.0, `gcc` >= 6.0, apple's `clang` >= 9.0). Support for C++11  may be
+(`clang` >= 5.0, `gcc` >= 5.0, apple's `clang` >= 9.0). Support for C++11  may be
 added in the future, but is not currently being pursued.
 
 **Dart** utilizes `cmake` for its build process, currently supports

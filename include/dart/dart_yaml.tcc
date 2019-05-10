@@ -164,21 +164,23 @@ namespace dart {
     }
 
     inline std::tuple<type, int64_t, double> parse_maybe_number(char const* str, ssize_t len) {
+      using parse_state = std::tuple<type, int64_t, double>;
+
       errno = 0;
       char* problem;
       long long first_try = strtoll(str, &problem, 0);
       if (!errno && problem - str == len) {
         // Value is an integer.
-        return {type::integer, first_try, 0.0};
+        return parse_state {type::integer, first_try, 0.0};
       } else if (*problem != '.' && *problem != 'e' && *problem != 'E') {
         // Value is a string.
-        return {type::string, 0, 0.0};
+        return parse_state {type::string, 0, 0.0};
       } else {
         // It's either a decimal, or it's a string.
         errno = 0;
         double second_try = strtod(str, &problem);
-        if (!errno && problem - str == len) return {type::decimal, 0, second_try};
-        return {type::string, 0, 0.0};
+        if (!errno && problem - str == len) return parse_state {type::decimal, 0, second_try};
+        return parse_state {type::string, 0, 0.0};
       }
     }
 
