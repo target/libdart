@@ -2,6 +2,10 @@
 language: cpp
 dist: xenial
 sudo: required
+branches:
+  only:
+    - master
+    - development
 
 # Common external dependencies.
 before_install:
