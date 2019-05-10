@@ -204,9 +204,11 @@ namespace dart {
     };
     cb(type_tag {}, std::integral_constant<size_t, idx> {});
 
-    // Intentionally allow cb to decay.
-    // Never consumed, doesn't gain anything from forwarding.
+    // This is good for the CI pathway, as we get much better coverage,
+    // but it's way too expensive for the average user.
+#ifdef DART_EXTENDED_TESTS
     for_each_t<idx + 1, Rest...>(cb);
+#endif
   }
 
   template <size_t idx = 0, class Callback, class Continuation = noop>

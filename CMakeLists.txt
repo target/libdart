@@ -53,6 +53,7 @@ option(no_cxx17 "Disabling c++17" OFF)
 
 # Define an option for our tests.
 option(test "Building tests..." ON)
+option(extended_test "Building extended tests..." OFF)
 
 # Define global compiler flags.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-implicit-fallthrough -Wno-unused-local-typedefs")

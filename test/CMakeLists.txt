@@ -6,12 +6,18 @@ add_executable(unit_tests type_unit_tests.cc obj_unit_tests.cc arr_unit_tests.cc
 if (can_build_yaml)
   target_link_libraries(unit_tests ${libyaml})
 endif ()
+if (extended_test)
+  target_compile_options(unit_tests PUBLIC "-DDART_EXTENDED_TESTS")
+endif ()
 target_compile_options(unit_tests PUBLIC "-g")
 
 # Setup targest for JSON tests.
 if (librj)
   add_executable(json_test json_test.cc $<TARGET_OBJECTS:catch>)
   target_compile_options(json_test PUBLIC "-g")
+  if (extended_test)
+    target_compile_options(json_test PUBLIC "-DDART_EXTENDED_TESTS")
+  endif ()
 endif ()
 
 # Same for yaml.
@@ -19,6 +25,9 @@ if (can_build_yaml)
   add_executable(yaml_test yaml_test.cc $<TARGET_OBJECTS:catch>)
   target_link_libraries(yaml_test ${libyaml})
   target_compile_options(yaml_test PUBLIC "-g")
+  if (extended_test)
+    target_compile_options(yaml_test PUBLIC "-DDART_EXTENDED_TESTS")
+  endif ()
 endif ()
 
 # Create a cmake test to call through to our test binary.

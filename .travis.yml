@@ -37,6 +37,67 @@ install:
 # Build matrix
 matrix:
   include:
+    - env: VERSION=3.8
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-3.8
+            - g++-7
+    - env: VERSION=3.9
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-3.9
+            - g++-7
+    - env: VERSION=4.0
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-4.0
+            - g++-7
+    - env: VERSION=5.0
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-5.0
+            - g++-7
+    - env: VERSION=6.0
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-6.0
+            - g++-7
+    - env: VERSION=7
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-xenial-7
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-7
+            - g++-7
     - env: VERSION=5
       os: linux
       compiler: gcc
@@ -73,37 +134,6 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-8
-    - env: VERSION=5.0
-      os: linux
-      compiler: clang
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - clang-5.0
-            - g++-7
-    - env: VERSION=6.0
-      os: linux
-      compiler: clang
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - clang-6.0
-            - g++-7
-    - env: VERSION=7
-      os: linux
-      compiler: clang
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-xenial-7
-            - ubuntu-toolchain-r-test
-          packages:
-            - clang-7
-            - g++-7
     - os: osx
       compiler: clang
       osx_image: xcode8.3
@@ -118,6 +148,6 @@ matrix:
 script:
   - mkdir build
   - cd build
-  - cmake ..
+  - cmake .. -Dextended_test=ON
   - make
   - ctest
