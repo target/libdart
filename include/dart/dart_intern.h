@@ -955,7 +955,9 @@ namespace dart {
 #pragma GCC diagnostic ignored "-Wnoexcept-type"
 #elif DART_USING_CLANG
 #pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic ignored "-Wc++17-compat-mangling"
+#pragma clang diagnostic ignored "-Wc++1z-compat"
 #endif
 
     template <class Packet, class T>
