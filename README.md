@@ -17,12 +17,15 @@ Although not a `JSON` parser itself, **Dart** leverages the fastest general purp
 `JSON` parser available ([source](https://github.com/miloyip/nativejson-benchmark)),
 [RapidJSON](https://github.com/Tencent/rapidjson), for format conversion both into,
 and out of, `JSON`.
+
 As **Dart** can also be useful when working with config files, it also supports parsing
 `YAML` via [libyaml](https://github.com/yaml/libyaml.git).
 
 ## Performance
 ![Dart vs Google Flexbuffers](benchmark/dart.png)
-For more in depth performance details, see our [performance](PERFORMANCE.md) document
+For more in depth performance details, see our [performance](PERFORMANCE.md) document,
+for those interested in where this performance comes from, see our
+[implementation](IMPLEMENTATION.md) document.
 
 ## Compilation and Installation
 **Dart** is implemented using modern C++, and requires both Microsoft's Guidelines

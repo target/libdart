@@ -56,7 +56,7 @@ installed prior to attempting to build the benchmark driver.
 Assuming GBench has been installed:
 ```bash
 # Clone it down.
-git clone git@github.com/target/libdart.git
+git clone git@github.com:target/libdart.git
 cd libdart/
 
 # Create the cmake build directory and prepare a build
@@ -140,6 +140,14 @@ can be performed with the following command:
 This will produce output for the mean test case performance, along with its
 standard deviation, which is what was used to produce the graph on the main page
 (16 repetitions in that particular case).
+
+## Head-to-Head Performance Comparisons
+The graph on the main page plots **Dart** performance
+vs [SAJSON](https://github.com/chadaustin/sajson)
+vs [Google Flexbuffers](https://github.com/google/flatbuffers)
+and if those libraries are installed when building the benchmark driver, it will
+automatically output an apples-to-apples comparison of similar operations with
+those libraries.
 
 ## Understanding Benchmark Output
 As you can see, **Dart** measures performance across a wide-variety of categories,
