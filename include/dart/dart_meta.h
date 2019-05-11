@@ -93,6 +93,14 @@ namespace dart {
       >
       not_types(T) {}
     };
+    struct any_type {
+      any_type(...) {}
+
+      template <class T>
+      operator T() {
+        throw std::logic_error("any_type conversion operator must never actually be called");
+      }
+    };
 
     template <class...>
     struct first_type {

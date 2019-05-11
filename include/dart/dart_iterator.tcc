@@ -290,41 +290,6 @@ namespace dart {
       return shim::visit([] (auto& impl) { return impl.deref(impl.it); }, impl);
     }
 
-    template <template <class> class RefCount>
-    bool null_iterator<RefCount>::operator ==(null_iterator const&) const noexcept {
-      return true;
-    }
-
-    template <template <class> class RefCount>
-    bool null_iterator<RefCount>::operator !=(null_iterator const& other) const noexcept {
-      return !(*this == other);
-    }
-
-    template <template <class> class RefCount>
-    auto null_iterator<RefCount>::operator ++() noexcept -> null_iterator& {
-      return *this;
-    }
-
-    template <template <class> class RefCount>
-    auto null_iterator<RefCount>::operator --() noexcept -> null_iterator& {
-      return *this;
-    }
-
-    template <template <class> class RefCount>
-    auto null_iterator<RefCount>::operator ++(int) noexcept -> null_iterator {
-      return *this;
-    }
-
-    template <template <class> class RefCount>
-    auto null_iterator<RefCount>::operator --(int) noexcept -> null_iterator {
-      return *this;
-    }
-
-    template <template <class> class RefCount>
-    auto null_iterator<RefCount>::operator *() const noexcept -> value_type {
-      return basic_packet<RefCount>::null();
-    }
-
   }
 
 }

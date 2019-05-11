@@ -46,6 +46,18 @@
 #define DART_STRINGIFY(x) DART_STRINGIFY_IMPL(x)
 
 #ifndef NDEBUG
+
+/**
+ *  @brief
+ *  Macro customizes functionality usually provided by assert().
+ *
+ *  @details
+ *  Not strictly necessary, but tries to provide a bit more context and
+ *  information as to why I just murdered the user's program (in production, no doubt).
+ *
+ *  @remarks
+ *  Don't actually know if Doxygen lets you document macros, guess we'll see.
+ */
 #define DART_ASSERT(cond)                                                                                     \
   if (__builtin_expect(!(cond), 0)) {                                                                         \
     auto& msg = "dart::packet has detected fatal memory corruption and cannot continue execution.\n"          \
@@ -62,6 +74,24 @@
 #endif
 
 /*----- Global Declarations -----*/
+
+namespace std {
+
+  // Something to get our type matching logic off the ground.
+  template <class Rhs>
+  struct common_type<dart::meta::any_type, Rhs> {
+    using type = Rhs;
+  };
+  template <class Lhs>
+  struct common_type<Lhs, dart::meta::any_type> {
+    using type = Lhs;
+  };
+  template <>
+  struct common_type<dart::meta::any_type, dart::meta::any_type> {
+    using type = dart::meta::any_type;
+  };
+
+}
 
 namespace dart {
 
@@ -162,10 +192,27 @@ namespace dart {
 
     template <class>
     class prefix_entry;
+
+    /**
+     *  @brief
+     *  Class stores type and offset information for a single entry in an array.
+     */
     template <class>
     struct table_layout {
       alignas(4) little_order<uint32_t> meta;
     };
+
+    /**
+     *  @brief
+     *  Class stores type, offset, and key-prefix information for a single entry
+     *  in an object.
+     *
+     *  @details
+     *  Class is implemented in an extremely awkward manner so that prefix_entry
+     *  can inherit functionality from vtable_entry while remaining a
+     *  standard layout type; the bare minimum requirement for a type to conceivably
+     *  be safe to send over the network.
+     */
     template <class Prefix>
     struct table_layout<prefix_entry<Prefix>> {
       static_assert(sizeof(Prefix) <= 4,
@@ -174,8 +221,15 @@ namespace dart {
       alignas(4) Prefix prefix;
     };
 
-    // Class implements an entry in the vtable of an object or array, encoding the byte-offset
-    // that the particular element begins at, along with its type.
+    /**
+     *  @brief
+     *  Class represents an entry in the vtable of an array.
+     *
+     *  @details
+     *  Class wraps memory that is stored in little endian byte order,
+     *  irrespective of the native ordering of the host machine.
+     *  In other words, attempt to subvert its API at your peril.
+     */
     template <class T>
     class vtable_entry {
 
@@ -209,6 +263,20 @@ namespace dart {
     };
 
 
+    /**
+     *  @brief
+     *  Class represents an entry in the vtable of an object.
+     *
+     *  @details
+     *  Class wraps memory that is stored in little endian byte order,
+     *  irrespective of the native ordering of the host machine.
+     *  In other words, attempt to subvert its API at your peril.
+     *
+     *  @remarks
+     *  Although class inherts from vtable_entry, and can be safely
+     *  be used as such, it remains a standard layout type due to some
+     *  hackery with its internals.
+     */
     template <class Prefix>
     class prefix_entry : public vtable_entry<prefix_entry<Prefix>> {
 
@@ -240,6 +308,7 @@ namespace dart {
 
     };
 
+    // Make sure everything will be safe to send over the network.
     using array_entry = vtable_entry<void>;
     using object_entry = prefix_entry<uint16_t>;
     static_assert(std::is_standard_layout<array_entry>::value, "dart library is misconfigured");
@@ -251,14 +320,35 @@ namespace dart {
     template <template <class> class RefCount>
     using packet_fields = std::map<basic_heap<RefCount>, basic_heap<RefCount>, map_comparator<RefCount>>;
 
-    // Struct encodes all state information about what this packet is, and where, if anywhere, its
-    // network buffer is.
+    /**
+     *  @brief
+     *  Struct represents the minimum context required to perform
+     *  an operation on a dart::buffer object.
+     *
+     *  @details
+     *  At its core, this is what dart::buffer "is".
+     *  It just provides a nice API, and some memory safety around
+     *  this structure, which is why it's so fast.
+     */
     struct raw_element {
       raw_type type;
       gsl::byte const* buffer;
     };
 
-    // Used by aggregate classes as a thin-wrapper for iteration over vtables.
+    /**
+     *  @brief
+     *  Struct is the lowest level abstraction for safe iteration over a dart::buffer
+     *  object/array.
+     *
+     *  @details
+     *  Struct holds onto the context for what vtable entry it's currently on,
+     *  where the base of its aggregate is, and how to dereference itself.
+     *
+     *  @remarks
+     *  ll_iterator holds onto more state than I'd like, but it's kind of unavoidable
+     *  given the fact that the vtable provides offsets from the base of the aggregate
+     *  itself and the fact that we may be iterating over values OR pairs of values.
+     */
     template <template <class> class RefCount>
     struct ll_iterator {
 
@@ -269,7 +359,7 @@ namespace dart {
 
       /*----- Lifecycle Functions -----*/
 
-      ll_iterator() = delete;
+      ll_iterator() = default;
       ll_iterator(size_t idx, gsl::byte const* base, loading_function* load_func) noexcept :
         idx(idx),
         base(base),
@@ -302,6 +392,14 @@ namespace dart {
 
     };
 
+    /**
+     *  @brief
+     *  Struct is the lowest level abstraction for safe iteration over a dart::heap
+     *  object/array.
+     *
+     *  @details
+     *  Struct simply wraps an STL iterator of some type, and a way to dereference it.
+     */
     template <template <class> class RefCount>
     struct dn_iterator {
 
@@ -325,7 +423,7 @@ namespace dart {
 
       /*----- Lifecycle Functions -----*/
 
-      dn_iterator() = delete;
+      dn_iterator() = default;
       dn_iterator(typename packet_fields<RefCount>::const_iterator it, fields_deref_func* func) noexcept :
         impl(fields_layout {func, it})
       {}
@@ -357,38 +455,16 @@ namespace dart {
 
     };
 
-    template <template <class> class RefCount>
-    struct null_iterator {
-
-      /*----- Types -----*/
-
-      using value_type = basic_packet<RefCount>;
-
-      /*----- Lifecycle Functions -----*/
-
-      null_iterator() noexcept = default;
-      null_iterator(null_iterator const&) = default;
-      null_iterator(null_iterator&&) noexcept = default;
-      ~null_iterator() = default;
-
-      /*----- Operators -----*/
-
-      null_iterator& operator =(null_iterator const&) = default;
-      null_iterator& operator =(null_iterator&&) noexcept = default;
-
-      bool operator ==(null_iterator const&) const noexcept;
-      bool operator !=(null_iterator const& other) const noexcept;
-
-      auto operator ++() noexcept -> null_iterator&;
-      auto operator --() noexcept -> null_iterator&;
-      auto operator ++(int) noexcept -> null_iterator;
-      auto operator --(int) noexcept -> null_iterator;
-
-      auto operator *() const noexcept -> value_type;
-
-    };
-
-    // Class represents the contents of a packet object in the network buffer.
+    /**
+     *  @brief
+     *  Class is the lowest level abstraction for safe interaction with
+     *  a dart::buffer object.
+     *
+     *  @details
+     *  Class wraps memory that is stored in little endian byte order,
+     *  irrespective of the native ordering of the host machine.
+     *  In other words, attempt to subvert its API at your peril.
+     */
     template <template <class> class RefCount>
     class object {
 
@@ -440,7 +516,16 @@ namespace dart {
     };
     static_assert(std::is_standard_layout<object<std::shared_ptr>>::value, "dart library is misconfigured");
 
-    // Class represents the contents of a packet array in the network buffer.
+    /**
+     *  @brief
+     *  Class is the lowest level abstraction for safe interaction with
+     *  a dart::buffer array.
+     *
+     *  @details
+     *  Class wraps memory that is stored in little endian byte order,
+     *  irrespective of the native ordering of the host machine.
+     *  In other words, attempt to subvert its API at your peril.
+     */
     template <template <class> class RefCount>
     class array {
 
@@ -488,7 +573,16 @@ namespace dart {
     };
     static_assert(std::is_standard_layout<array<std::shared_ptr>>::value, "dart library is misconfigured");
 
-    // Class represents the contents of a packet string in the network buffer.
+    /**
+     *  @brief
+     *  Class is the lowest level abstraction for safe interaction with
+     *  a dart::buffer string.
+     *
+     *  @details
+     *  Class wraps memory that is stored in little endian byte order,
+     *  irrespective of the native ordering of the host machine.
+     *  In other words, attempt to subvert its API at your peril.
+     */
     template <class SizeType>
     class basic_string {
 
@@ -539,8 +633,16 @@ namespace dart {
     static_assert(std::is_standard_layout<string>::value, "dart library is misconfigured");
     static_assert(std::is_standard_layout<big_string>::value, "dart library is misconfigured");
 
-    // Class template can represent the contents of any primitive (int, double, bool, etc) packet
-    // in the network buffer.
+    /**
+     *  @brief
+     *  Class is the lowest level abstraction for safe interaction with
+     *  a dart::buffer primitive value.
+     *
+     *  @details
+     *  Class wraps memory that is stored in little endian byte order,
+     *  irrespective of the native ordering of the host machine.
+     *  In other words, attempt to subvert its API at your peril.
+     */
     template <class T>
     class primitive {
 
@@ -578,77 +680,87 @@ namespace dart {
     };
     static_assert(std::is_standard_layout<primitive<int>>::value, "dart library is misconfigured");
 
-    // Used for tag dispatch from factory functions.
+    // Types are used both for tag dispatch in some places, and also
+    // to generically encode basic information about the different types,
+    // like their native alignment requirements and public type.
     struct object_tag {
+      static constexpr auto type_value = type::object;
       static constexpr auto alignment = object<std::shared_ptr>::alignment;
     };
     struct array_tag {
+      static constexpr auto type_value = type::array;
       static constexpr auto alignment = array<std::shared_ptr>::alignment;
     };
     struct string_tag {
+      static constexpr auto type_value = type::string;
       static constexpr auto alignment = big_string::alignment;
     };
     struct small_string_tag : string_tag {
+      static constexpr auto type_value = type::string;
       static constexpr auto alignment = string::alignment;
     };
     struct big_string_tag : string_tag {
+      static constexpr auto type_value = type::string;
       static constexpr auto alignment = string_tag::alignment;
     };
     struct integer_tag {
+      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = primitive<int64_t>::alignment;
     };
     struct short_integer_tag : integer_tag {
+      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = primitive<int16_t>::alignment;
     };
     struct medium_integer_tag : integer_tag {
+      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = primitive<int32_t>::alignment;
     };
     struct long_integer_tag : integer_tag {
+      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = integer_tag::alignment;
     };
     struct decimal_tag {
+      static constexpr auto type_value = type::decimal;
       static constexpr auto alignment = primitive<double>::alignment;
     };
     struct short_decimal_tag : decimal_tag {
+      static constexpr auto type_value = type::decimal;
       static constexpr auto alignment = primitive<float>::alignment;
     };
     struct long_decimal_tag : decimal_tag {
+      static constexpr auto type_value = type::decimal;
       static constexpr auto alignment = decimal_tag::alignment;
     };
     struct boolean_tag {
+      static constexpr auto type_value = type::boolean;
       static constexpr auto alignment = primitive<bool>::alignment;
     };
     struct null_tag {
+      static constexpr auto type_value = type::null;
       static constexpr auto alignment = 1;
     };
 
-    // Maps from raw_type to public type.
-    // This is implemented as an inline switch table purely for performance reasons.
-    inline type simplify_type(raw_type type) noexcept {
-      switch (type) {
-        case raw_type::object:
-          return detail::type::object;
-        case raw_type::array:
-          return detail::type::array;
-        case raw_type::small_string:
-        case raw_type::string:
-        case raw_type::big_string:
-          return detail::type::string;
-        case raw_type::short_integer:
-        case raw_type::integer:
-        case raw_type::long_integer:
-          return detail::type::integer;
-        case raw_type::decimal:
-        case raw_type::long_decimal:
-          return detail::type::decimal;
-        case raw_type::boolean:
-          return detail::type::boolean;
-        default:
-          DART_ASSERT(type == raw_type::null);
-          return detail::type::null;
-      }
-    }
+    /**
+     *  @brief
+     *  Function converts between internal type information and
+     *  user-facing type information.
+     *
+     *  @details
+     *  Dart internally has to encode significantly more complicated
+     *  type information than it publicly exposes, so this function
+     *  works as a an efficient go-between for the two.
+     */
+    inline type simplify_type(raw_type type) noexcept;
 
+    /**
+     *  @brief
+     *  Function provides a "safe" bridge between the high level
+     *  and low level object apis.
+     *
+     *  @details
+     *  Don't pass it null.
+     *  Tries its damndest not to invoke UB, but god knows.
+     */
     template <template <class> class RefCount>
     object<RefCount> const* get_object(raw_element raw) {
       if (simplify_type(raw.type) == type::object) {
@@ -659,6 +771,15 @@ namespace dart {
       }
     }
 
+    /**
+     *  @brief
+     *  Function provides a "safe" bridge between the high level
+     *  and low level array apis.
+     *
+     *  @details
+     *  Don't pass it null.
+     *  Tries its damndest not to invoke UB, but god knows.
+     */
     template <template <class> class RefCount>
     array<RefCount> const* get_array(raw_element raw) {
       if (simplify_type(raw.type) == type::array) {
@@ -669,6 +790,15 @@ namespace dart {
       }
     }
 
+    /**
+     *  @brief
+     *  Function provides a "safe" bridge between the high level
+     *  and low level string apis.
+     *
+     *  @details
+     *  Don't pass it null.
+     *  Tries its damndest not to invoke UB, but god knows.
+     */
     inline string const* get_string(raw_element raw) {
       if (raw.type == raw_type::small_string || raw.type == raw_type::string) {
         DART_ASSERT(raw.buffer != nullptr);
@@ -678,6 +808,15 @@ namespace dart {
       }
     }
 
+    /**
+     *  @brief
+     *  Function provides a "safe" bridge between the high level
+     *  and low level string apis.
+     *
+     *  @details
+     *  Don't pass it null.
+     *  Tries its damndest not to invoke UB, but god knows.
+     */
     inline big_string const* get_big_string(raw_element raw) {
       if (raw.type == raw_type::big_string) {
         DART_ASSERT(raw.buffer != nullptr);
@@ -687,6 +826,15 @@ namespace dart {
       }
     }
 
+    /**
+     *  @brief
+     *  Function provides a "safe" bridge between the high level
+     *  and low level primitive apis.
+     *
+     *  @details
+     *  Don't pass it null.
+     *  Tries its damndest not to invoke UB, but god knows.
+     */
     template <class T>
     primitive<T> const* get_primitive(raw_element raw) {
       auto simple = simplify_type(raw.type);
@@ -698,6 +846,49 @@ namespace dart {
       }
     }
 
+    /**
+     *  @brief
+     *  Alias exists so that I don't have to type it ever again.
+     */
+    template <class Callback>
+    using generic_return_t = std::common_type_t<
+      decltype(std::declval<Callback>()(object_tag {})),
+      decltype(std::declval<Callback>()(array_tag {})),
+      decltype(std::declval<Callback>()(small_string_tag {})),
+      decltype(std::declval<Callback>()(big_string_tag {})),
+      decltype(std::declval<Callback>()(short_integer_tag {})),
+      decltype(std::declval<Callback>()(medium_integer_tag {})),
+      decltype(std::declval<Callback>()(long_integer_tag {})),
+      decltype(std::declval<Callback>()(short_decimal_tag {})),
+      decltype(std::declval<Callback>()(long_decimal_tag {})),
+      decltype(std::declval<Callback>()(boolean_tag {})),
+      decltype(std::declval<Callback>()(null_tag {}))
+    >;
+
+    /**
+     *  @brief
+     *  Function takes a raw_element, and "identifies" it by passing back
+     *  a tag type that can be used for tag dispatch or querying basic
+     *  information about the type like alignment and public type.
+     *
+     *  @details
+     *  The idea behind this whole family of functions is to force things
+     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
+     *  errors whenever the type system is expanded.
+     */
+    template <class Callback>
+    auto match_generic(Callback&& cb, raw_type raw) -> generic_return_t<Callback>;
+
+    /**
+     *  @brief
+     *  Function is intended to provide a std::variant-ish API around
+     *  pointers that may be objects or may be arrays.
+     *
+     *  @details
+     *  The idea behind this whole family of functions is to force things
+     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
+     *  errors whenever the type system is expanded.
+     */
     template <template <class> class RefCount, class Callback>
     auto aggregate_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -705,16 +896,32 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<array<RefCount>&>()))
       >
     {
-      switch (raw.type) {
-        case raw_type::object:
-          return std::forward<Callback>(cb)(*get_object<RefCount>(raw));
-        case raw_type::array:
-          return std::forward<Callback>(cb)(*get_array<RefCount>(raw));
-        default:
-          throw type_error("dart::buffer is not a finalized aggregate and cannot be accessed as such");
-      }
+      return match_generic(
+        shim::compose_together(
+          [&] (object_tag) {
+            return std::forward<Callback>(cb)(*get_object<RefCount>(raw));
+          },
+          [&] (array_tag) {
+            return std::forward<Callback>(cb)(*get_array<RefCount>(raw));
+          },
+          [] (meta::any_type) -> meta::any_type {
+            throw type_error("dart::buffer is not a finalized aggregate and cannot be accessed as such");
+          }
+        ),
+        raw.type
+      );
     }
 
+    /**
+     *  @brief
+     *  Function is intended to provide a std::variant-ish API around
+     *  pointers that point to SOME sort of string.
+     *
+     *  @details
+     *  The idea behind this whole family of functions is to force things
+     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
+     *  errors whenever the type system is expanded.
+     */
     template <class Callback>
     auto string_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -722,17 +929,32 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<big_string&>()))
       >
     {
-      switch (raw.type) {
-        case raw_type::small_string:
-        case raw_type::string:
-          return std::forward<Callback>(cb)(*get_string(raw));
-        case raw_type::big_string:
-          return std::forward<Callback>(cb)(*get_big_string(raw));
-        default:
-          throw type_error("dart::buffer is not a finalized string and cannot be accessed as such");
-      }
+      return match_generic(
+        shim::compose_together(
+          [&] (small_string_tag) {
+            return std::forward<Callback>(cb)(*get_string(raw));
+          },
+          [&] (big_string_tag) {
+            return std::forward<Callback>(cb)(*get_big_string(raw));
+          },
+          [] (meta::any_type) -> meta::any_type {
+            throw type_error("dart::buffer is not a finalized string and cannot be accessed as such");
+          }
+        ),
+        raw.type
+      );
     }
 
+    /**
+     *  @brief
+     *  Function is intended to provide a std::variant-ish API around
+     *  pointers that point to SOME sort of integer.
+     *
+     *  @details
+     *  The idea behind this whole family of functions is to force things
+     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
+     *  errors whenever the type system is expanded.
+     */
     template <class Callback>
     auto integer_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -741,18 +963,35 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<primitive<int64_t>&>()))
       >
     {
-      switch (raw.type) {
-        case raw_type::short_integer:
-          return std::forward<Callback>(cb)(*get_primitive<int16_t>(raw));
-        case raw_type::integer:
-          return std::forward<Callback>(cb)(*get_primitive<int32_t>(raw));
-        case raw_type::long_integer:
-          return std::forward<Callback>(cb)(*get_primitive<int64_t>(raw));
-        default:
-          throw type_error("dart::buffer is not a finalized integer and cannot be accessed as such");
-      }
+      return match_generic(
+        shim::compose_together(
+          [&] (short_integer_tag) {
+            return std::forward<Callback>(cb)(*get_primitive<int16_t>(raw));
+          },
+          [&] (medium_integer_tag) {
+            return std::forward<Callback>(cb)(*get_primitive<int32_t>(raw));
+          },
+          [&] (long_integer_tag) {
+            return std::forward<Callback>(cb)(*get_primitive<int64_t>(raw));
+          },
+          [] (meta::any_type) -> meta::any_type {
+            throw type_error("dart::buffer is not a finalized integer and cannot be accessed as such");
+          }
+        ),
+        raw.type
+      );
     }
 
+    /**
+     *  @brief
+     *  Function is intended to provide a std::variant-ish API around
+     *  pointers that point to SOME sort of decimal.
+     *
+     *  @details
+     *  The idea behind this whole family of functions is to force things
+     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
+     *  errors whenever the type system is expanded.
+     */
     template <class Callback>
     auto decimal_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -760,31 +999,25 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<primitive<double>&>()))
       >
     {
-      switch (raw.type) {
-        case raw_type::decimal:
-          return std::forward<Callback>(cb)(*get_primitive<float>(raw));
-        case raw_type::long_decimal:
-          return std::forward<Callback>(cb)(*get_primitive<double>(raw));
-        default:
-          throw type_error("dart::buffer is not a finalized decimal and cannot be accessed as such");
-      }
+      return match_generic(
+        shim::compose_together(
+          [&] (short_decimal_tag) {
+            return std::forward<Callback>(cb)(*get_primitive<float>(raw));
+          },
+          [&] (long_decimal_tag) {
+            return std::forward<Callback>(cb)(*get_primitive<double>(raw));
+          },
+          [] (meta::any_type) -> meta::any_type {
+            throw type_error("dart::buffer is not a finalized decimal and cannot be accessed as such");
+          }
+        ),
+        raw.type
+      );
     }
 
     template <class Callback>
     auto match_generic(Callback&& cb, raw_type raw)
-      -> std::common_type_t<
-        decltype(std::forward<Callback>(cb)(object_tag {})),
-        decltype(std::forward<Callback>(cb)(array_tag {})),
-        decltype(std::forward<Callback>(cb)(small_string_tag {})),
-        decltype(std::forward<Callback>(cb)(big_string_tag {})),
-        decltype(std::forward<Callback>(cb)(short_integer_tag {})),
-        decltype(std::forward<Callback>(cb)(medium_integer_tag {})),
-        decltype(std::forward<Callback>(cb)(long_integer_tag {})),
-        decltype(std::forward<Callback>(cb)(short_decimal_tag {})),
-        decltype(std::forward<Callback>(cb)(long_decimal_tag {})),
-        decltype(std::forward<Callback>(cb)(boolean_tag {})),
-        decltype(std::forward<Callback>(cb)(null_tag {}))
-      >
+      -> generic_return_t<Callback>
     {
       switch (raw) {
         case raw_type::object:
@@ -814,6 +1047,16 @@ namespace dart {
       }
     }
 
+    /**
+     *  @brief
+     *  Function is intended to provide a std::variant-ish API around
+     *  pointers that point to SOME sort of dart::buffer type.
+     *
+     *  @details
+     *  The idea behind this whole family of functions is to force things
+     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
+     *  errors whenever the type system is expanded.
+     */
     template <template <class> class RefCount, class Callback>
     auto generic_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -841,11 +1084,12 @@ namespace dart {
           [&] (boolean_tag) {
             return std::forward<Callback>(cb)(*get_primitive<bool>(raw));
           },
-          [] (null_tag) -> int {
+          [] (null_tag) -> meta::any_type {
             throw type_error("dart::buffer is null, and has no value to access");
           }
-        )
-      , raw.type);
+        ),
+        raw.type
+      );
     }
 
     // Functions enforce invariant that keys must be strings.
@@ -871,6 +1115,12 @@ namespace dart {
     template <class B = std::false_type>
     void require_string(...) {
       static_assert(B::value, "dart::packet object keys must be strings.");
+    }
+
+    // Forward declared above and implemented here so this function
+    // can both use, and be used by, the type matching logic.
+    inline type simplify_type(raw_type type) noexcept {
+      return match_generic([] (auto v) { return decltype(v)::type_value; }, type);
     }
 
     // Returns the native alignment requirements of the given type.
@@ -949,6 +1199,7 @@ namespace dart {
       else return raw_type::decimal;
     }
 
+// Dart is header only, so I'm not losing much sleep over ABI compatibility.
 #if DART_USING_GCC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"
