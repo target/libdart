@@ -33,15 +33,6 @@ namespace dart {
       static constexpr auto value = __ORDER_BIG_ENDIAN__;
     };
 
-    template <class T>
-    struct swapper {
-      static T swap(T val) noexcept;
-    };
-    template <class T>
-    struct swapper<T*> {
-      static T* swap(T* val) noexcept;
-    };
-
     template <class T, class O>
     class ordered {
 
@@ -223,17 +214,40 @@ namespace dart {
 
       private:
 
+        /*----- Private Types -----*/
+
+        // FIXME: Come up something better than this.
+        // Yuck, but it'll do for now.
+        using storage_type = std::conditional_t<
+          sizeof(T) == 1,
+          uint8_t,
+          std::conditional_t<
+            sizeof(T) == 2,
+            uint16_t,
+            std::conditional_t<
+              sizeof(T) == 4,
+              uint32_t,
+              uint64_t
+            >
+          >
+        >;
+
         /*----- Private Helpers -----*/
 
         template <class Callback>
         auto mutate(Callback&& cb) noexcept -> value_type;
 
+        void copy_in(value_type val) noexcept;
+        auto copy_out() const noexcept -> value_type;
+
+        void swap_in(value_type val) noexcept;
+        auto swap_out() const noexcept -> value_type;
+
         static constexpr bool should_swap() noexcept;
-        static constexpr auto perform_swap(value_type val) noexcept -> value_type;
 
         /*----- Private Members -----*/
 
-        value_type managed;
+        storage_type managed;
 
     };
 
