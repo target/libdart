@@ -75,24 +75,6 @@
 
 /*----- Global Declarations -----*/
 
-namespace std {
-
-  // Something to get our type matching logic off the ground.
-  template <class Rhs>
-  struct common_type<dart::meta::any_type, Rhs> {
-    using type = Rhs;
-  };
-  template <class Lhs>
-  struct common_type<Lhs, dart::meta::any_type> {
-    using type = Lhs;
-  };
-  template <>
-  struct common_type<dart::meta::any_type, dart::meta::any_type> {
-    using type = dart::meta::any_type;
-  };
-
-}
-
 namespace dart {
 
   template <class Object>
@@ -192,27 +174,10 @@ namespace dart {
 
     template <class>
     class prefix_entry;
-
-    /**
-     *  @brief
-     *  Class stores type and offset information for a single entry in an array.
-     */
     template <class>
     struct table_layout {
       alignas(4) little_order<uint32_t> meta;
     };
-
-    /**
-     *  @brief
-     *  Class stores type, offset, and key-prefix information for a single entry
-     *  in an object.
-     *
-     *  @details
-     *  Class is implemented in an extremely awkward manner so that prefix_entry
-     *  can inherit functionality from vtable_entry while remaining a
-     *  standard layout type; the bare minimum requirement for a type to conceivably
-     *  be safe to send over the network.
-     */
     template <class Prefix>
     struct table_layout<prefix_entry<Prefix>> {
       static_assert(sizeof(Prefix) <= 4,
@@ -223,12 +188,14 @@ namespace dart {
 
     /**
      *  @brief
-     *  Class represents an entry in the vtable of an array.
+     *  Macro customizes functionality usually provided by assert().
      *
      *  @details
-     *  Class wraps memory that is stored in little endian byte order,
-     *  irrespective of the native ordering of the host machine.
-     *  In other words, attempt to subvert its API at your peril.
+     *  Not strictly necessary, but tries to provide a bit more context and
+     *  information as to why I just murdered the user's program (in production, no doubt).
+     *
+     *  @remarks
+     *  Don't actually know if Doxygen lets you document macros, guess we'll see.
      */
     template <class T>
     class vtable_entry {
@@ -308,7 +275,6 @@ namespace dart {
 
     };
 
-    // Make sure everything will be safe to send over the network.
     using array_entry = vtable_entry<void>;
     using object_entry = prefix_entry<uint16_t>;
     static_assert(std::is_standard_layout<array_entry>::value, "dart library is misconfigured");
@@ -359,7 +325,7 @@ namespace dart {
 
       /*----- Lifecycle Functions -----*/
 
-      ll_iterator() = default;
+      ll_iterator() = delete;
       ll_iterator(size_t idx, gsl::byte const* base, loading_function* load_func) noexcept :
         idx(idx),
         base(base),
@@ -423,7 +389,7 @@ namespace dart {
 
       /*----- Lifecycle Functions -----*/
 
-      dn_iterator() = default;
+      dn_iterator() = delete;
       dn_iterator(typename packet_fields<RefCount>::const_iterator it, fields_deref_func* func) noexcept :
         impl(fields_layout {func, it})
       {}
@@ -680,63 +646,47 @@ namespace dart {
     };
     static_assert(std::is_standard_layout<primitive<int>>::value, "dart library is misconfigured");
 
-    // Types are used both for tag dispatch in some places, and also
-    // to generically encode basic information about the different types,
-    // like their native alignment requirements and public type.
+    // Used for tag dispatch from factory functions.
     struct object_tag {
-      static constexpr auto type_value = type::object;
       static constexpr auto alignment = object<std::shared_ptr>::alignment;
     };
     struct array_tag {
-      static constexpr auto type_value = type::array;
       static constexpr auto alignment = array<std::shared_ptr>::alignment;
     };
     struct string_tag {
-      static constexpr auto type_value = type::string;
       static constexpr auto alignment = big_string::alignment;
     };
     struct small_string_tag : string_tag {
-      static constexpr auto type_value = type::string;
       static constexpr auto alignment = string::alignment;
     };
     struct big_string_tag : string_tag {
-      static constexpr auto type_value = type::string;
       static constexpr auto alignment = string_tag::alignment;
     };
     struct integer_tag {
-      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = primitive<int64_t>::alignment;
     };
     struct short_integer_tag : integer_tag {
-      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = primitive<int16_t>::alignment;
     };
     struct medium_integer_tag : integer_tag {
-      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = primitive<int32_t>::alignment;
     };
     struct long_integer_tag : integer_tag {
-      static constexpr auto type_value = type::integer;
       static constexpr auto alignment = integer_tag::alignment;
     };
     struct decimal_tag {
-      static constexpr auto type_value = type::decimal;
       static constexpr auto alignment = primitive<double>::alignment;
     };
     struct short_decimal_tag : decimal_tag {
-      static constexpr auto type_value = type::decimal;
       static constexpr auto alignment = primitive<float>::alignment;
     };
     struct long_decimal_tag : decimal_tag {
-      static constexpr auto type_value = type::decimal;
       static constexpr auto alignment = decimal_tag::alignment;
     };
     struct boolean_tag {
-      static constexpr auto type_value = type::boolean;
       static constexpr auto alignment = primitive<bool>::alignment;
     };
     struct null_tag {
-      static constexpr auto type_value = type::null;
       static constexpr auto alignment = 1;
     };
 
@@ -750,7 +700,30 @@ namespace dart {
      *  type information than it publicly exposes, so this function
      *  works as a an efficient go-between for the two.
      */
-    inline type simplify_type(raw_type type) noexcept;
+    inline type simplify_type(raw_type type) noexcept {
+      switch (type) {
+        case raw_type::object:
+          return detail::type::object;
+        case raw_type::array:
+          return detail::type::array;
+        case raw_type::small_string:
+        case raw_type::string:
+        case raw_type::big_string:
+          return detail::type::string;
+        case raw_type::short_integer:
+        case raw_type::integer:
+        case raw_type::long_integer:
+          return detail::type::integer;
+        case raw_type::decimal:
+        case raw_type::long_decimal:
+          return detail::type::decimal;
+        case raw_type::boolean:
+          return detail::type::boolean;
+        default:
+          DART_ASSERT(type == raw_type::null);
+          return detail::type::null;
+      }
+    }
 
     /**
      *  @brief
@@ -846,49 +819,6 @@ namespace dart {
       }
     }
 
-    /**
-     *  @brief
-     *  Alias exists so that I don't have to type it ever again.
-     */
-    template <class Callback>
-    using generic_return_t = std::common_type_t<
-      decltype(std::declval<Callback>()(object_tag {})),
-      decltype(std::declval<Callback>()(array_tag {})),
-      decltype(std::declval<Callback>()(small_string_tag {})),
-      decltype(std::declval<Callback>()(big_string_tag {})),
-      decltype(std::declval<Callback>()(short_integer_tag {})),
-      decltype(std::declval<Callback>()(medium_integer_tag {})),
-      decltype(std::declval<Callback>()(long_integer_tag {})),
-      decltype(std::declval<Callback>()(short_decimal_tag {})),
-      decltype(std::declval<Callback>()(long_decimal_tag {})),
-      decltype(std::declval<Callback>()(boolean_tag {})),
-      decltype(std::declval<Callback>()(null_tag {}))
-    >;
-
-    /**
-     *  @brief
-     *  Function takes a raw_element, and "identifies" it by passing back
-     *  a tag type that can be used for tag dispatch or querying basic
-     *  information about the type like alignment and public type.
-     *
-     *  @details
-     *  The idea behind this whole family of functions is to force things
-     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
-     *  errors whenever the type system is expanded.
-     */
-    template <class Callback>
-    auto match_generic(Callback&& cb, raw_type raw) -> generic_return_t<Callback>;
-
-    /**
-     *  @brief
-     *  Function is intended to provide a std::variant-ish API around
-     *  pointers that may be objects or may be arrays.
-     *
-     *  @details
-     *  The idea behind this whole family of functions is to force things
-     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
-     *  errors whenever the type system is expanded.
-     */
     template <template <class> class RefCount, class Callback>
     auto aggregate_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -896,32 +826,16 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<array<RefCount>&>()))
       >
     {
-      return match_generic(
-        shim::compose_together(
-          [&] (object_tag) {
-            return std::forward<Callback>(cb)(*get_object<RefCount>(raw));
-          },
-          [&] (array_tag) {
-            return std::forward<Callback>(cb)(*get_array<RefCount>(raw));
-          },
-          [] (meta::any_type) -> meta::any_type {
-            throw type_error("dart::buffer is not a finalized aggregate and cannot be accessed as such");
-          }
-        ),
-        raw.type
-      );
+      switch (raw.type) {
+        case raw_type::object:
+          return std::forward<Callback>(cb)(*get_object<RefCount>(raw));
+        case raw_type::array:
+          return std::forward<Callback>(cb)(*get_array<RefCount>(raw));
+        default:
+          throw type_error("dart::buffer is not a finalized aggregate and cannot be accessed as such");
+      }
     }
 
-    /**
-     *  @brief
-     *  Function is intended to provide a std::variant-ish API around
-     *  pointers that point to SOME sort of string.
-     *
-     *  @details
-     *  The idea behind this whole family of functions is to force things
-     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
-     *  errors whenever the type system is expanded.
-     */
     template <class Callback>
     auto string_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -929,32 +843,17 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<big_string&>()))
       >
     {
-      return match_generic(
-        shim::compose_together(
-          [&] (small_string_tag) {
-            return std::forward<Callback>(cb)(*get_string(raw));
-          },
-          [&] (big_string_tag) {
-            return std::forward<Callback>(cb)(*get_big_string(raw));
-          },
-          [] (meta::any_type) -> meta::any_type {
-            throw type_error("dart::buffer is not a finalized string and cannot be accessed as such");
-          }
-        ),
-        raw.type
-      );
+      switch (raw.type) {
+        case raw_type::small_string:
+        case raw_type::string:
+          return std::forward<Callback>(cb)(*get_string(raw));
+        case raw_type::big_string:
+          return std::forward<Callback>(cb)(*get_big_string(raw));
+        default:
+          throw type_error("dart::buffer is not a finalized string and cannot be accessed as such");
+      }
     }
 
-    /**
-     *  @brief
-     *  Function is intended to provide a std::variant-ish API around
-     *  pointers that point to SOME sort of integer.
-     *
-     *  @details
-     *  The idea behind this whole family of functions is to force things
-     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
-     *  errors whenever the type system is expanded.
-     */
     template <class Callback>
     auto integer_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -963,35 +862,18 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<primitive<int64_t>&>()))
       >
     {
-      return match_generic(
-        shim::compose_together(
-          [&] (short_integer_tag) {
-            return std::forward<Callback>(cb)(*get_primitive<int16_t>(raw));
-          },
-          [&] (medium_integer_tag) {
-            return std::forward<Callback>(cb)(*get_primitive<int32_t>(raw));
-          },
-          [&] (long_integer_tag) {
-            return std::forward<Callback>(cb)(*get_primitive<int64_t>(raw));
-          },
-          [] (meta::any_type) -> meta::any_type {
-            throw type_error("dart::buffer is not a finalized integer and cannot be accessed as such");
-          }
-        ),
-        raw.type
-      );
+      switch (raw.type) {
+        case raw_type::short_integer:
+          return std::forward<Callback>(cb)(*get_primitive<int16_t>(raw));
+        case raw_type::integer:
+          return std::forward<Callback>(cb)(*get_primitive<int32_t>(raw));
+        case raw_type::long_integer:
+          return std::forward<Callback>(cb)(*get_primitive<int64_t>(raw));
+        default:
+          throw type_error("dart::buffer is not a finalized integer and cannot be accessed as such");
+      }
     }
 
-    /**
-     *  @brief
-     *  Function is intended to provide a std::variant-ish API around
-     *  pointers that point to SOME sort of decimal.
-     *
-     *  @details
-     *  The idea behind this whole family of functions is to force things
-     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
-     *  errors whenever the type system is expanded.
-     */
     template <class Callback>
     auto decimal_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -999,25 +881,31 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<primitive<double>&>()))
       >
     {
-      return match_generic(
-        shim::compose_together(
-          [&] (short_decimal_tag) {
-            return std::forward<Callback>(cb)(*get_primitive<float>(raw));
-          },
-          [&] (long_decimal_tag) {
-            return std::forward<Callback>(cb)(*get_primitive<double>(raw));
-          },
-          [] (meta::any_type) -> meta::any_type {
-            throw type_error("dart::buffer is not a finalized decimal and cannot be accessed as such");
-          }
-        ),
-        raw.type
-      );
+      switch (raw.type) {
+        case raw_type::decimal:
+          return std::forward<Callback>(cb)(*get_primitive<float>(raw));
+        case raw_type::long_decimal:
+          return std::forward<Callback>(cb)(*get_primitive<double>(raw));
+        default:
+          throw type_error("dart::buffer is not a finalized decimal and cannot be accessed as such");
+      }
     }
 
     template <class Callback>
     auto match_generic(Callback&& cb, raw_type raw)
-      -> generic_return_t<Callback>
+      -> std::common_type_t<
+        decltype(std::forward<Callback>(cb)(object_tag {})),
+        decltype(std::forward<Callback>(cb)(array_tag {})),
+        decltype(std::forward<Callback>(cb)(small_string_tag {})),
+        decltype(std::forward<Callback>(cb)(big_string_tag {})),
+        decltype(std::forward<Callback>(cb)(short_integer_tag {})),
+        decltype(std::forward<Callback>(cb)(medium_integer_tag {})),
+        decltype(std::forward<Callback>(cb)(long_integer_tag {})),
+        decltype(std::forward<Callback>(cb)(short_decimal_tag {})),
+        decltype(std::forward<Callback>(cb)(long_decimal_tag {})),
+        decltype(std::forward<Callback>(cb)(boolean_tag {})),
+        decltype(std::forward<Callback>(cb)(null_tag {}))
+      >
     {
       switch (raw) {
         case raw_type::object:
@@ -1047,16 +935,6 @@ namespace dart {
       }
     }
 
-    /**
-     *  @brief
-     *  Function is intended to provide a std::variant-ish API around
-     *  pointers that point to SOME sort of dart::buffer type.
-     *
-     *  @details
-     *  The idea behind this whole family of functions is to force things
-     *  that would be nasty, awful, runtime errors, into nasty, awful, compile
-     *  errors whenever the type system is expanded.
-     */
     template <template <class> class RefCount, class Callback>
     auto generic_deref(Callback&& cb, raw_element raw)
       -> std::common_type_t<
@@ -1067,29 +945,27 @@ namespace dart {
         decltype(std::forward<Callback>(cb)(std::declval<primitive<bool>&>()))
       >
     {
-      return match_generic(
-        shim::compose_together(
-          [&] (meta::types<object_tag, array_tag>) {
-            return aggregate_deref<RefCount>(std::forward<Callback>(cb), raw);
-          },
-          [&] (string_tag) {
-            return string_deref(std::forward<Callback>(cb), raw);
-          },
-          [&] (integer_tag) {
-            return integer_deref(std::forward<Callback>(cb), raw);
-          },
-          [&] (decimal_tag) {
-            return decimal_deref(std::forward<Callback>(cb), raw);
-          },
-          [&] (boolean_tag) {
-            return std::forward<Callback>(cb)(*get_primitive<bool>(raw));
-          },
-          [] (null_tag) -> meta::any_type {
-            throw type_error("dart::buffer is null, and has no value to access");
-          }
-        ),
-        raw.type
-      );
+      switch (raw.type) {
+        case raw_type::object:
+        case raw_type::array:
+          return aggregate_deref<RefCount>(std::forward<Callback>(cb), raw);
+        case raw_type::small_string:
+        case raw_type::string:
+        case raw_type::big_string:
+          return string_deref(std::forward<Callback>(cb), raw);
+        case raw_type::short_integer:
+        case raw_type::integer:
+        case raw_type::long_integer:
+          return integer_deref(std::forward<Callback>(cb), raw);
+        case raw_type::decimal:
+        case raw_type::long_decimal:
+          return decimal_deref(std::forward<Callback>(cb), raw);
+        case raw_type::boolean:
+          return std::forward<Callback>(cb)(*get_primitive<bool>(raw));
+        default:
+          DART_ASSERT(raw.type == raw_type::null);
+          throw type_error("dart::buffer is null, and has no value to access");
+      }
     }
 
     // Functions enforce invariant that keys must be strings.
@@ -1115,12 +991,6 @@ namespace dart {
     template <class B = std::false_type>
     void require_string(...) {
       static_assert(B::value, "dart::packet object keys must be strings.");
-    }
-
-    // Forward declared above and implemented here so this function
-    // can both use, and be used by, the type matching logic.
-    inline type simplify_type(raw_type type) noexcept {
-      return match_generic([] (auto v) { return decltype(v)::type_value; }, type);
     }
 
     // Returns the native alignment requirements of the given type.
@@ -1199,7 +1069,6 @@ namespace dart {
       else return raw_type::decimal;
     }
 
-// Dart is header only, so I'm not losing much sleep over ABI compatibility.
 #if DART_USING_GCC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"

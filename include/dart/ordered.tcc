@@ -12,38 +12,37 @@
 // conversions and truncating floating point values,
 // but there's that nasty strict-aliasing rule, so this.
 // C++, ladies and gentlemen.
-#define DART_SWAP_BYTES(val, bits)                                                                          \
-  [&] {                                                                                                     \
-    auto* __attribute__ ((__may_alias__)) punned = reinterpret_cast<uint##bits##_t*>(&val);                 \
-    auto swapped = __builtin_bswap##bits(*punned);                                                          \
-    decltype(val)* __attribute__ ((__may_alias__)) retval = reinterpret_cast<decltype(val)*>(&swapped);     \
-    return *retval;                                                                                         \
+#define DART_PUNNED_PTR auto* __attribute__ ((__may_alias__))
+
+#define DART_COPY_IN(ptr, bits)                                                                     \
+  [&] {                                                                                             \
+    DART_PUNNED_PTR punned = reinterpret_cast<uint##bits##_t*>(ptr);                                \
+    return *punned;                                                                                 \
+  }()
+
+#define DART_COPY_OUT(ptr, bits)                                                                    \
+  [&] {                                                                                             \
+    DART_PUNNED_PTR punned = reinterpret_cast<T const*>(ptr);                                       \
+    return *punned;                                                                                 \
+  }()
+
+#define DART_SWAP_IN(ptr, bits)                                                                     \
+  [&] {                                                                                             \
+    DART_PUNNED_PTR punned = reinterpret_cast<uint##bits##_t*>(ptr);                                \
+    return __builtin_bswap##bits(*punned);                                                          \
+  }()
+
+#define DART_SWAP_OUT(ptr, bits)                                                                    \
+  [&] {                                                                                             \
+    auto tmp = __builtin_bswap##bits(*ptr);                                                         \
+    DART_PUNNED_PTR punned = reinterpret_cast<T*>(&tmp);                                            \
+    return *punned;                                                                                 \
   }()
 
 /*----- Function Implementations -----*/
 
 namespace dart {
   namespace detail {
-
-    template <class T>
-    T swapper<T>::swap(T val) noexcept {
-      if (sizeof(val) == 8) {
-        return DART_SWAP_BYTES(val, 64);
-      } else if (sizeof(val) == 4) {
-        return DART_SWAP_BYTES(val, 32);
-      } else if (sizeof(val) == 2) {
-        return DART_SWAP_BYTES(val, 16);
-      } else {
-        return val;
-      }
-    }
-#undef DART_SWAP_BYTES
-
-    template <class T>
-    T* swapper<T*>::swap(T* val) noexcept {
-      // This is pretty bad too.
-      return reinterpret_cast<T*>(__builtin_bswap64(reinterpret_cast<uintptr_t>(val)));
-    }
 
     template <class T, class O>
     ordered<T, O>::ordered(value_type val) noexcept {
@@ -159,13 +158,13 @@ namespace dart {
 
     template <class T, class O>
     auto ordered<T, O>::get() const noexcept -> value_type {
-      return should_swap() ? perform_swap(managed) : managed;
+      return should_swap() ? swap_out() : copy_out();
     }
 
     template <class T, class O>
     auto ordered<T, O>::set(value_type val) noexcept -> value_type {
-      if (should_swap()) managed = perform_swap(val);
-      else managed = val;
+      if (should_swap()) swap_in(val);
+      else copy_in(val);
       return val;
     }
 
@@ -217,8 +216,55 @@ namespace dart {
     }
 
     template <class T, class O>
-    constexpr auto ordered<T, O>::perform_swap(value_type val) noexcept -> value_type {
-      return swapper<T>::swap(val);
+    void ordered<T, O>::copy_in(value_type val) noexcept {
+      if (sizeof(T) == 8) {
+        managed = DART_COPY_IN(&val, 64);
+      } else if (sizeof(T) == 4) {
+        managed = DART_COPY_IN(&val, 32);
+      } else if (sizeof(T) == 2) {
+        managed = DART_COPY_IN(&val, 16);
+      } else {
+        managed = DART_COPY_IN(&val, 8);
+      }
+    }
+
+    template <class T, class O>
+    auto ordered<T, O>::copy_out() const noexcept -> value_type {
+      if (sizeof(T) == 8) {
+        return DART_COPY_OUT(&managed, 64);
+      } else if (sizeof(T) == 4) {
+        return DART_COPY_OUT(&managed, 32);
+      } else if (sizeof(T) == 2) {
+        return DART_COPY_OUT(&managed, 16);
+      } else {
+        return DART_COPY_OUT(&managed, 8);
+      }
+    }
+
+    template <class T, class O>
+    void ordered<T, O>::swap_in(value_type val) noexcept {
+      if (sizeof(T) == 8) {
+        managed = DART_SWAP_IN(&val, 64);
+      } else if (sizeof(T) == 4) {
+        managed = DART_SWAP_IN(&val, 32);
+      } else if (sizeof(T) == 2) {
+        managed = DART_SWAP_IN(&val, 16);
+      } else {
+        managed = DART_COPY_IN(&val, 8);
+      }
+    }
+
+    template <class T, class O>
+    auto ordered<T, O>::swap_out() const noexcept -> value_type {
+      if (sizeof(T) == 8) {
+        return DART_SWAP_OUT(&managed, 64);
+      } else if (sizeof(T) == 4) {
+        return DART_SWAP_OUT(&managed, 32);
+      } else if (sizeof(T) == 2) {
+        return DART_SWAP_OUT(&managed, 16);
+      } else {
+        return DART_COPY_OUT(&managed, 8);
+      }
     }
 
   }
