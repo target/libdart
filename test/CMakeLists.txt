@@ -9,6 +9,12 @@ endif ()
 if (extended_test)
   target_compile_options(unit_tests PUBLIC "-DDART_EXTENDED_TESTS")
 endif ()
+if (32bit)
+  target_link_libraries(unit_tests atomic)
+endif ()
+if (static_test)
+  target_link_libraries(unit_tests "-static-libstdc++")
+endif ()
 target_compile_options(unit_tests PUBLIC "-g")
 
 # Setup targest for JSON tests.

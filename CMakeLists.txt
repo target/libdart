@@ -53,6 +53,8 @@ option(no_cxx17 "Disabling c++17" OFF)
 
 # Define an option for our tests.
 option(test "Building tests..." ON)
+option(32bit "Building for a 32-bit target..." OFF)
+option(static_test "Statically linking tests..." OFF)
 option(extended_test "Building extended tests..." OFF)
 
 # Define global compiler flags.

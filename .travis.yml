@@ -2,6 +2,8 @@
 language: cpp
 dist: xenial
 sudo: required
+services:
+  - docker
 branches:
   only:
     - master
@@ -37,6 +39,15 @@ install:
 # Build matrix
 matrix:
   include:
+    - env: VERSION=5 ARCH=powerpc-linux
+      os: linux
+      compiler: gcc
+      script:
+        - docker build -f Dockerfile.build -t builder .
+        - docker run --name="build_results" builder
+        - docker cp build_results:/root/libdart/build/test/unit_tests .
+        - docker build -f Dockerfile.harness -t test_harness .
+        - sudo docker run --privileged test_harness
     - env: VERSION=3.8
       os: linux
       compiler: clang

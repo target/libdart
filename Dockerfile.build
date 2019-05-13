@@ -1,0 +1,16 @@
+# Pull in our big-endian cross-compiler
+FROM cfretz244/libdart_ci:bebuilder
+
+# Set ourselves to use a login shell
+# so we use our big-endian toolchain
+SHELL ["/bin/bash", "--login", "-c"]
+
+# Copy the code in.
+COPY . /root/libdart
+
+# Compile it.
+CMD cd /root/libdart                                            \
+  && mkdir build                                                \
+  && cd build                                                   \
+  && cmake .. -D32bit=ON -Dstatic_test=ON -Dextended_test=ON    \
+  && make
