@@ -26,16 +26,32 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_buffer<RefCount>::basic_buffer(detail::raw_element raw, buffer_ref_type const& ref) :
+  basic_buffer<RefCount>::basic_buffer(detail::raw_element raw, buffer_ref_type ref) :
     raw(raw),
-    buffer_ref(ref)
+    buffer_ref(std::move(ref))
   {
     if (is_null()) buffer_ref.reset();
   }
 
   template <template <class> class RefCount>
+  auto basic_buffer<RefCount>::allocate_pointer(gsl::span<gsl::byte const> buffer) const -> buffer_ref_type {
+    if (buffer.empty()) throw std::invalid_argument("dart::packet buffer must not be empty");
+    
+    // Allocate an aligned region.
+    gsl::byte* tmp;
+    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
+        detail::alignment_of<RefCount>(detail::raw_type::object), buffer.size());
+    if (retval) throw std::bad_alloc();
+
+    // Copy and return.
+    buffer_ref_type ref {tmp, [] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); }};
+    std::copy(buffer.begin(), buffer.end(), tmp);
+    return ref;
+  }
+
+  template <template <class> class RefCount>
   template <class Pointer>
-  Pointer&& basic_buffer<RefCount>::validate_pointer(Pointer&& ptr) {
+  Pointer&& basic_buffer<RefCount>::validate_pointer(Pointer&& ptr) const {
     // Validate arguments.
     if (!ptr) {
       throw std::invalid_argument("dart::packet pointer must not be null.");
@@ -47,7 +63,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   template <class Pointer>
-  auto basic_buffer<RefCount>::normalize(Pointer ptr) -> buffer_ref_type {
+  auto basic_buffer<RefCount>::normalize(Pointer ptr) const -> buffer_ref_type {
     // This whole business is necessary to allow std::unique_ptr<gsl::byte const[]>
     // to convert to std::shared_ptr<gsl::byte const>, which the STL doesn't define
     // a conversion for, but is convenient for this library.

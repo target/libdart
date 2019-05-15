@@ -223,12 +223,12 @@ namespace dart {
   }
 
   template <class T>
-  shareable_ptr<T>::shareable_ptr(T const& other) noexcept(refcount_traits<T>::is_nothrow_copyable_v) {
+  shareable_ptr<T>::shareable_ptr(T const& other) noexcept(refcount_traits<T>::is_nothrow_copyable::value) {
     refcount_traits<T>::copy(&impl, other);
   }
 
   template <class T>
-  shareable_ptr<T>::shareable_ptr(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v) {
+  shareable_ptr<T>::shareable_ptr(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value) {
     refcount_traits<T>::move(&impl, std::move(other));
   }
 
@@ -257,12 +257,12 @@ namespace dart {
   }
 
   template <class T>
-  shareable_ptr<T>::shareable_ptr(shareable_ptr const& other) noexcept(refcount_traits<T>::is_nothrow_copyable_v) {
+  shareable_ptr<T>::shareable_ptr(shareable_ptr const& other) noexcept(refcount_traits<T>::is_nothrow_copyable::value) {
     refcount_traits<T>::copy(&impl, other.impl);
   }
 
   template <class T>
-  shareable_ptr<T>::shareable_ptr(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v) {
+  shareable_ptr<T>::shareable_ptr(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value) {
     refcount_traits<T>::move(&impl, std::move(other.impl));
   }
 
@@ -287,14 +287,14 @@ namespace dart {
   }
 
   template <class T>
-  shareable_ptr<T>& shareable_ptr<T>::operator =(T const& other) noexcept(is_nothrow_assignable_v) {
+  shareable_ptr<T>& shareable_ptr<T>::operator =(T const& other) noexcept(is_nothrow_assignable::value) {
     shareable_ptr tmp {other};
     *this = std::move(tmp);
     return *this;
   }
 
   template <class T>
-  shareable_ptr<T>& shareable_ptr<T>::operator =(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v) {
+  shareable_ptr<T>& shareable_ptr<T>::operator =(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value) {
     // XXX: If you have a throwing move constructor, you get what you deserve.
     // I'm not allocating to avoid this, and I'm definitely not adding a "valueless by exception" state.
     // Good people don't throw from move constructors.
@@ -313,7 +313,7 @@ namespace dart {
   }
 
   template <class T>
-  shareable_ptr<T>& shareable_ptr<T>::operator =(shareable_ptr const& other) noexcept(is_nothrow_assignable_v) {
+  shareable_ptr<T>& shareable_ptr<T>::operator =(shareable_ptr const& other) noexcept(is_nothrow_assignable::value) {
     if (this == &other) return *this;
     auto tmp {other};
     *this = std::move(tmp);
@@ -321,7 +321,7 @@ namespace dart {
   }
 
   template <class T>
-  shareable_ptr<T>& shareable_ptr<T>::operator =(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v) {
+  shareable_ptr<T>& shareable_ptr<T>::operator =(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value) {
     // XXX: If you have a throwing move constructor, you get what you deserve.
     // I'm not allocating to avoid this, and I'm definitely not adding a "valueless by exception" state.
     // Good people don't throw from move constructors.
@@ -332,80 +332,98 @@ namespace dart {
   }
 
   template <class T>
-  auto shareable_ptr<T>::operator *() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v) -> element_type& {
+  auto shareable_ptr<T>::operator *() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) -> element_type& {
     return *get();
   }
 
   template <class T>
-  auto shareable_ptr<T>::operator ->() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v) -> element_type* {
+  auto shareable_ptr<T>::operator ->() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) -> element_type* {
     return get();
   }
 
   template <class T>
   bool shareable_ptr<T>::operator ==(shareable_ptr const& other) const
-    noexcept(refcount_traits<T>::is_nothrow_unwrappable_v)
+    noexcept(refcount_traits<T>::is_nothrow_unwrappable::value)
   {
     return get() == other.get();
   }
 
   template <class T>
   bool shareable_ptr<T>::operator !=(shareable_ptr const& other) const
-    noexcept(refcount_traits<T>::is_nothrow_unwrappable_v)
+    noexcept(refcount_traits<T>::is_nothrow_unwrappable::value)
   {
     return !(*this == other);
   }
 
   template <class T>
   bool shareable_ptr<T>::operator <(shareable_ptr const& other) const
-    noexcept(refcount_traits<T>::is_nothrow_unwrappable_v)
+    noexcept(refcount_traits<T>::is_nothrow_unwrappable::value)
   {
     return get() < other.get();
   }
 
   template <class T>
   bool shareable_ptr<T>::operator <=(shareable_ptr const& other) const
-    noexcept(refcount_traits<T>::is_nothrow_unwrappable_v)
+    noexcept(refcount_traits<T>::is_nothrow_unwrappable::value)
   {
     return !(other < *this);
   }
 
   template <class T>
   bool shareable_ptr<T>::operator >(shareable_ptr const& other) const
-    noexcept(refcount_traits<T>::is_nothrow_unwrappable_v)
+    noexcept(refcount_traits<T>::is_nothrow_unwrappable::value)
   {
     return other < *this;
   }
 
   template <class T>
   bool shareable_ptr<T>::operator >=(shareable_ptr const& other) const
-    noexcept(refcount_traits<T>::is_nothrow_unwrappable_v)
+    noexcept(refcount_traits<T>::is_nothrow_unwrappable::value)
   {
     return !(*this < other);
   }
 
   template <class T>
-  shareable_ptr<T>::operator bool() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v) {
-    return refcount_traits<T>::is_null(impl);
+  shareable_ptr<T>::operator bool() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) {
+    return !refcount_traits<T>::is_null(impl);
   }
 
   template <class T>
-  auto shareable_ptr<T>::get() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v) -> element_type* {
+  auto shareable_ptr<T>::get() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) -> element_type* {
     return refcount_traits<T>::unwrap(impl);
   }
 
   template <class T>
-  bool shareable_ptr<T>::unique() const noexcept(refcount_traits<T>::has_nothrow_use_count_v) {
+  bool shareable_ptr<T>::unique() const noexcept(refcount_traits<T>::has_nothrow_use_count::value) {
     return use_count() == 1;
   }
 
   template <class T>
-  int64_t shareable_ptr<T>::use_count() const noexcept(refcount_traits<T>::has_nothrow_use_count_v) {
+  int64_t shareable_ptr<T>::use_count() const noexcept(refcount_traits<T>::has_nothrow_use_count::value) {
     return refcount_traits<T>::use_count(impl);
   }
 
   template <class T>
-  void shareable_ptr<T>::reset() noexcept(refcount_traits<T>::has_nothrow_reset_v) {
+  void shareable_ptr<T>::reset() noexcept(refcount_traits<T>::has_nothrow_reset::value) {
     refcount_traits<T>::reset(impl);
+  }
+
+  template <class T>
+  void shareable_ptr<T>::share(T& ptr) const noexcept(refcount_traits<T>::is_nothrow_copyable::value) {
+    // Write operation in terms of copy and move for exception safety.
+    auto tmp = *this;
+    std::move(tmp).transfer(ptr);
+  }
+
+  template <class T>
+  void shareable_ptr<T>::transfer(T& ptr) && noexcept(refcount_traits<T>::is_nothrow_moveable::value) {
+    // Destroy the instance we were given.
+    // We DID take it by mutable refernece, so hopefully the user won't be surprised.
+    ptr.~T();
+    
+    // Move ourselves into it.
+    // If you have a throwing move constructor, you get what you deserve.
+    refcount_traits<T>::move(&ptr, std::move(impl));
   }
 
   template <class T, class... Args>

@@ -317,14 +317,6 @@ namespace dart {
     struct has_nothrow_use_count : refcount::has_nothrow_use_count<T> {};
     struct has_nothrow_reset : refcount::has_nothrow_reset<T> {};
 
-    /*----- Constants -----*/
-
-    static constexpr bool is_nothrow_copyable_v = is_nothrow_copyable::value;
-    static constexpr bool is_nothrow_moveable_v = is_nothrow_moveable::value;
-    static constexpr bool is_nothrow_unwrappable_v = is_nothrow_unwrappable::value;
-    static constexpr bool has_nothrow_use_count_v = has_nothrow_use_count::value;
-    static constexpr bool has_nothrow_reset_v = has_nothrow_reset::value;
-
     /*----- Helpers -----*/
 
     template <class... Args>
@@ -351,31 +343,31 @@ namespace dart {
       return refcount::take<T>::perform(that, ptr, std::forward<Del>(del));
     }
 
-    static auto copy(T* that, T const& rc) noexcept(is_nothrow_copyable_v) {
+    static auto copy(T* that, T const& rc) noexcept(is_nothrow_copyable::value) {
       return refcount::copy<T>::perform(that, rc);
     }
 
-    static auto move(T* that, T&& rc) noexcept(is_nothrow_moveable_v) {
+    static auto move(T* that, T&& rc) noexcept(is_nothrow_moveable::value) {
       return refcount::move<T>::perform(that, std::move(rc));
     }
 
-    static auto& deref(T const& rc) noexcept(is_nothrow_unwrappable_v) {
+    static auto& deref(T const& rc) noexcept(is_nothrow_unwrappable::value) {
       return *refcount::unwrap<T>::perform(rc);
     }
 
-    static auto* unwrap(T const& rc) noexcept(is_nothrow_unwrappable_v) {
+    static auto* unwrap(T const& rc) noexcept(is_nothrow_unwrappable::value) {
       return refcount::unwrap<T>::perform(rc);
     }
 
-    static auto use_count(T const& rc) noexcept(has_nothrow_use_count_v) {
+    static auto use_count(T const& rc) noexcept(has_nothrow_use_count::value) {
       return refcount::use_count<T>::perform(rc);
     }
 
-    static auto reset(T& rc) noexcept(has_nothrow_reset_v) {
+    static auto reset(T& rc) noexcept(has_nothrow_reset::value) {
       return refcount::reset<T>::perform(rc);
     }
 
-    static auto is_null(T const& rc) noexcept(is_nothrow_unwrappable_v) {
+    static auto is_null(T const& rc) noexcept(is_nothrow_unwrappable::value) {
       return unwrap(rc) == nullptr;
     }
 

@@ -968,31 +968,6 @@ namespace dart {
       }
     }
 
-    // Functions enforce invariant that keys must be strings.
-    inline void require_string(shim::string_view val) {
-      if (val.size() > std::numeric_limits<uint16_t>::max()) {
-        throw std::invalid_argument("dart::packet keys cannot be longer than UINT16_MAX");
-      }
-    }
-    template <template <template <class> class> class Packet, template <class> class RefCount>
-    void require_string(Packet<RefCount> const& key) {
-      if (!key.is_str()) {
-        throw std::invalid_argument("dart::packet object keys must be strings.");
-      } else if (key.size() > std::numeric_limits<uint16_t>::max()) {
-        throw std::invalid_argument("dart::packet keys cannot be longer than UINT16_MAX");
-      }
-    }
-    template <class Packet>
-    void require_string(dart::basic_string<Packet> const& val) {
-      if (val.size() > std::numeric_limits<uint16_t>::max()) {
-        throw std::invalid_argument("dart::packet keys cannot be longer than UINT16_MAX");
-      }
-    }
-    template <class B = std::false_type>
-    void require_string(...) {
-      static_assert(B::value, "dart::packet object keys must be strings.");
-    }
-
     // Returns the native alignment requirements of the given type.
     template <template <class> class RefCount>
     constexpr size_t alignment_of(raw_type type) noexcept {
