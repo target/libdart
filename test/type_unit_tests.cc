@@ -40,6 +40,7 @@ SCENARIO("objects are regular types", "[type unit]") {
           REQUIRE(obj.empty());
           REQUIRE(obj.is_object());
           REQUIRE(obj == dup);
+          REQUIRE(dup == obj);
         }
       }
 
@@ -49,6 +50,11 @@ SCENARIO("objects are regular types", "[type unit]") {
           REQUIRE(moved.empty());
           REQUIRE(moved.is_object());
           REQUIRE(moved != obj);
+          REQUIRE(obj != moved);
+          REQUIRE(!obj.is_object());
+          REQUIRE(!obj.is_aggregate());
+          REQUIRE(obj.is_null());
+          REQUIRE_FALSE(static_cast<bool>(obj));
         }
       }
 
@@ -59,6 +65,11 @@ SCENARIO("objects are regular types", "[type unit]") {
           REQUIRE(obj.empty());
           REQUIRE(obj.is_object());
           REQUIRE(obj == moved);
+          REQUIRE(moved == obj);
+          REQUIRE(!dup.is_object());
+          REQUIRE(!dup.is_aggregate());
+          REQUIRE(dup.is_null());
+          REQUIRE_FALSE(static_cast<bool>(dup));
         }
       }
 
@@ -68,6 +79,7 @@ SCENARIO("objects are regular types", "[type unit]") {
           REQUIRE(dup.empty());
           REQUIRE(dup.is_object());
           REQUIRE(dup == obj);
+          REQUIRE(obj == dup);
         }
       }
 
@@ -78,6 +90,7 @@ SCENARIO("objects are regular types", "[type unit]") {
           REQUIRE(nope.is_object());
           REQUIRE(nope.size() == 1U);
           REQUIRE(nope != obj);
+          REQUIRE(obj != nope);
         }
       }
 
@@ -85,6 +98,7 @@ SCENARIO("objects are regular types", "[type unit]") {
         typename object::value_type dynamic = obj;
         DYNAMIC_THEN("the two remain equivalent", idx) {
           REQUIRE(dynamic == obj);
+          REQUIRE(obj == dynamic);
         }
       }
     });
@@ -158,7 +172,9 @@ SCENARIO("objects can access nested keys in a single step", "[type unit]") {
         auto abbey_road = obj.get_nested("songs.come_together");
         DYNAMIC_THEN("it returns the correct value", idx) {
           REQUIRE(dark_side == "dark side");
+          REQUIRE("dark side" == dark_side);
           REQUIRE(abbey_road == "abbey road");
+          REQUIRE("abbey road" == abbey_road);
         }
       }
 
@@ -222,6 +238,7 @@ SCENARIO("finalized objects can be sent over the network", "[type unit]") {
 
         DYNAMIC_THEN("the two objects are equal", idx) {
           REQUIRE(dup == contents);
+          REQUIRE(contents == dup);
         }
       }
 
@@ -231,6 +248,7 @@ SCENARIO("finalized objects can be sent over the network", "[type unit]") {
 
         DYNAMIC_THEN("the two objects are equal", idx) {
           REQUIRE(dup == contents);
+          REQUIRE(contents == dup);
         }
       }
 
@@ -241,6 +259,7 @@ SCENARIO("finalized objects can be sent over the network", "[type unit]") {
         object dup {std::move(bytes)};
         DYNAMIC_THEN("the two objects are equal", idx) {
           REQUIRE(dup == contents);
+          REQUIRE(contents == dup);
         }
       }
     });
@@ -274,17 +293,29 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
 
         DYNAMIC_THEN("it all checks out", idx) {
           REQUIRE(obj[string {"hello"}] == string {"goodbye"});
+          REQUIRE(string {"goodbye"} == obj[string {"hello"}]);
           REQUIRE(obj.get("ruid"_dart) == number {138000709});
+          REQUIRE(number {138000709} == obj.get("ruid"_dart));
           REQUIRE(obj["halfway"] == number {0.5});
+          REQUIRE(number {0.5} == obj["halfway"]);
           REQUIRE(obj.get(string {""}) == string {"problems?"});
+          REQUIRE(string {"problems?"} == obj.get(string {""}));
           REQUIRE(obj["int"_dart] == number {42});
+          REQUIRE(number {42} == obj["int"_dart]);
           REQUIRE(obj.get("unsigned") == number {365});
+          REQUIRE(number {365} == obj.get("unsigned"));
           REQUIRE(obj[string {"long"}] == number {86400});
+          REQUIRE(number {86400} == obj[string {"long"}]);
           REQUIRE(obj.get("unsigned long"_dart) == number {3600});
+          REQUIRE(number {3600} == obj.get("unsigned long"_dart));
           REQUIRE(obj["long long"] == number {7200});
+          REQUIRE(number {7200} == obj["long long"]);
           REQUIRE(obj.get(string {"unsigned long long"}) == number {93000000});
+          REQUIRE(number {93000000} == obj.get(string {"unsigned long long"}));
           REQUIRE(obj["pi"_dart].decimal() == Approx(3.14159));
+          REQUIRE(Approx(3.14159) == obj["pi"_dart].decimal());
           REQUIRE(obj.get("c").decimal() == Approx(2.99792));
+          REQUIRE(Approx(2.99792) == obj.get("c").decimal());
           REQUIRE(obj[string {"truth"}]);
           REQUIRE_FALSE(obj.get("lies"_dart));
           REQUIRE(obj["absent"].get_type() == dart::packet::type::null);
@@ -307,7 +338,9 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
         obj.add_field("other", object {"c", 2.99792}).add_field("another", object {"asdf", "qwerty"});
         DYNAMIC_THEN("everything checks out", idx) {
           REQUIRE(obj["other"]["c"].decimal() == Approx(2.99792));
+          REQUIRE(Approx(2.99792) == obj["other"]["c"].decimal());
           REQUIRE(obj["another"]["asdf"] == "qwerty");
+          REQUIRE("qwerty" == obj["another"]["asdf"]);
         }
       }
     });
@@ -340,17 +373,29 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
 
         DYNAMIC_THEN("it all checks out", idx) {
           REQUIRE(obj[string {"hello"}] == string {"goodbye"});
+          REQUIRE(string {"goodbye"} == obj[string {"hello"}]);
           REQUIRE(obj.get("ruid"_dart) == number {138000709});
+          REQUIRE(number {138000709} == obj.get("ruid"_dart));
           REQUIRE(obj["halfway"] == number {0.5});
+          REQUIRE(number {0.5} == obj["halfway"]);
           REQUIRE(obj.get(string {""}) == string {"problems?"});
+          REQUIRE(string {"problems?"} == obj.get(string {""}));
           REQUIRE(obj["int"_dart] == number {42});
+          REQUIRE(number {42} == obj["int"_dart]);
           REQUIRE(obj.get("unsigned") == number {365});
+          REQUIRE(number {365} == obj.get("unsigned"));
           REQUIRE(obj[string {"long"}] == number {86400});
+          REQUIRE(number {86400} == obj[string {"long"}]);
           REQUIRE(obj.get("unsigned long"_dart) == number {3600});
+          REQUIRE(number {3600} == obj.get("unsigned long"_dart));
           REQUIRE(obj["long long"] == number {7200});
+          REQUIRE(number {7200} == obj["long long"]);
           REQUIRE(obj.get(string {"unsigned long long"}) == number {93000000});
+          REQUIRE(number {93000000} == obj.get(string {"unsigned long long"}));
           REQUIRE(obj["pi"_dart].decimal() == Approx(3.14159));
+          REQUIRE(Approx(3.14159) == obj["pi"_dart].decimal());
           REQUIRE(obj.get("c").decimal() == Approx(2.99792));
+          REQUIRE(Approx(2.99792) == obj.get("c").decimal());
           REQUIRE(obj[string {"truth"}]);
           REQUIRE_FALSE(obj.get("lies"_dart));
           REQUIRE(obj["absent"].get_type() == dart::packet::type::null);
@@ -373,7 +418,9 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
         obj.add_field("other", object {"c", 2.99792}).add_field("another", object {"asdf", "qwerty"});
         DYNAMIC_THEN("everything checks out", idx) {
           REQUIRE(obj["other"]["c"].decimal() == Approx(2.99792));
+          REQUIRE(Approx(2.99792) == obj["other"]["c"].decimal());
           REQUIRE(obj["another"]["asdf"] == "qwerty");
+          REQUIRE("qwerty" == obj["another"]["asdf"]);
         }
       }
     });
@@ -412,6 +459,44 @@ SCENARIO("object keys must be strings", "[type unit]") {
   }
 }
 
+SCENARIO("objects can find iterators to keys and values", "[type unit]") {
+  GIVEN("an object with some contents") {
+    dart::object_api_test([] (auto tag, auto idx) {
+      using object = typename decltype(tag)::type;
+      using string = dart::basic_string<typename object::value_type>;
+
+      // Get a nice, complicated, object.
+      object big {
+        "hello", "goodbye",
+        "pi", 3.14159,
+        "nested", object {
+          "nested_key", std::vector<std::string> {"nested", "values"}
+        },
+        "arr", std::make_tuple(1, 1, 2, 3, 5, 8, 13)
+      };
+
+      DYNAMIC_WHEN("the values are accessed", idx) {
+        auto hello_it = big.find("hello");
+        auto pi_it = big.find("pi");
+        auto nested_it = big.find("nested");
+        auto arr_it = big.find("arr");
+        DYNAMIC_THEN("the returned iterators are correct", idx) {
+          REQUIRE(hello_it != big.end());
+          REQUIRE(*hello_it == "goodbye");
+          REQUIRE(pi_it != big.end());
+          REQUIRE(pi_it->decimal() == Approx(3.14159));
+          REQUIRE(nested_it != big.end());
+          REQUIRE(nested_it->at("nested_key").size() == 2U);
+          REQUIRE(arr_it != big.end());
+          REQUIRE(arr_it->front() == 1);
+          REQUIRE(arr_it->back() == 13);
+          REQUIRE(arr_it->size() == 7U);
+        }
+      }
+    });
+  }
+}
+
 SCENARIO("arrays are regular types", "[type unit]") {
   GIVEN("a default-constructed, strongly typed, array") {
     dart::mutable_array_api_test([] (auto tag, auto idx) {
@@ -439,6 +524,7 @@ SCENARIO("arrays are regular types", "[type unit]") {
           REQUIRE(arr.empty());
           REQUIRE(arr.is_array());
           REQUIRE(arr == dup);
+          REQUIRE(dup == arr);
         }
       }
 
@@ -448,6 +534,11 @@ SCENARIO("arrays are regular types", "[type unit]") {
           REQUIRE(moved.empty());
           REQUIRE(moved.is_array());
           REQUIRE(moved != arr);
+          REQUIRE(arr != moved);
+          REQUIRE(!arr.is_array());
+          REQUIRE(!arr.is_aggregate());
+          REQUIRE(arr.is_null());
+          REQUIRE_FALSE(static_cast<bool>(arr));
         }
       }
 
@@ -458,6 +549,11 @@ SCENARIO("arrays are regular types", "[type unit]") {
           REQUIRE(arr.empty());
           REQUIRE(arr.is_array());
           REQUIRE(arr == moved);
+          REQUIRE(moved == arr);
+          REQUIRE(!dup.is_array());
+          REQUIRE(!dup.is_aggregate());
+          REQUIRE(dup.is_null());
+          REQUIRE_FALSE(static_cast<bool>(dup));
         }
       }
 
@@ -467,6 +563,7 @@ SCENARIO("arrays are regular types", "[type unit]") {
           REQUIRE(dup.empty());
           REQUIRE(dup.is_array());
           REQUIRE(dup == arr);
+          REQUIRE(arr == dup);
         }
       }
 
@@ -477,6 +574,7 @@ SCENARIO("arrays are regular types", "[type unit]") {
           REQUIRE(nope.is_array());
           REQUIRE(nope.size() == 2U);
           REQUIRE(nope != arr);
+          REQUIRE(arr != nope);
         }
       }
 
@@ -484,6 +582,7 @@ SCENARIO("arrays are regular types", "[type unit]") {
         typename array::value_type dynamic = arr;
         DYNAMIC_THEN("the two remain equivalent", idx) {
           REQUIRE(dynamic == arr);
+          REQUIRE(arr == dynamic);
         }
       }
     });
@@ -517,24 +616,43 @@ SCENARIO("arrays accept a variety of different types", "[type unit]") {
 
         DYNAMIC_THEN("everything winds up where we expect", idx) {
           REQUIRE(arr.front() == 0.5);
+          REQUIRE(0.5 == arr.front());
           REQUIRE(arr[number {1}] == number {2.99792});
+          REQUIRE(number {2.99792} == arr[number {1}]);
           REQUIRE(arr.get(2_dart) == 3600UL);
+          REQUIRE(3600UL == arr.get(2_dart));
           REQUIRE(arr[3] == number {93000000ULL});
+          REQUIRE(number {93000000ULL} == arr[3]);
           REQUIRE(arr.get(number {4}) == 365U);
+          REQUIRE(365U == arr.get(number {4}));
           REQUIRE(arr[5_dart] == number {42});
+          REQUIRE(number {42} == arr[5_dart]);
           REQUIRE(arr.get(6) == "hello");
+          REQUIRE("hello" == arr.get(6));
           REQUIRE(arr[number {7}] == number {1337});
+          REQUIRE(number {1337} == arr[number {7}]);
           REQUIRE(arr.get(8_dart) == 3.14159);
+          REQUIRE(3.14159 == arr.get(8_dart));
           REQUIRE(arr[9] == flag {false});
+          REQUIRE(flag {false} == arr[9]);
           REQUIRE(arr.get(number {10}) == null {nullptr});
+          REQUIRE(null {nullptr} == arr.get(number {10}));
           REQUIRE(arr[11_dart] == "");
+          REQUIRE("" == arr[11_dart]);
           REQUIRE(arr.get(12) == number {86400});
+          REQUIRE(number {86400} == arr.get(12));
           REQUIRE(arr[number {13}] == 7200LL);
+          REQUIRE(7200LL == arr[number {13}]);
           REQUIRE(arr.get(14_dart) == number {6.022});
+          REQUIRE(number {6.022} == arr.get(14_dart));
           REQUIRE(arr[15] == false);
+          REQUIRE(false == arr[15]);
           REQUIRE(arr.get(number {16}) == flag {true});
+          REQUIRE(flag {true} == arr.get(number {16}));
           REQUIRE(arr.back() == nullptr);
+          REQUIRE(nullptr == arr.back());
           REQUIRE(arr.size() == 18ULL);
+          REQUIRE(18ULL == arr.size());
         }
       }
     });
@@ -567,24 +685,43 @@ SCENARIO("arrays accept a variety of different types", "[type unit]") {
 
         DYNAMIC_THEN("everything winds up where we expect", idx) {
           REQUIRE(arr.front() == 0.5);
+          REQUIRE(0.5 == arr.front());
           REQUIRE(arr[number {1}] == number {2.99792});
+          REQUIRE(number {2.99792} == arr[number {1}]);
           REQUIRE(arr.get(2_dart) == 3600UL);
+          REQUIRE(3600UL == arr.get(2_dart));
           REQUIRE(arr[3] == number {93000000ULL});
+          REQUIRE(number {93000000ULL} == arr[3]);
           REQUIRE(arr.get(number {4}) == 365U);
+          REQUIRE(365U == arr.get(number {4}));
           REQUIRE(arr[5_dart] == number {42});
+          REQUIRE(number {42} == arr[5_dart]);
           REQUIRE(arr.get(6) == "hello");
+          REQUIRE("hello" == arr.get(6));
           REQUIRE(arr[number {7}] == number {1337});
+          REQUIRE(number {1337} == arr[number {7}]);
           REQUIRE(arr.get(8_dart) == 3.14159);
+          REQUIRE(3.14159 == arr.get(8_dart));
           REQUIRE(arr[9] == flag {false});
+          REQUIRE(flag {false} == arr[9]);
           REQUIRE(arr.get(number {10}) == null {nullptr});
+          REQUIRE(null {nullptr} == arr.get(number {10}));
           REQUIRE(arr[11_dart] == "");
+          REQUIRE("" == arr[11_dart]);
           REQUIRE(arr.get(12) == number {86400});
+          REQUIRE(number {86400} == arr.get(12));
           REQUIRE(arr[number {13}] == 7200LL);
+          REQUIRE(7200LL == arr[number {13}]);
           REQUIRE(arr.get(14_dart) == number {6.022});
+          REQUIRE(number {6.022} == arr.get(14_dart));
           REQUIRE(arr[15] == false);
+          REQUIRE(false == arr[15]);
           REQUIRE(arr.get(number {16}) == flag {true});
+          REQUIRE(flag {true} == arr.get(number {16}));
           REQUIRE(arr.back() == nullptr);
+          REQUIRE(nullptr == arr.back());
           REQUIRE(arr.size() == 18ULL);
+          REQUIRE(18ULL == arr.size());
         }
       }
     });
@@ -636,11 +773,17 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
         DYNAMIC_THEN("values are in expected order", idx) {
           REQUIRE(arr.size() == 4U);
           REQUIRE(arr.front() == "front");
+          REQUIRE("front" == arr.front());
           REQUIRE(arr[0] == "front");
+          REQUIRE("front" == arr[0]);
           REQUIRE(arr[1] == "almost_front");
+          REQUIRE("almost_front" == arr[1]);
           REQUIRE(arr[2] == "almost_middle");
+          REQUIRE("almost_middle" == arr[2]);
           REQUIRE(arr[3] == "middle");
+          REQUIRE("middle" == arr[3]);
           REQUIRE(arr.back() == "middle");
+          REQUIRE("middle" == arr.back());
         }
 
         DYNAMIC_WHEN("those values are popped from the front", idx) {
@@ -651,6 +794,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
             REQUIRE(arr.size() == 1U);
             REQUIRE(arr.front() == arr.back());
             REQUIRE(arr[0] == "middle");
+            REQUIRE("middle" == arr[0]);
           }
         }
       }
@@ -661,11 +805,17 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
         arr.insert(arr.end(), "back");
         DYNAMIC_THEN("values are in expected order", idx) {
           REQUIRE(arr.front() == "middle");
+          REQUIRE("middle" == arr.front());
           REQUIRE(arr[0] == "middle");
+          REQUIRE("middle" == arr[0]);
           REQUIRE(arr[1] == "almost_middle");
+          REQUIRE("almost_middle" == arr[1]);
           REQUIRE(arr[2] == "almost_back");
+          REQUIRE("almost_back" == arr[2]);
           REQUIRE(arr[3] == "back");
+          REQUIRE("back" == arr[3]);
           REQUIRE(arr.back() == "back");
+          REQUIRE("back" == arr.back());
         }
 
         DYNAMIC_WHEN("those values are popped from the back", idx) {
@@ -676,6 +826,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
             REQUIRE(arr.size() == 1U);
             REQUIRE(arr.front() == arr.back());
             REQUIRE(arr[0] == "middle");
+            REQUIRE("middle" == arr[0]);
           }
         }
       }
@@ -693,6 +844,7 @@ SCENARIO("arrays can be accessed optionally", "[type unit]") {
         auto val = arr.front_or("nope");
         DYNAMIC_THEN("the optional value is returned", idx) {
           REQUIRE(val == "nope");
+          REQUIRE("nope" == val);
         }
       }
 
@@ -700,6 +852,7 @@ SCENARIO("arrays can be accessed optionally", "[type unit]") {
         auto val = arr.back_or("still nope");
         DYNAMIC_THEN("the optional value is returned", idx) {
           REQUIRE(val == "still nope");
+          REQUIRE("still nope" == val);
         }
       }
 
@@ -707,6 +860,7 @@ SCENARIO("arrays can be accessed optionally", "[type unit]") {
         auto val = arr.get_or(15, "wasn't there");
         DYNAMIC_THEN("the optional value is returned", idx) {
           REQUIRE(val == "wasn't there");
+          REQUIRE("wasn't there" == val);
         }
       }
     });
@@ -721,6 +875,7 @@ SCENARIO("arrays can be accessed optionally", "[type unit]") {
         auto val = arr.front_or("not me");
         DYNAMIC_THEN("the index is returned", idx) {
           REQUIRE(val == "first");
+          REQUIRE("first" == val);
         }
       }
 
@@ -728,6 +883,7 @@ SCENARIO("arrays can be accessed optionally", "[type unit]") {
         auto val = arr.back_or("not me either");
         DYNAMIC_THEN("the index is returned", idx) {
           REQUIRE(val == "third");
+          REQUIRE("third" == val);
         }
       }
 
@@ -735,6 +891,51 @@ SCENARIO("arrays can be accessed optionally", "[type unit]") {
         auto val = arr.get_or(1, "lastly, not me");
         DYNAMIC_THEN("the middle is returned", idx) {
           REQUIRE(val == "second");
+          REQUIRE("second" == val);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("arrays can be resized dynamically", "[type unit]") {
+  GIVEN("a statically typed, mutable array") {
+    dart::mutable_array_api_test([] (auto tag, auto idx) {
+      using array = typename decltype(tag)::type;
+      using object = dart::basic_object<typename array::value_type>;
+
+      array arr;
+      REQUIRE(arr.size() == 0U);
+      auto cap = arr.capacity();
+      DYNAMIC_WHEN("we reserve double the current capacity", idx) {
+        // Capacity may start at zero.
+        arr.reserve((cap * 2) + 1);
+
+        DYNAMIC_THEN("the capacity grows to meet the reservation", idx) {
+          REQUIRE(arr.capacity() >= (cap * 2) + 1);
+        }
+      }
+
+      DYNAMIC_WHEN("we set the size explicitly", idx) {
+        arr.resize(7);
+
+        DYNAMIC_THEN("the size/capacity change as expect", idx) {
+          REQUIRE(arr.size() == 7U);
+          REQUIRE(arr.capacity() >= 7U);
+        }
+      }
+
+      DYNAMIC_WHEN("we set the size and supply a default value", idx) {
+        arr.resize(7, "will it work?");
+        DYNAMIC_THEN("all values added are set to it", idx) {
+          for (auto v : arr) REQUIRE(v == "will it work?");
+        }
+
+        DYNAMIC_WHEN("we finalize the array", idx) {
+          auto buff = object {"arr", arr}.lower()["arr"];
+          DYNAMIC_THEN("all values added are still set to it", idx) {
+            for (auto v : buff) REQUIRE(v == "will it work?");
+          }
         }
       }
     });
@@ -761,6 +962,464 @@ SCENARIO("arrays indices must be integers", "[type unit]") {
           REQUIRE_THROWS_AS(arr.insert(flag {true}, "oops"), std::logic_error);
           REQUIRE_THROWS_AS(arr.insert(number {2.5}, "oops"), std::logic_error);
           REQUIRE_THROWS_AS(arr.insert(null {}, "oops"), std::logic_error);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("strings are regular types", "[type unit]") {
+  GIVEN("a statically typed, mutable string") {
+    dart::mutable_string_api_test([] (auto tag, auto idx) {
+      using string = typename decltype(tag)::type;
+
+      // Validate basic properties.
+      string str;
+      REQUIRE(str.empty());
+      REQUIRE(str.is_str());
+      REQUIRE_FALSE(str.is_aggregate());
+      REQUIRE_FALSE(str.is_object());
+      REQUIRE_FALSE(str.is_integer());
+      REQUIRE_FALSE(str.is_decimal());
+      REQUIRE_FALSE(str.is_numeric());
+      REQUIRE_FALSE(str.is_boolean());
+      REQUIRE_FALSE(str.is_null());
+      REQUIRE(str.is_primitive());
+      REQUIRE(str.size() == 0U);
+      REQUIRE(str.get_type() == dart::packet::type::string);
+
+      DYNAMIC_WHEN("the string is copied", idx) {
+        auto dup = str;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.empty());
+          REQUIRE(dup.is_str());
+          REQUIRE(dup == str);
+          REQUIRE(str == dup);
+        }
+      }
+
+      DYNAMIC_WHEN("the string is moved", idx) {
+        auto moved = std::move(str);
+        DYNAMIC_THEN("the two do NOT compare equal", idx) {
+          REQUIRE(moved.empty());
+          REQUIRE(moved.is_str());
+          REQUIRE(moved != str);
+          REQUIRE(str != moved);
+          REQUIRE(!str.is_str());
+          REQUIRE(str.is_null());
+          REQUIRE(str.is_primitive());
+          REQUIRE_FALSE(static_cast<bool>(str));
+        }
+      }
+
+      DYNAMIC_WHEN("the string is copied, then moved", idx) {
+        auto dup = str;
+        auto moved = std::move(dup);
+        DYNAMIC_THEN("the two DO compare equal", idx) {
+          REQUIRE(str.empty());
+          REQUIRE(str.is_str());
+          REQUIRE(moved == str);
+          REQUIRE(str == moved);
+          REQUIRE(str.is_primitive());
+          REQUIRE(!dup.is_str());
+          REQUIRE(dup.is_primitive());
+          REQUIRE(dup.is_null());
+          REQUIRE_FALSE(static_cast<bool>(dup));
+        }
+      }
+
+      DYNAMIC_WHEN("the string is compared against an equivalent, disparate, string", idx) {
+        string dup;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.empty());
+          REQUIRE(dup.is_str());
+          REQUIRE(dup == str);
+          REQUIRE(str == dup);
+        }
+      }
+
+      DYNAMIC_WHEN("the string is compared against an inequivalent string", idx) {
+        string nope {"not equal"};
+        DYNAMIC_THEN("the two do NOT compare equal", idx) {
+          REQUIRE(!nope.empty());
+          REQUIRE(nope.is_str());
+          REQUIRE(nope.size() == 9U);
+          REQUIRE(nope != str);
+          REQUIRE(str != nope);
+        }
+      }
+
+      DYNAMIC_WHEN("the string decays to a dynamic type", idx) {
+        typename string::value_type dynamic = str;
+        DYNAMIC_THEN("the two remain equivalent", idx) {
+          REQUIRE(dynamic == str);
+          REQUIRE(str == dynamic);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("strings can be unwrapped to different machine types", "[type unit]") {
+  GIVEN("a statically typed, mutable string with contents") {
+    dart::mutable_string_api_test([] (auto tag, auto idx) {
+      using string = typename decltype(tag)::type;
+
+      string str {"the rain in spain falls mainly on the plain"};
+      DYNAMIC_WHEN("we cast the string to a std::string_view", idx) {
+        dart::shim::string_view view {str};
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(view == str);
+          REQUIRE(str == view);
+        }
+      }
+
+      DYNAMIC_WHEN("we explicitly access the string as a std::string_view", idx) {
+        auto view = str.strv();
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(view == str);
+          REQUIRE(str == view);
+        }
+      }
+
+      DYNAMIC_WHEN("we cast the string into a std::string", idx) {
+        std::string copy {str};
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(copy == str);
+          REQUIRE(str == copy);
+        }
+      }
+
+      DYNAMIC_WHEN("we explicitly access the string as a std::string", idx) {
+        std::string copy = str.str();
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(copy == str);
+          REQUIRE(str == copy);
+        }
+      }
+
+      DYNAMIC_WHEN("we dereference the string as a std::string_view", idx) {
+        auto view = *str;
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(view == str);
+          REQUIRE(str == view);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("numbers are regular types", "[type unit]") {
+  GIVEN("a statically typed, mutable number") {
+    dart::mutable_number_api_test([] (auto tag, auto idx) {
+      using number = typename decltype(tag)::type;
+
+      // Validate basic properties.
+      number num;
+      REQUIRE(num.is_integer());
+      REQUIRE(num.is_numeric());
+      REQUIRE_FALSE(num.is_aggregate());
+      REQUIRE_FALSE(num.is_object());
+      REQUIRE_FALSE(num.is_array());
+      REQUIRE_FALSE(num.is_str());
+      REQUIRE_FALSE(num.is_decimal());
+      REQUIRE_FALSE(num.is_boolean());
+      REQUIRE_FALSE(num.is_null());
+      REQUIRE(num.get_type() == dart::packet::type::integer);
+
+      DYNAMIC_WHEN("the number is copied", idx) {
+        auto dup = num;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.is_integer());
+          REQUIRE(dup == num);
+          REQUIRE(num == dup);
+        }
+      }
+
+      DYNAMIC_WHEN("the number is moved", idx) {
+        auto moved = std::move(num);
+        DYNAMIC_THEN("the two do NOT compare equal", idx) {
+          REQUIRE(moved.is_integer());
+          REQUIRE(moved != num);
+          REQUIRE(num != moved);
+          REQUIRE(!num.is_integer());
+          REQUIRE(!num.is_numeric());
+          REQUIRE(num.is_null());
+          REQUIRE_FALSE(static_cast<bool>(num));
+        }
+      }
+
+      DYNAMIC_WHEN("the number is copied, then moved", idx) {
+        auto dup = num;
+        auto moved = std::move(dup);
+        DYNAMIC_THEN("the two DO compare equal", idx) {
+          REQUIRE(moved.is_integer());
+          REQUIRE(moved == num);
+          REQUIRE(num == moved);
+          REQUIRE(num.is_primitive());
+          REQUIRE(!dup.is_integer());
+          REQUIRE(dup.is_null());
+          REQUIRE_FALSE(static_cast<bool>(dup));
+        }
+      }
+
+      DYNAMIC_WHEN("the number is compared against an equivalent, disparate, number", idx) {
+        number dup;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.is_integer());
+          REQUIRE(dup == num);
+          REQUIRE(num == dup);
+        }
+      }
+
+      DYNAMIC_WHEN("the number is compared against an inequivalent number", idx) {
+        number nope {5};
+        DYNAMIC_THEN("the two do NOT compare equal", idx) {
+          REQUIRE(nope.is_integer());
+          REQUIRE(nope != num);
+          REQUIRE(num != nope);
+        }
+      }
+
+      DYNAMIC_WHEN("the number decays to a dynamic type", idx) {
+        typename number::value_type dynamic = num;
+        DYNAMIC_THEN("the two remain equivalent", idx) {
+          REQUIRE(dynamic == num);
+          REQUIRE(num == dynamic);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("numbers can be unwrapped to different machine types", "[type unit]") {
+  GIVEN("a statically typed, mutable number with contents") {
+    dart::mutable_number_api_test([] (auto tag, auto idx) {
+      using number = typename decltype(tag)::type;
+
+      number num {2.99792};
+      DYNAMIC_WHEN("we cast the number into an int64_t", idx) {
+        int64_t val {num};
+        DYNAMIC_THEN("the value has been floored", idx) {
+          REQUIRE(val == static_cast<int64_t>(num.decimal()));
+        }
+      }
+
+      DYNAMIC_WHEN("we explicitly access the number as an int64_t", idx) {
+        DYNAMIC_THEN("it throws, as its runtime type is decimal", idx) {
+          REQUIRE_THROWS_AS(num.integer(), dart::type_error);
+        }
+      }
+
+      DYNAMIC_WHEN("we cast the number into a double", idx) {
+        double val {num};
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(Approx(val) == num.decimal());
+        }
+      }
+
+      DYNAMIC_WHEN("we explicitly access the number as a double", idx) {
+        auto val = num.decimal();
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(Approx(val) == num.decimal());
+        }
+      }
+
+      DYNAMIC_WHEN("we dereference the number as a double", idx) {
+        auto val = *num;
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(Approx(val) == num.decimal());
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("flags are regular types", "[type unit]") {
+  GIVEN("a statically typed, mutable boolean") {
+    dart::mutable_flag_api_test([] (auto tag, auto idx) {
+      using flag = typename decltype(tag)::type;
+
+      // Validate basic properties.
+      flag cond;
+      REQUIRE(cond.is_boolean());
+      REQUIRE_FALSE(cond.is_aggregate());
+      REQUIRE_FALSE(cond.is_object());
+      REQUIRE_FALSE(cond.is_array());
+      REQUIRE_FALSE(cond.is_integer());
+      REQUIRE_FALSE(cond.is_decimal());
+      REQUIRE_FALSE(cond.is_numeric());
+      REQUIRE_FALSE(cond.is_null());
+      REQUIRE(cond.is_primitive());
+      REQUIRE_FALSE(static_cast<bool>(cond));
+      REQUIRE(cond.get_type() == dart::packet::type::boolean);
+
+      DYNAMIC_WHEN("the flag is copied", idx) {
+        auto dup = cond;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.is_boolean());
+          REQUIRE(dup == cond);
+          REQUIRE(cond == dup);
+        }
+      }
+
+      DYNAMIC_WHEN("the flag is moved", idx) {
+        auto moved = std::move(cond);
+        DYNAMIC_THEN("the two do NOT compare equal", idx) {
+          REQUIRE(moved.is_boolean());
+          REQUIRE(moved != cond);
+          REQUIRE(cond != moved);
+          REQUIRE(!cond.is_boolean());
+          REQUIRE(cond.is_null());
+          REQUIRE_FALSE(static_cast<bool>(cond));
+          REQUIRE_FALSE(static_cast<bool>(moved));
+        }
+      }
+
+      DYNAMIC_WHEN("the flag is copied, the moved", idx) {
+        auto dup = cond;
+        auto moved = std::move(dup);
+        DYNAMIC_THEN("the two DO compare equal", idx) {
+          REQUIRE(cond.is_boolean());
+          REQUIRE(cond == moved);
+          REQUIRE(moved == cond);
+          REQUIRE(!dup.is_boolean());
+          REQUIRE(dup.is_null());
+          REQUIRE_FALSE(static_cast<bool>(dup));
+          REQUIRE_FALSE(static_cast<bool>(cond));
+          REQUIRE_FALSE(static_cast<bool>(moved));
+        }
+      }
+
+      DYNAMIC_WHEN("the flag is compared against an equivalent, disparate, flag", idx) {
+        flag dup;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.is_boolean());
+          REQUIRE(dup == cond);
+          REQUIRE(cond == dup);
+        }
+      }
+
+      DYNAMIC_WHEN("the flag is compared against an inequivalent flag", idx) {
+        flag nope {true};
+        DYNAMIC_THEN("the two do NOT compare equal", idx) {
+          REQUIRE(nope.is_boolean());
+          REQUIRE(nope != cond);
+          REQUIRE(cond != nope);
+          REQUIRE(static_cast<bool>(nope));
+          REQUIRE_FALSE(static_cast<bool>(cond));
+        }
+      }
+
+      DYNAMIC_WHEN("the flag decays to a dynamic type", idx) {
+        typename flag::value_type dynamic = cond;
+        DYNAMIC_THEN("the two remain equivalent", idx) {
+          REQUIRE(dynamic == cond);
+          REQUIRE(cond == dynamic);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("flags can be unwrapped to different machine types", "[type unit]") {
+  GIVEN("a statically typed, mutable flag with contents") {
+    dart::mutable_flag_api_test([] (auto tag, auto idx) {
+      using flag = typename decltype(tag)::type;
+
+      flag cond {true};
+      DYNAMIC_WHEN("we cast the flag into a bool", idx) {
+        bool val {cond};
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(val == cond);
+          REQUIRE(cond == val);
+        }
+      }
+
+      DYNAMIC_WHEN("we explicitly access the flag as a bool", idx) {
+        auto val = cond.boolean();
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(val == cond);
+          REQUIRE(cond == val);
+        }
+      }
+
+      DYNAMIC_WHEN("we dereference the flag as a bool", idx) {
+        auto val = *cond;
+        DYNAMIC_THEN("it compares equal", idx) {
+          REQUIRE(val == cond);
+          REQUIRE(cond == val);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("nulls are regular types", "[type unit]") {
+  GIVEN("a statically typed null value") {
+    dart::mutable_null_api_test([] (auto tag, auto idx) {
+      using null = typename decltype(tag)::type;
+
+      // Validate basic properties.
+      null none;
+      REQUIRE(none.is_null());
+      REQUIRE_FALSE(static_cast<bool>(none));
+      REQUIRE_FALSE(none.is_aggregate());
+      REQUIRE_FALSE(none.is_object());
+      REQUIRE_FALSE(none.is_integer());
+      REQUIRE_FALSE(none.is_decimal());
+      REQUIRE_FALSE(none.is_numeric());
+      REQUIRE_FALSE(none.is_boolean());
+      REQUIRE(none.is_primitive());
+      REQUIRE(none.get_type() == dart::packet::type::null);
+
+      DYNAMIC_WHEN("the null is copied", idx) {
+        auto dup = none;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.is_null());
+          REQUIRE(dup == none);
+          REQUIRE(none == dup);
+        }
+      }
+
+      DYNAMIC_WHEN("the null is moved", idx) {
+        auto moved = std::move(none);
+        DYNAMIC_THEN("moving null is a no-op, so the two compare equal", idx) {
+          REQUIRE(moved.is_null());
+          REQUIRE(moved == none);
+          REQUIRE(none == moved);
+        }
+      }
+
+      DYNAMIC_WHEN("the null is copied, then moved", idx) {
+        auto dup = none;
+        auto moved = std::move(dup);
+        DYNAMIC_THEN("moving null is a no-op, so all three compare equal", idx) {
+          REQUIRE(dup.is_null());
+          REQUIRE(moved.is_null());
+          REQUIRE(dup == moved);
+          REQUIRE(moved == dup);
+          REQUIRE(none == dup);
+          REQUIRE(dup == none);
+          REQUIRE(none == moved);
+          REQUIRE(moved == none);
+        }
+      }
+
+      DYNAMIC_WHEN("the null is compared against an equivalent, disparate, null", idx) {
+        null dup;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(dup.is_null());
+          REQUIRE(none == dup);
+          REQUIRE(dup == none);
+        }
+      }
+
+      DYNAMIC_WHEN("the null decays to a dynamic type", idx) {
+        typename null::value_type dynamic = none;
+        DYNAMIC_THEN("the two remain equivalent", idx) {
+          REQUIRE(dynamic == none);
+          REQUIRE(none == dynamic);
         }
       }
     });

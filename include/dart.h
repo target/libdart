@@ -112,6 +112,12 @@ namespace dart {
     template <class Obj, class A, class T>
     using get_or_t = decltype(std::declval<Obj>().get_or(std::declval<A>(), std::declval<T>()));
     template <class Obj, class A>
+    using at_t = decltype(std::declval<Obj>().at(std::declval<A>()));
+    template <class Obj, class A>
+    using find_t = decltype(std::declval<Obj>().find(std::declval<A>()));
+    template <class Obj, class A>
+    using find_key_t = decltype(std::declval<Obj>().find_key(std::declval<A>()));
+    template <class Obj, class A>
     using has_key_t = decltype(std::declval<Obj>().has_key(std::declval<A>()));
     template <class Obj>
     using get_bytes_t = decltype(std::declval<Obj>().get_bytes());
@@ -365,6 +371,12 @@ namespace dart {
        *  @details
        *  Assuming this is an object, returns the value associated with the given
        *  key, or a null packet if not such mapping exists.
+       *
+       *  @remarks
+       *  Function returns null if the requested mapping isn't present, but cannot
+       *  be marked noexcept due to the possibility that the user might pass a
+       *  dart::packet which is not a string.
+       *  If you pass this function reasonable things, it'll never throw an exception.
        */
       template <class KeyType, class =
         std::enable_if_t<
@@ -384,6 +396,11 @@ namespace dart {
        *  key, or a null packet if not such mapping exists.
        *
        *  @remarks
+       *  Function returns null if the requested mapping isn't present, but cannot
+       *  be marked noexcept due to the possibility that the user might pass a
+       *  dart::packet which is not a string.
+       *  If you pass this function reasonable things, it'll never throw an exception.
+       *
        *  dart::buffer is able to profitably use an rvalue overloaded subscript
        *  operator to skip unnecessary refcount increments/decrements in expressions
        *  like the following:
@@ -467,7 +484,7 @@ namespace dart {
        *  @details
        *  Always returns true for strongly typed objects.
        */
-      explicit constexpr operator bool() const noexcept;
+      explicit operator bool() const noexcept;
 
       /*----- Public API -----*/
 
@@ -883,6 +900,78 @@ namespace dart {
 
       /**
        *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Function will return the requested key-value pair as a new packet.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          probable_string<KeyType>::value
+          &&
+          meta::is_detected<at_t, value_type const&, KeyType const&>::value
+        >
+      >
+      auto at(KeyType const& key) const& -> value_type;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Function will return the requested key-value pair as a new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          probable_string<KeyType>::value
+          &&
+          meta::is_detected<at_t, value_type&&, KeyType const&>::value
+        >
+      >
+      decltype(auto) at(KeyType const& key) &&;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping.
+       *
+       *  @details
+       *  Function will return an iterator to the requested VALUE mapping,
+       *  or the end iterator.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          meta::is_detected<find_t, value_type const&, KeyType const&>::value
+        >
+      >
+      auto find(KeyType const& key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping.
+       *
+       *  @details
+       *  Function will return an iterator to the requested KEY mapping,
+       *  or the end iterator.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          meta::is_detected<find_key_t, value_type const&, KeyType const&>::value
+        >
+      >
+      auto find_key(KeyType const& key) const -> iterator;
+
+      /**
+       *  @brief
        *  Returns all keys associated with the current object.
        */
       auto keys() const -> std::vector<value_type>;
@@ -920,13 +1009,23 @@ namespace dart {
        */
       bool empty() const noexcept;
 
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() const noexcept -> value_type const&;
+
       /*----- Introspection Functions -----*/
 
       /**
        *  @brief
        *  Returns whether the current packet is an object or not.
        */
-      constexpr bool is_object() const noexcept;
+      bool is_object() const noexcept;
 
       /**
        *  @brief
@@ -938,7 +1037,7 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is an object or array or not.
        */
-      constexpr bool is_aggregate() const noexcept;
+      bool is_aggregate() const noexcept;
 
       /**
        *  @brief
@@ -974,7 +1073,7 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is null or not.
        */
-      constexpr bool is_null() const noexcept;
+      bool is_null() const noexcept;
 
       /**
        *  @brief
@@ -987,7 +1086,7 @@ namespace dart {
        *  @brief
        *  Returns the type of the current packet as an enum value.
        */
-      constexpr type get_type() const noexcept;
+      type get_type() const noexcept;
 
       /**
        *  @brief
@@ -1310,9 +1409,15 @@ namespace dart {
     template <class Arr, class I>
     using erase_t = decltype(std::declval<Arr>().erase(std::declval<I>()));
     template <class Arr, class A>
+    using reserve_t = decltype(std::declval<Arr>().reserve(std::declval<A>()));
+    template <class Arr, class A, class T>
+    using resize_t = decltype(std::declval<Arr>().resize(std::declval<A>(), std::declval<T>()));
+    template <class Arr, class A>
     using get_t = decltype(std::declval<Arr>().get(std::declval<A>()));
     template <class Arr, class A, class T>
     using get_or_t = decltype(std::declval<Arr>().get_or(std::declval<A>(), std::declval<T>()));
+    template <class Arr, class A>
+    using at_t = decltype(std::declval<Arr>().at(std::declval<A>()));
     template <class Arr, class T>
     using front_or_t = decltype(std::declval<Arr>().front_or(std::declval<T>()));
     template <class Arr, class T>
@@ -1518,7 +1623,19 @@ namespace dart {
        *  Array subscript operator.
        *
        *  @details
-       *  Will return the requested array index as a new packet.
+       *  Will return the requested array index as a new packet, or null if the
+       *  requested index was out of bounds.
+       *
+       *  @remarks
+       *  Function returns null if the requested mapping isn't present, but cannot
+       *  be marked noexcept due to the possibility that the user might pass a
+       *  dart::packet which is not an integer.
+       *  If you pass this function reasonable things, it'll never throw an exception.
+       *
+       *  Not throwing an exception, and simply returning null, in the case of an out
+       *  of bounds access is potentially a contentious design move.
+       *  It was done in order to keep the "logical" exception behavior of element access
+       *  in line with std::vector, but with different preconditions.
        */
       template <class Index, class =
         std::enable_if_t<
@@ -1537,6 +1654,16 @@ namespace dart {
        *  Will return the requested array index as a new packet.
        *
        *  @remarks
+       *  Function returns null if the requested mapping isn't present, but cannot
+       *  be marked noexcept due to the possibility that the user might pass a
+       *  dart::packet which is not an integer.
+       *  If you pass this function reasonable things, it'll never throw an exception.
+       *
+       *  Not throwing an exception, and simply returning null, in the case of an out
+       *  of bounds access is potentially a contentious design move.
+       *  It was done in order to keep the "logical" exception behavior of element access
+       *  in line with std::vector, but with different preconditions.
+       *
        *  dart::buffer is able to profitably use an rvalue overloaded subscript
        *  operator to skip unnecessary refcount increments/decrements in expressions
        *  like the following:
@@ -1620,7 +1747,7 @@ namespace dart {
        *  @details
        *  Always returns true for strongly typed arrays.
        */
-      explicit constexpr operator bool() const noexcept;
+      explicit operator bool() const noexcept;
 
       /*----- Public API -----*/
 
@@ -1834,6 +1961,40 @@ namespace dart {
       >
       auto erase(Index const& idx) -> iterator;
 
+      /*----- State Manipulation Functions -----*/
+
+      /**
+       *  @brief
+       *  Function ensures enough underlying storage for at least
+       *  as many elements as specified.
+       *
+       *  @details
+       *  If used judiciously, can increase insertion performance.
+       *  If used poorly, will definitely decrease insertion performance.
+       */
+      template <class Arr = Array, class =
+        std::enable_if_t<
+          meta::is_detected<reserve_t, value_type&, size_type>::value
+        >
+      >
+      void reserve(size_type count);
+
+      /**
+       *  @brief
+       *  Function sets the current capacity of the underlying array storage.
+       *
+       *  @details
+       *  If the underlying array grows, values are initialized by casting
+       *  the supplied default argument according to the usual conversion
+       *  API rules.
+       */
+      template <class T = std::nullptr_t, class =
+        std::enable_if_t<
+          meta::is_detected<resize_t, value_type&, size_type, T const&>::value
+        >
+      >
+      void resize(size_type count, T const& def = T {});
+
       /*----- JSON Helper Functions -----*/
 
 #if DART_HAS_RAPIDJSON
@@ -1927,6 +2088,50 @@ namespace dart {
 
       /**
        *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming the requested index is within bounds, will return the requested array index
+       *  as a new packet.
+       */
+      template <class Index, class =
+        std::enable_if_t<
+          probable_integer<Index>::value
+          &&
+          meta::is_detected<at_t, value_type const&, Index const&>::value
+        >
+      >
+      auto at(Index const& idx) const& -> value_type;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming the requested index is within bounds, will return the requested array index
+       *  as a new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto arr = some_array();
+       *  auto deep = arr[0][1][2];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      template <class Index, class =
+        std::enable_if_t<
+          probable_integer<Index>::value
+          &&
+          meta::is_detected<at_t, value_type&&, Index const&>::value
+        >
+      >
+      decltype(auto) at(Index const& idx) &&;
+
+      /**
+       *  @brief
        *  Function returns the first element in an array.
        *
        *  @details
@@ -2003,6 +2208,15 @@ namespace dart {
 
       /**
        *  @brief
+       *  Function returns the current capacity of the underlying storage array.
+       *
+       *  @details
+       *  If this is finalized, capacity is fixed.
+       */
+      auto capacity() const -> size_type;
+
+      /**
+       *  @brief
        *  Function returns whether the current packet is empty, according to the semantics
        *  of its type.
        *
@@ -2010,6 +2224,16 @@ namespace dart {
        *  In actuality, returns whether size() == 0;
        */
       bool empty() const noexcept;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() const noexcept -> value_type const&;
 
       /*----- Introspection Functions -----*/
 
@@ -2023,13 +2247,13 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is an array or not.
        */
-      constexpr bool is_array() const noexcept;
+      bool is_array() const noexcept;
 
       /**
        *  @brief
        *  Returns whether the current packet is an object or array or not.
        */
-      constexpr bool is_aggregate() const noexcept;
+      bool is_aggregate() const noexcept;
 
       /**
        *  @brief
@@ -2065,7 +2289,7 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is null or not.
        */
-      constexpr bool is_null() const noexcept;
+      bool is_null() const noexcept;
 
       /**
        *  @brief
@@ -2078,7 +2302,7 @@ namespace dart {
        *  @brief
        *  Returns the type of the current packet as an enum value.
        */
-      constexpr type get_type() const noexcept;
+      type get_type() const noexcept;
 
       /**
        *  @brief
@@ -2246,6 +2470,22 @@ namespace dart {
       using size_type = typename String::size_type;
 
       /*----- Lifecycle Functions -----*/
+
+      /**
+       *  @brief
+       *  Constructor can be used to initialize a strongly typed
+       *  string as the empty string.
+       *
+       *  @details
+       *  Internally calls make_string on the underlying packet type
+       *  (if implemented).
+       */
+      template <class Str = String, class =
+        std::enable_if_t<
+          meta::is_detected<make_string_t, Str, shim::string_view>::value
+        >
+      >
+      basic_string() : basic_string("") {}
 
       /**
        *  @brief
@@ -2488,7 +2728,7 @@ namespace dart {
        *  @details
        *  Operator always returns true for strongly typed strings.
        */
-      explicit constexpr operator bool() const noexcept;
+      explicit operator bool() const noexcept;
 
       /*----- Public API -----*/
 
@@ -2549,6 +2789,16 @@ namespace dart {
        */
       bool empty() const noexcept;
 
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() const noexcept -> value_type const&;
+
       /*----- Introspection Functions -----*/
 
       /**
@@ -2573,7 +2823,7 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is a string or not.
        */
-      constexpr bool is_str() const noexcept;
+      bool is_str() const noexcept;
 
       /**
        *  @brief
@@ -2603,7 +2853,7 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is null or not.
        */
-      constexpr bool is_null() const noexcept;
+      bool is_null() const noexcept;
 
       /**
        *  @brief
@@ -2616,7 +2866,7 @@ namespace dart {
        *  @brief
        *  Returns the type of the current packet as an enum value.
        */
-      constexpr type get_type() const noexcept;
+      type get_type() const noexcept;
 
       /**
        *  @brief
@@ -2680,6 +2930,22 @@ namespace dart {
       using size_type = typename Number::size_type;
 
       /*----- Lifecycle Functions -----*/
+
+      /**
+       *  @brief
+       *  Constructor can be used to initialize a strongly typed
+       *  number as zero.
+       *
+       *  @details
+       *  Internally calls make_integer on the underlying packet type
+       *  (if implemented).
+       */
+      template <class Num = Number, class =
+        std::enable_if_t<
+          meta::is_detected<make_integer_t, Num, int64_t>::value
+        >
+      >
+      basic_number() : basic_number(0) {}
 
       /**
        *  @brief
@@ -2936,7 +3202,7 @@ namespace dart {
        *  @details
        *  Operator always returns true for strongly typed numbers.
        */
-      explicit constexpr operator bool() const noexcept;
+      explicit operator bool() const noexcept;
 
       /*----- Public API -----*/
 
@@ -2988,6 +3254,16 @@ namespace dart {
        */
       double numeric() const noexcept;
 
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() const noexcept -> value_type const&;
+
       /*----- Introspection Functions -----*/
 
       /**
@@ -3030,7 +3306,7 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is an integer or decimal or not.
        */
-      constexpr bool is_numeric() const noexcept;
+      bool is_numeric() const noexcept;
 
       /**
        *  @brief
@@ -3042,7 +3318,7 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is null or not.
        */
-      constexpr bool is_null() const noexcept;
+      bool is_null() const noexcept;
 
       /**
        *  @brief
@@ -3117,6 +3393,22 @@ namespace dart {
       using size_type = typename Boolean::size_type;
 
       /*----- Lifecycle Functions -----*/
+
+      /**
+       *  @brief
+       *  Constructor can be used to initialize a strongly typed
+       *  flag as false.
+       *
+       *  @details
+       *  Internally calls make_boolean on the underlying packet type
+       *  (if implemented).
+       */
+      template <class Bool = Boolean, class =
+        std::enable_if_t<
+          meta::is_detected<make_boolean_t, Bool, bool>::value
+        >
+      >
+      basic_flag() : basic_flag(false) {}
 
       /**
        *  @brief
@@ -3383,6 +3675,16 @@ namespace dart {
        */
       bool boolean() const noexcept;
 
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() const noexcept -> value_type const&;
+
       /*----- Introspection Functions -----*/
 
       /**
@@ -3431,13 +3733,13 @@ namespace dart {
        *  @brief
        *  Returns whether the current packet is a boolean or not.
        */
-      constexpr bool is_boolean() const noexcept;
+      bool is_boolean() const noexcept;
 
       /**
        *  @brief
        *  Returns whether the current packet is null or not.
        */
-      constexpr bool is_null() const noexcept;
+      bool is_null() const noexcept;
 
       /**
        *  @brief
@@ -3450,7 +3752,7 @@ namespace dart {
        *  @brief
        *  Returns the type of the current packet as an enum value.
        */
-      constexpr type get_type() const noexcept;
+      type get_type() const noexcept;
 
       /**
        *  @brief
@@ -3709,6 +4011,16 @@ namespace dart {
       template <unsigned flags = write_default>
       std::string to_json() const;
 #endif
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() const noexcept -> value_type const&;
 
       /*----- Introspection Functions -----*/
 
@@ -4651,6 +4963,35 @@ namespace dart {
        */
       auto erase(size_type pos) -> iterator;
 
+      /*----- State Manipulation Functions -----*/
+
+      /**
+       *  @brief
+       *  Function ensures enough underlying storage for at least
+       *  as many elements as specified.
+       *
+       *  @details
+       *  If used judiciously, can increase insertion performance.
+       *  If used poorly, will definitely decrease insertion performance.
+       */
+      void reserve(size_type count);
+
+      /**
+       *  @brief
+       *  Function sets the current capacity of the underlying array storage.
+       *
+       *  @details
+       *  If the underlying array grows, values are initialized by casting
+       *  the supplied default argument according to the usual conversion
+       *  API rules.
+       */
+      template <class T = std::nullptr_t, class =
+        std::enable_if_t<
+          convert::is_castable<T, basic_heap>::value
+        >
+      >
+      void resize(size_type count, T const& def = T {});
+
       /**
        *  @brief
        *  Function would transition to non-finalized mode, but as dart::heap is non-finalized
@@ -5121,6 +5462,64 @@ namespace dart {
 
       /**
        *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       */
+      template <class Number>
+      basic_heap at(basic_number<Number> const& idx) const;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       */
+      basic_heap at(size_type index) const;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       */
+      template <class String>
+      basic_heap at(basic_string<String> const& key) const;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       */
+      basic_heap at(shim::string_view key) const;
+
+      /**
+       *  @brief
+       *  Combined array/object access method, precisely equivalent to the corresponding
+       *  subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object/array, returns the value associated with the
+       *  given key/index, or a null packet/throws an exception if no such mapping exists.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          meta::is_dartlike<KeyType const&>::value
+        >
+      >
+      basic_heap at(KeyType const& identifier) const;
+
+      /**
+       *  @brief
        *  Function returns the first element in an array.
        *
        *  @details
@@ -5174,6 +5573,56 @@ namespace dart {
         >
       >
       basic_heap back_or(T&& opt) const;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      template <class String>
+      auto find(basic_string<String> const& key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      auto find(shim::string_view key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested KEY mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      template <class String>
+      auto find_key(basic_string<String> const& key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      auto find_key(shim::string_view key) const -> iterator;
 
       /**
        *  @brief
@@ -5377,6 +5826,12 @@ namespace dart {
        *  terminator.
        */
       auto size() const -> size_type;
+
+      /**
+       *  @brief
+       *  Function returns the current capacity of the underlying storage array.
+       */
+      auto capacity() const -> size_type;
 
       /**
        *  @brief
@@ -6775,6 +7230,169 @@ namespace dart {
 
       /**
        *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       */
+      template <class Number>
+      basic_buffer at(basic_number<Number> const& idx) const&;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto arr = some_array();
+       *  auto deep = arr[0][1][2];
+       *  ```
+       */
+      template <class Number>
+      basic_buffer&& at(basic_number<Number> const& idx) &&;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       */
+      basic_buffer at(size_type index) const&;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto arr = some_array();
+       *  auto deep = arr[0][1][2];
+       *  ```
+       */
+      basic_buffer&& at(size_type index) &&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       */
+      template <class String>
+      basic_buffer at(basic_string<String> const& key) const&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      template <class String>
+      basic_buffer&& at(basic_string<String> const& key) &&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       */
+      basic_buffer at(shim::string_view key) const&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      basic_buffer&& at(shim::string_view key) &&;
+
+      /**
+       *  @brief
+       *  Combined array/object access method, precisely equivalent to the corresponding
+       *  subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object/array, returns the value associated with the
+       *  given key/index, or a null packet/throws an exception if no such mapping exists.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          meta::is_dartlike<KeyType const&>::value
+        >
+      >
+      basic_buffer at(KeyType const& identifier) const&;
+
+      /**
+       *  @brief
+       *  Combined array/object access method, precisely equivalent to the corresponding
+       *  subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object/array, returns the value associated with the
+       *  given key/index, or a null packet/throws an exception if no such mapping exists.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          meta::is_dartlike<KeyType const&>::value
+        >
+      >
+      basic_buffer&& at(KeyType const& identifier) &&;
+
+      /**
+       *  @brief
        *  Function returns the first element in an array.
        *
        *  @details
@@ -6816,6 +7434,56 @@ namespace dart {
        *  Throws otherwise.
        */
       basic_buffer&& back() &&;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      template <class String>
+      auto find(basic_string<String> const& key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      auto find(shim::string_view key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested KEY mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      template <class String>
+      auto find_key(basic_string<String> const& key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      auto find_key(shim::string_view key) const -> iterator;
 
       /**
        *  @brief
@@ -7019,6 +7687,12 @@ namespace dart {
        *  terminator.
        */
       auto size() const -> size_type;
+
+      /**
+       *  @brief
+       *  Function returns the capacity of the underlying storage.
+       */
+      auto capacity() const -> size_type;
 
       /**
        *  @brief
@@ -8445,6 +9119,35 @@ namespace dart {
        */
       auto erase(size_type pos) -> iterator;
 
+      /*----- State Manipulation Functions -----*/
+
+      /**
+       *  @brief
+       *  Function ensures enough underlying storage for at least
+       *  as many elements as specified.
+       *
+       *  @details
+       *  If used judiciously, can increase insertion performance.
+       *  If used poorly, will definitely decrease insertion performance.
+       */
+      void reserve(size_type count);
+
+      /**
+       *  @brief
+       *  Function sets the current capacity of the underlying array storage.
+       *
+       *  @details
+       *  If the underlying array grows, values are initialized by casting
+       *  the supplied default argument according to the usual conversion
+       *  API rules.
+       */
+      template <class T = std::nullptr_t, class =
+        std::enable_if_t<
+          convert::is_castable<T, basic_packet>::value
+        >
+      >
+      void resize(size_type count, T const& def = T {});
+
       /**
        *  @brief
        *  Function transitions the current packet from being finalized to non-finalized in place.
@@ -8975,6 +9678,172 @@ namespace dart {
 
       /**
        *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       */
+      template <class Number>
+      basic_packet at(basic_number<Number> const& idx) const&;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto arr = some_array();
+       *  auto deep = arr[0][1][2];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      template <class Number>
+      basic_packet&& at(basic_number<Number> const& idx) &&;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       */
+      basic_packet at(size_type index) const&;
+
+      /**
+       *  @brief
+       *  Array access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an array, and the requested index is within bounds, will
+       *  return the requested array index as a new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto arr = some_array();
+       *  auto deep = arr[0][1][2];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      basic_packet&& at(size_type index) &&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       */
+      template <class String>
+      basic_packet at(basic_string<String> const& key) const&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      template <class String>
+      basic_packet&& at(basic_string<String> const& key) &&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       */
+      basic_packet at(shim::string_view key) const&;
+
+      /**
+       *  @brief
+       *  Object access method, precisely equivalent to the corresponding subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object, function will return the requested key-value pair as a
+       *  new packet.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      basic_packet&& at(shim::string_view key) &&;
+
+      /**
+       *  @brief
+       *  Combined array/object access method, precisely equivalent to the corresponding
+       *  subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object/array, returns the value associated with the
+       *  given key/index, or a null packet/throws an exception if no such mapping exists.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          meta::is_dartlike<KeyType const&>::value
+        >
+      >
+      basic_packet at(KeyType const& identifier) const&;
+
+      /**
+       *  @brief
+       *  Combined array/object access method, precisely equivalent to the corresponding
+       *  subscript operator.
+       *
+       *  @details
+       *  Assuming this is an object/array, returns the value associated with the
+       *  given key/index, or a null packet/throws an exception if no such mapping exists.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      template <class KeyType, class =
+        std::enable_if_t<
+          meta::is_dartlike<KeyType const&>::value
+        >
+      >
+      basic_packet&& at(KeyType const& identifier) &&;
+
+      /**
+       *  @brief
        *  Function returns the first element in an array.
        *
        *  @details
@@ -9050,6 +9919,56 @@ namespace dart {
         >
       >
       basic_packet back_or(T&& opt) const;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      template <class String>
+      auto find(basic_string<String> const& key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      auto find(shim::string_view key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested KEY mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      template <class String>
+      auto find_key(basic_string<String> const& key) const -> iterator;
+
+      /**
+       *  @brief
+       *  Finds the requested key-value mapping in an object.
+       *
+       *  @details
+       *  If this is in an object, function will return an
+       *  iterator to the requested VALUE mapping, or the
+       *  end iterator.
+       *  If this is an object, throws an exception.
+       */
+      auto find_key(shim::string_view key) const -> iterator;
 
       /**
        *  @brief
@@ -9253,6 +10172,15 @@ namespace dart {
        *  terminator.
        */
       auto size() const -> size_type;
+
+      /**
+       *  @brief
+       *  Function returns the current capacity of the underlying storage array.
+       *
+       *  @details
+       *  If this is finalized, capacity is fixed.
+       */
+      auto capacity() const -> size_type;
 
       /**
        *  @brief

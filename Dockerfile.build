@@ -13,4 +13,4 @@ CMD cd /root/libdart                                            \
   && mkdir build                                                \
   && cd build                                                   \
   && cmake .. -D32bit=ON -Dstatic_test=ON -Dextended_test=ON    \
-  && make
+  && make VERBOSE=1

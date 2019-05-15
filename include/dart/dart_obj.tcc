@@ -437,6 +437,169 @@ namespace dart {
   }
 
   template <class Object>
+  template <class KeyType, class>
+  auto basic_object<Object>::at(KeyType const& key) const& -> value_type {
+    return val.at(key);
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  basic_heap<RefCount> basic_heap<RefCount>::at(basic_string<String> const& key) const {
+    return at(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  basic_buffer<RefCount> basic_buffer<RefCount>::at(basic_string<String> const& key) const& {
+    return at(key.strv());
+  }
+
+  template <class Object>
+  template <class KeyType, class>
+  decltype(auto) basic_object<Object>::at(KeyType const& key) && {
+    return std::move(val).at(key);
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::at(basic_string<String> const& key) && {
+    return std::move(*this).at(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  basic_packet<RefCount> basic_packet<RefCount>::at(basic_string<String> const& key) const& {
+    return at(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  basic_packet<RefCount>&& basic_packet<RefCount>::at(basic_string<String> const& key) && {
+    return std::move(*this).at(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::at(shim::string_view key) const {
+    // Use our transparent comparator to find the pair without constructing
+    // a temporary heap.
+    auto& fields = get_fields();
+    auto found = fields.find(key);
+    if (found == fields.end()) throw std::out_of_range("dart::heap does not contain requested mapping");
+    return found->second;
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::at(shim::string_view key) const& {
+    return basic_buffer(detail::get_object<RefCount>(raw)->at_value(key), buffer_ref);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::at(shim::string_view key) const& {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.at(key); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::at(shim::string_view key) && {
+    raw = detail::get_object<RefCount>(raw)->at_value(key);
+    if (is_null()) buffer_ref = nullptr;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::at(shim::string_view key) && {
+    shim::visit([&] (auto& v) { v = std::move(v).at(key); }, impl);
+    return std::move(*this);
+  }
+
+  template <class Object>
+  template <class KeyType, class>
+  auto basic_object<Object>::find(KeyType const& key) const -> iterator {
+    return val.find(key);
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  auto basic_heap<RefCount>::find(basic_string<String> const& key) const -> iterator {
+    return find(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  auto basic_buffer<RefCount>::find(basic_string<String> const& key) const -> iterator {
+    return find(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  auto basic_packet<RefCount>::find(basic_string<String> const& key) const -> iterator {
+    return find(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  auto basic_heap<RefCount>::find(shim::string_view key) const -> iterator {
+    if (is_object()) {
+      auto deref = [] (auto& it) { return it->second; };
+      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->find(key), deref));
+    } else {
+      throw type_error("dart::heap isn't an object and cannot find key-value mappings");
+    }
+  }
+
+  template <template <class> class RefCount>
+  auto basic_buffer<RefCount>::find(shim::string_view key) const -> iterator {
+    return iterator(*this, detail::get_object<RefCount>(raw)->get_it(key));
+  }
+
+  template <template <class> class RefCount>
+  auto basic_packet<RefCount>::find(shim::string_view key) const -> iterator {
+    return shim::visit([&] (auto& v) -> iterator { return v.find(key); }, impl);
+  }
+
+  template <class Object>
+  template <class KeyType, class>
+  auto basic_object<Object>::find_key(KeyType const& key) const -> iterator {
+    return val.find_key(key);
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  auto basic_heap<RefCount>::find_key(basic_string<String> const& key) const -> iterator {
+    return find_key(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  auto basic_buffer<RefCount>::find_key(basic_string<String> const& key) const -> iterator {
+    return find_key(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  template <class String>
+  auto basic_packet<RefCount>::find_key(basic_string<String> const& key) const -> iterator {
+    return find_key(key.strv());
+  }
+
+  template <template <class> class RefCount>
+  auto basic_heap<RefCount>::find_key(shim::string_view key) const -> iterator {
+    if (is_object()) {
+      auto deref = [] (auto& it) { return it->first; };
+      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->find(key), deref));
+    } else {
+      throw type_error("dart::heap isn't an object and cannot find key-value mappings");
+    }
+  }
+
+  template <template <class> class RefCount>
+  auto basic_buffer<RefCount>::find_key(shim::string_view key) const -> iterator {
+    return iterator(*this, detail::get_object<RefCount>(raw)->get_key_it(key));
+  }
+
+  template <template <class> class RefCount>
+  auto basic_packet<RefCount>::find_key(shim::string_view key) const -> iterator {
+    return shim::visit([&] (auto& v) -> iterator { return v.find_key(key); }, impl);
+  }
+
+  template <class Object>
   auto basic_object<Object>::keys() const -> std::vector<value_type> {
     return val.keys();
   }
@@ -493,7 +656,8 @@ namespace dart {
 
   template <template <class> class RefCount>
   bool basic_buffer<RefCount>::has_key(shim::string_view key) const {
-    return detail::get_object<RefCount>(raw)->get_key(key).buffer != nullptr;
+    auto elem = std::get<detail::raw_element>(detail::get_object<RefCount>(raw)->get_key(key));
+    return elem.buffer != nullptr;
   }
 
   template <template <class> class RefCount>
@@ -651,7 +815,7 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    auto object<RefCount>::get_key(shim::string_view const key) const noexcept -> raw_element {
+    auto object<RefCount>::get_key(shim::string_view const key) const noexcept -> std::tuple<raw_element, size_t> {
       // Get the size of the vtable.
       size_t const num_keys = size();
 
@@ -660,6 +824,7 @@ namespace dart {
       auto type = detail::raw_type::null;
       int32_t low = 0, high = num_keys - 1;
       gsl::byte const* const base = DART_FROM_THIS;
+      size_t idx = std::numeric_limits<size_t>::max();
       while (high >= low) {
         // Calculate the location of the next guess.
         auto const mid = (low + high) / 2;
@@ -675,6 +840,7 @@ namespace dart {
         // Update.
         if (comparison == 0) {
           // We've found it!
+          idx = mid;
           type = entry.get_type();
           target = base + entry.get_offset();
           break;
@@ -684,24 +850,29 @@ namespace dart {
           high = mid - 1;
         }
       }
-      return {type, target};
+      return std::tuple<raw_element, size_t> {raw_element {type, target}, idx};
+    }
+
+    template <template <class> class RefCount>
+    auto object<RefCount>::get_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount> {
+      auto idx = std::get<size_t>(get_key(key));
+      return ll_iterator<RefCount>(idx, DART_FROM_THIS, load_value);
+    }
+
+    template <template <class> class RefCount>
+    auto object<RefCount>::get_key_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount> {
+      auto idx = std::get<size_t>(get_key(key));
+      return ll_iterator<RefCount>(idx, DART_FROM_THIS, load_key);
     }
 
     template <template <class> class RefCount>
     auto object<RefCount>::get_value(shim::string_view const key) const noexcept -> raw_element {
-      // Propagate through to get_key to grab the pointer to our key and the type of our value.
-      auto const field = get_key(key);
+      return get_value_impl(key, false);
+    }
 
-      // If the pointer is null, the key didn't exist, and we're done.
-      if (!field.buffer) return field;
-
-      // If the type is null, we need to ignore the pointer (nulls are identifiers and
-      // do not hold memory, so the pointer is worthless).
-      if (field.type == detail::raw_type::null) return {field.type, nullptr};
-
-      // Otherwise, jump over the key and align to the given type.
-      auto const* key_ptr = detail::get_string({detail::raw_type::string, field.buffer});
-      return {field.type, detail::align_pointer<RefCount>(field.buffer + key_ptr->get_sizeof(), field.type)};
+    template <template <class> class RefCount>
+    auto object<RefCount>::at_value(shim::string_view const key) const -> raw_element {
+      return get_value_impl(key, true);
     }
 
     template <template <class> class RefCount>
@@ -724,6 +895,24 @@ namespace dart {
       auto const* val_ptr = base + entry.get_offset();
       auto const* key_ptr = detail::get_string({raw_type::string, val_ptr});
       return {entry.get_type(), detail::align_pointer<RefCount>(val_ptr + key_ptr->get_sizeof(), entry.get_type())};
+    }
+
+    template <template <class> class RefCount>
+    auto object<RefCount>::get_value_impl(shim::string_view const key, bool throw_if_absent) const -> raw_element {
+      // Propagate through to get_key to grab the pointer to our key and the type of our value.
+      auto const field = std::get<raw_element>(get_key(key));
+
+      // If the pointer is null, the key didn't exist, and we're done.
+      if (!field.buffer && !throw_if_absent) return field;
+      else if (!field.buffer) throw std::out_of_range("dart::buffer does not contain the requested mapping");
+
+      // If the type is null, we need to ignore the pointer (nulls are identifiers and
+      // do not hold memory, so the pointer is worthless).
+      if (field.type == detail::raw_type::null) return {field.type, nullptr};
+
+      // Otherwise, jump over the key and align to the given type.
+      auto const* key_ptr = detail::get_string({detail::raw_type::string, field.buffer});
+      return {field.type, detail::align_pointer<RefCount>(field.buffer + key_ptr->get_sizeof(), field.type)};
     }
 
     template <template <class> class RefCount>

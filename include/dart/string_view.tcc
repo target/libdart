@@ -47,6 +47,12 @@ namespace dart {
   }
 
   template <class CharT, class Traits>
+  template <class Allocator>
+  basic_string_view<CharT, Traits>::operator std::basic_string<CharT, Traits, Allocator>() const {
+    return std::basic_string<CharT, Traits, Allocator> {data(), size()};
+  }
+
+  template <class CharT, class Traits>
   constexpr auto basic_string_view<CharT, Traits>::at(size_type idx) const -> const_reference {
     if (idx >= size()) throw std::out_of_range("basic_string_view::at() is out of range");
     return (*this)[idx];
