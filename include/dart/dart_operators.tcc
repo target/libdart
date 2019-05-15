@@ -7,18 +7,21 @@
 
 /*----- Function Definitions -----*/
 
+// I apologize for this whole file.
+// I'm not usually a macro kind of guy, but this is one of those rare
+// situations where the code would actually be WORSE without the macros.
 namespace dart {
 
   /*----- Wrapper Equality Operations -----*/
 
+  // Macro defines symmetric equality comparison operators (across implementation types)
+  // for a given wrapper template
 #define DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(wrapper)                                                         \
   template <template <class> class RefCount,                                                                    \
            template <template <class> class> class LhsPacket,                                                   \
            template <template <class> class> class RhsPacket>                                                   \
   bool operator ==(wrapper<LhsPacket<RefCount>> const& lhs, wrapper<RhsPacket<RefCount>> const& rhs) {          \
-    auto tmp_lhs = LhsPacket<RefCount> {lhs};                                                                   \
-    auto tmp_rhs = RhsPacket<RefCount> {rhs};                                                                   \
-    return tmp_lhs == tmp_rhs;                                                                                  \
+    return lhs.dynamic() == rhs.dynamic();                                                                      \
   }                                                                                                             \
   template <template <class> class RefCount,                                                                    \
            template <template <class> class> class LhsPacket,                                                   \
@@ -35,6 +38,8 @@ namespace dart {
   DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_null);
 #undef DART_DEFINE_WRAPPER_EQUALITY_OPERATORS
 
+  // Macro defines symmetric equality comparison operators (across implementation types)
+  // for a given pair of wrapper templates.
 #define DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(lhs_wrapper, rhs_wrapper)                                  \
   template <template <class> class RefCount,                                                                    \
            template <template <class> class> class LhsPacket,                                                   \
@@ -86,6 +91,62 @@ namespace dart {
   DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(basic_flag, basic_null);
 #undef DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS
 
+  // Macro defines symmetric equality comparison operators for a given wrapper type and its
+  // implementation type.
+#define DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(wrapper)                                                  \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator ==(wrapper<Packet<RefCount>> const& lhs, Packet<RefCount> const& rhs) {                         \
+    return lhs.dynamic() == rhs;                                                                                \
+  }                                                                                                             \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator !=(wrapper<Packet<RefCount>> const& lhs, Packet<RefCount> const& rhs) {                         \
+    return !(lhs == rhs);                                                                                       \
+  }                                                                                                             \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator ==(Packet<RefCount> const& rhs, wrapper<Packet<RefCount>> const& lhs) {                         \
+    return rhs == lhs.dynamic();                                                                                \
+  }                                                                                                             \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator !=(Packet<RefCount> const& rhs, wrapper<Packet<RefCount>> const& lhs) {                         \
+    return !(rhs == lhs);                                                                                       \
+  }
+
+  DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(basic_object);
+  DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(basic_array);
+  DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(basic_string);
+  DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(basic_number);
+  DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(basic_flag);
+  DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(basic_null);
+#undef DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS
+
+  // Macro defines symmetric equality comparison operators for a given pair of wrapper and
+  // machine type.
+#define DART_DEFINE_WRAPPER_MACHINE_EQUALITY_OPERATORS(wrapper, machine_type)                                   \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator ==(wrapper<Packet<RefCount>> const& lhs, machine_type rhs) {                                    \
+    return lhs.dynamic() == rhs;                                                                                \
+  }                                                                                                             \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator !=(wrapper<Packet<RefCount>> const& lhs, machine_type rhs) {                                    \
+    return !(lhs == rhs);                                                                                       \
+  }                                                                                                             \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator ==(machine_type rhs, wrapper<Packet<RefCount>> const& lhs) {                                    \
+    return rhs == lhs.dynamic();                                                                                \
+  }                                                                                                             \
+  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
+  bool operator !=(machine_type rhs, wrapper<Packet<RefCount>> const& lhs) {                                    \
+    return !(rhs == lhs);                                                                                       \
+  }
+
+  DART_DEFINE_WRAPPER_MACHINE_EQUALITY_OPERATORS(basic_string, shim::string_view);
+  DART_DEFINE_WRAPPER_MACHINE_EQUALITY_OPERATORS(basic_number, int64_t);
+  DART_DEFINE_WRAPPER_MACHINE_EQUALITY_OPERATORS(basic_number, double);
+  DART_DEFINE_WRAPPER_MACHINE_EQUALITY_OPERATORS(basic_flag, bool);
+  DART_DEFINE_WRAPPER_MACHINE_EQUALITY_OPERATORS(basic_null, std::nullptr_t);
+#undef DART_DEFINE_WRAPPER_MACHINE_EQUALITY_OPERATORS
+
+  // Macro defines an std::ostream redirection operator for a wrapper type.
 #if DART_HAS_RAPIDJSON
 #define DART_DEFINE_WRAPPER_OSTREAM_OPERATOR(wrapper)                                                           \
   template <class Packet>                                                                                       \

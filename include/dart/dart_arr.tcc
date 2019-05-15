@@ -11,9 +11,10 @@ namespace dart {
 
   template <class Array>
   template <class Arr, class>
-  basic_array<Array>::basic_array(Arr&& arr) {
-    if (!arr.is_array()) throw type_error("dart::packet::array can only be constructed from an array");
-    this->val = std::forward<Arr>(arr);
+  basic_array<Array>::basic_array(Arr&& arr) : val(std::forward<Arr>(arr)) {
+    if (!val.is_array()) {
+      throw type_error("dart::packet::array can only be constructed as an array.");
+    }
   }
 
   template <template <class> class RefCount>
@@ -234,6 +235,40 @@ namespace dart {
   }
 
   template <class Array>
+  template <class, class>
+  void basic_array<Array>::reserve(size_type count) {
+    val.reserve(count);
+  }
+
+  template <class Array>
+  template <class T, class>
+  void basic_array<Array>::resize(size_type count, T const& def) {
+    val.resize(count, def);
+  }
+
+  template <template <class> class RefCount>
+  void basic_heap<RefCount>::reserve(size_type count) {
+    get_elements().reserve(count);
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  void basic_heap<RefCount>::resize(size_type count, T const& def) {
+    get_elements().resize(count, convert::cast<basic_heap>(def));
+  }
+
+  template <template <class> class RefCount>
+  void basic_packet<RefCount>::reserve(size_type count) {
+    get_heap().reserve(count);
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class>
+  void basic_packet<RefCount>::resize(size_type count, T const& def) {
+    get_heap().resize(count, def);
+  }
+
+  template <class Array>
   template <class Index, class>
   auto basic_array<Array>::operator [](Index const& idx) const& -> value_type {
     return val[idx];
@@ -344,7 +379,8 @@ namespace dart {
 
   template <template <class> class RefCount>
   basic_heap<RefCount> basic_heap<RefCount>::get(size_type index) const {
-    return get_elements().at(index);
+    auto& elems = get_elements();
+    return (index < size()) ? elems[index] : basic_heap::make_null();
   }
 
   template <template <class> class RefCount>
@@ -402,6 +438,77 @@ namespace dart {
     else return convert::cast<basic_packet>(std::forward<T>(opt));
   }
 
+  template <class Array>
+  template <class Index, class>
+  auto basic_array<Array>::at(Index const& idx) const& -> value_type {
+    return val.at(idx);
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_heap<RefCount> basic_heap<RefCount>::at(basic_number<Number> const& idx) const {
+    return at(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_buffer<RefCount> basic_buffer<RefCount>::at(basic_number<Number> const& idx) const& {
+    return at(idx.integer());
+  }
+
+  template <class Array>
+  template <class Index, class>
+  decltype(auto) basic_array<Array>::at(Index const& idx) && {
+    return std::move(val).at(idx);
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::at(basic_number<Number> const& idx) && {
+    return std::move(*this).at(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_packet<RefCount> basic_packet<RefCount>::at(basic_number<Number> const& idx) const& {
+    return at(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  template <class Number>
+  basic_packet<RefCount>&& basic_packet<RefCount>::at(basic_number<Number> const& idx) && {
+    return std::move(*this).at(idx.integer());
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::at(size_type index) const {
+    if (index < size()) return get_elements()[index];
+    else throw std::out_of_range("dart::heap does not contain requested index");
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::at(size_type index) const& {
+    return basic_buffer(detail::get_array<RefCount>(raw)->at_elem(index), buffer_ref);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::at(size_type index) const& {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.at(index); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::at(size_type index) && {
+    raw = detail::get_array<RefCount>(raw)->at_elem(index);
+    if (is_null()) buffer_ref = nullptr;
+    return std::move(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::at(size_type index) && {
+    shim::visit([&] (auto& v) { v = std::move(v).at(index); }, impl);
+    return std::move(*this);
+  }
+  
   template <class Array>
   auto basic_array<Array>::front() const -> value_type {
     return val.front();
@@ -518,6 +625,26 @@ namespace dart {
     return get_heap().back_or(std::forward<T>(opt));
   }
 
+  template <class Array>
+  auto basic_array<Array>::capacity() const -> size_type {
+    return val.capacity();
+  }
+
+  template <template <class> class RefCount>
+  auto basic_heap<RefCount>::capacity() const -> size_type {
+    return get_elements().capacity();
+  }
+
+  template <template <class> class RefCount>
+  auto basic_buffer<RefCount>::capacity() const -> size_type {
+    return size();
+  }
+
+  template <template <class> class RefCount>
+  auto basic_packet<RefCount>::capacity() const -> size_type {
+    return shim::visit([] (auto& v) { return v.capacity(); }, impl);
+  }
+
   template <template <class> class RefCount>
   template <class... Args>
   basic_heap<RefCount>::basic_heap(detail::array_tag, Args&&... the_args) :
@@ -601,21 +728,33 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    auto array<RefCount>::get_elem(size_t index) const -> raw_element {
-      // Validate.
-      if (index < 0 || index >= size()) throw std::out_of_range("requested index is out of range for dart::packet");
+    auto array<RefCount>::get_elem(size_t index) const noexcept -> raw_element {
+      return get_elem_impl(index, false);
+    }
 
-      // Get it.
-      auto const& meta = vtable()[index];
-      return {meta.get_type(), DART_FROM_THIS + meta.get_offset()};
+    template <template <class> class RefCount>
+    auto array<RefCount>::at_elem(size_t index) const -> raw_element {
+      return get_elem_impl(index, true);
     }
 
     template <template <class> class RefCount>
     auto array<RefCount>::load_elem(gsl::byte const* base, size_t idx) noexcept
       -> typename ll_iterator<RefCount>::value_type
     {
-      auto const& entry = get_array<RefCount>({raw_type::array, base})->vtable()[idx];
-      return {entry.get_type(), base + entry.get_offset()};
+      return get_array<RefCount>({raw_type::array, base})->get_elem(idx);
+    }
+
+    template <template <class> class RefCount>
+    auto array<RefCount>::get_elem_impl(size_t index, bool throw_if_absent) const -> raw_element {
+      // Grab the value, or null, if the index is out of range.
+      if (index < size()) {
+        auto const& meta = vtable()[index];
+        return {meta.get_type(), DART_FROM_THIS + meta.get_offset()};
+      } else if (!throw_if_absent) {
+        return {raw_type::null, nullptr};
+      } else {
+        throw std::out_of_range("dart::buffer does not contain requested index");
+      }
     }
 
     template <template <class> class RefCount>

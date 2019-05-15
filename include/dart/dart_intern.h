@@ -457,8 +457,11 @@ namespace dart {
         auto end() const noexcept -> ll_iterator<RefCount>;
         auto key_end() const noexcept -> ll_iterator<RefCount>;
 
-        auto get_key(shim::string_view const key) const noexcept -> raw_element;
+        auto get_key(shim::string_view const key) const noexcept -> std::tuple<raw_element, size_t>;
+        auto get_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount>;
+        auto get_key_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount>;
         auto get_value(shim::string_view const key) const noexcept -> raw_element;
+        auto at_value(shim::string_view const key) const -> raw_element;
 
         static auto load_key(gsl::byte const* base, size_t idx) noexcept -> typename ll_iterator<RefCount>::value_type;
         static auto load_value(gsl::byte const* base, size_t idx) noexcept -> typename ll_iterator<RefCount>::value_type;
@@ -470,6 +473,8 @@ namespace dart {
       private:
 
         /*----- Private Helpers -----*/
+
+        auto get_value_impl(shim::string_view const key, bool throw_if_absent) const -> raw_element;
 
         object_entry* vtable() noexcept;
         object_entry const* vtable() const noexcept;
@@ -516,7 +521,8 @@ namespace dart {
         auto begin() const noexcept -> ll_iterator<RefCount>;
         auto end() const noexcept -> ll_iterator<RefCount>;
 
-        auto get_elem(size_t index) const -> raw_element;
+        auto get_elem(size_t index) const noexcept -> raw_element;
+        auto at_elem(size_t index) const -> raw_element;
 
         static auto load_elem(gsl::byte const* base, size_t idx) noexcept -> typename ll_iterator<RefCount>::value_type;
 
@@ -527,6 +533,8 @@ namespace dart {
       private:
 
         /*----- Private Helpers -----*/
+
+        auto get_elem_impl(size_t index, bool throw_if_absent) const -> raw_element;
 
         array_entry* vtable() noexcept;
         array_entry const* vtable() const noexcept;

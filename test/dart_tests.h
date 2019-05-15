@@ -416,6 +416,414 @@ namespace dart {
   }
 
   template <size_t idx = 0, class Callback, class Continuation = noop>
+  void heap_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_string<heap>,
+      basic_string<unsafe_heap>,
+      basic_string<obtuse_heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_heap_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_string<heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void buffer_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_string<buffer>,
+      basic_string<unsafe_buffer>,
+      basic_string<obtuse_buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_buffer_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_string<buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void packet_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_string<packet>,
+      basic_string<unsafe_packet>,
+      basic_string<obtuse_packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_packet_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_string<packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void mutable_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    heap_string_api_test<idx>(cb, [&] (auto next) {
+      packet_string_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_mutable_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_heap_string_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_string_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void finalized_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    buffer_string_api_test<idx>(cb, [&] (auto next) {
+      packet_string_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_finalized_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_buffer_string_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_string_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    mutable_string_api_test<idx>(cb, [&] (auto next) {
+      finalized_string_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_string_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_mutable_string_api_test<idx>(cb, [&] (auto next) {
+      simple_finalized_string_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void heap_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_number<heap>,
+      basic_number<unsafe_heap>,
+      basic_number<obtuse_heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_heap_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_number<heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void buffer_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_number<buffer>,
+      basic_number<unsafe_buffer>,
+      basic_number<obtuse_buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_buffer_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_number<buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void packet_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_number<packet>,
+      basic_number<unsafe_packet>,
+      basic_number<obtuse_packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_packet_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_number<packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void mutable_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    heap_number_api_test<idx>(cb, [&] (auto next) {
+      packet_number_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_mutable_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_heap_number_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_number_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void finalized_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    buffer_number_api_test<idx>(cb, [&] (auto next) {
+      packet_number_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_finalized_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_buffer_number_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_number_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    mutable_number_api_test<idx>(cb, [&] (auto next) {
+      finalized_number_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_number_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_mutable_number_api_test<idx>(cb, [&] (auto next) {
+      simple_finalized_number_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void heap_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_flag<heap>,
+      basic_flag<unsafe_heap>,
+      basic_flag<obtuse_heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_heap_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_flag<heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void buffer_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_flag<buffer>,
+      basic_flag<unsafe_buffer>,
+      basic_flag<obtuse_buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_buffer_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_flag<buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void packet_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_flag<packet>,
+      basic_flag<unsafe_packet>,
+      basic_flag<obtuse_packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_packet_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_flag<packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void mutable_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    heap_flag_api_test<idx>(cb, [&] (auto next) {
+      packet_flag_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_mutable_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_heap_flag_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_flag_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void finalized_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    buffer_flag_api_test<idx>(cb, [&] (auto next) {
+      packet_flag_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_finalized_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_buffer_flag_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_flag_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    mutable_flag_api_test<idx>(cb, [&] (auto next) {
+      finalized_flag_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_flag_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_mutable_flag_api_test<idx>(cb, [&] (auto next) {
+      simple_finalized_flag_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void heap_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_null<heap>,
+      basic_null<unsafe_heap>,
+      basic_null<obtuse_heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_heap_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_null<heap>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void buffer_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_null<buffer>,
+      basic_null<unsafe_buffer>,
+      basic_null<obtuse_buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_buffer_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_null<buffer>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void packet_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_null<packet>,
+      basic_null<unsafe_packet>,
+      basic_null<obtuse_packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 3> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_packet_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    for_each_t<
+      idx,
+      basic_null<packet>
+    >(cb);
+    cont(std::integral_constant<size_t, idx + 1> {});
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void mutable_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    heap_null_api_test<idx>(cb, [&] (auto next) {
+      packet_null_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_mutable_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_heap_null_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_null_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void finalized_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    buffer_null_api_test<idx>(cb, [&] (auto next) {
+      packet_null_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_finalized_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_buffer_null_api_test<idx>(cb, [&] (auto next) {
+      simple_packet_null_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    mutable_null_api_test<idx>(cb, [&] (auto next) {
+      finalized_null_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
+  void simple_null_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
+    simple_mutable_null_api_test<idx>(cb, [&] (auto next) {
+      simple_finalized_null_api_test<next>(cb, cont);
+    });
+  }
+
+  template <size_t idx = 0, class Callback, class Continuation = noop>
   void heap_api_test(Callback&& cb, Continuation&& cont = Continuation {}) {
     for_each_t<
       idx,

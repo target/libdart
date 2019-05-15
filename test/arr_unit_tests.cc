@@ -516,13 +516,15 @@ SCENARIO("arrays do not allow out-of-bound access", "[array unit]") {
       auto arr = dart::conversion_helper<pkt>(dart::heap::make_object("arr", tmp))["arr"];
       DYNAMIC_WHEN("an out of bound access is attempted", idx) {
         DYNAMIC_THEN("it throws", idx) {
-          REQUIRE_THROWS_AS(arr[57], std::out_of_range);
+          REQUIRE_NOTHROW(arr[57]);
+          REQUIRE_THROWS_AS(arr.at(57), std::out_of_range);
         }
       }
 
       DYNAMIC_WHEN("a negative access is attempted", idx) {
         DYNAMIC_THEN("it throws", idx) {
-          REQUIRE_THROWS_AS(arr[-1], std::out_of_range);
+          REQUIRE_NOTHROW(arr[-1]);
+          REQUIRE_THROWS_AS(arr.at(-1), std::out_of_range);
         }
       }
 
@@ -530,12 +532,14 @@ SCENARIO("arrays do not allow out-of-bound access", "[array unit]") {
         auto new_arr = pkt::make_object("arr", arr).finalize()["arr"];
         DYNAMIC_WHEN("an out of bound access is attempted", idx) {
           DYNAMIC_THEN("it throws", idx) {
-            REQUIRE_THROWS_AS(new_arr[57], std::out_of_range);
+            REQUIRE_NOTHROW(new_arr[57]);
+            REQUIRE_THROWS_AS(new_arr.at(57), std::out_of_range);
           }
         }
         DYNAMIC_WHEN("a negative access is attempted", idx) {
           DYNAMIC_THEN("it throws", idx) {
-            REQUIRE_THROWS_AS(new_arr[-1], std::out_of_range);
+            REQUIRE_NOTHROW(new_arr[-1]);
+            REQUIRE_THROWS_AS(new_arr.at(-1), std::out_of_range);
           }
         }
       }

@@ -352,28 +352,33 @@ namespace dart {
   }
 
   template <class Object>
-  constexpr basic_object<Object>::operator bool() const noexcept {
-    return true;
+  basic_object<Object>::operator bool() const noexcept {
+    return !is_null();
   }
 
   template <class Array>
-  constexpr basic_array<Array>::operator bool() const noexcept {
-    return true;
+  basic_array<Array>::operator bool() const noexcept {
+    return !is_null();
   }
 
   template <class String>
-  constexpr basic_string<String>::operator bool() const noexcept {
-    return true;
+  basic_string<String>::operator bool() const noexcept {
+    return !is_null();
   }
 
   template <class Number>
-  constexpr basic_number<Number>::operator bool() const noexcept {
-    return true;
+  basic_number<Number>::operator bool() const noexcept {
+    return !is_null();
   }
 
   template <class Boolean>
   basic_flag<Boolean>::operator bool() const noexcept {
-    return boolean();
+    return !is_null() && boolean();
+  }
+
+  template <class Null>
+  constexpr basic_null<Null>::operator bool() const noexcept {
+    return false;
   }
 
   template <template <class> class RefCount>
@@ -973,6 +978,58 @@ namespace dart {
     }
   }
 
+  template <template <class> class RefCount>
+  template <class KeyType, class>
+  basic_heap<RefCount> basic_heap<RefCount>::at(KeyType const& identifier) const {
+    switch (identifier.at_type()) {
+      case type::string:
+        return at(identifier.strv());
+      case type::integer:
+        return at(identifier.integer());
+      default:
+        throw type_error("dart::heap cannot retrieve values with non-string/integer type.");
+    }
+  }
+
+  template <template <class> class RefCount>
+  template <class KeyType, class>
+  basic_buffer<RefCount> basic_buffer<RefCount>::at(KeyType const& identifier) const& {
+    switch (identifier.at_type()) {
+      case type::string:
+        return at(identifier.strv());
+      case type::integer:
+        return at(identifier.integer());
+      default:
+        throw type_error("dart::buffer cannot retrieve values with non-string/integer type.");
+    }
+  }
+
+  template <template <class> class RefCount>
+  template <class KeyType, class>
+  basic_packet<RefCount> basic_packet<RefCount>::at(KeyType const& identifier) const& {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.at(identifier); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  template <class KeyType, class>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::at(KeyType const& identifier) && {
+    switch (identifier.at_type()) {
+      case type::string:
+        return std::move(*this).at(identifier.strv());
+      case type::integer:
+        return std::move(*this).at(identifier.integer());
+      default:
+        throw type_error("dart::buffer cannot retrieve values with non-string/integer type.");
+    }
+  }
+
+  template <template <class> class RefCount>
+  template <class KeyType, class>
+  basic_packet<RefCount>&& basic_packet<RefCount>::at(KeyType const& identifier) && {
+    shim::visit([&] (auto& v) { v = std::move(v).at(identifier); }, impl);
+    return std::move(*this);
+  }
+
   template <class Object>
   auto basic_object<Object>::values() const -> std::vector<value_type> {
     return val.values();
@@ -1174,8 +1231,38 @@ namespace dart {
   }
 
   template <class Object>
-  constexpr bool basic_object<Object>::is_object() const noexcept {
-    return true;
+  auto basic_object<Object>::dynamic() const noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class Array>
+  auto basic_array<Array>::dynamic() const noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class String>
+  auto basic_string<String>::dynamic() const noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class Number>
+  auto basic_number<Number>::dynamic() const noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class Boolean>
+  auto basic_flag<Boolean>::dynamic() const noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class Null>
+  auto basic_null<Null>::dynamic() const noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class Object>
+  bool basic_object<Object>::is_object() const noexcept {
+    return val.is_object();
   }
 
   template <class Array>
@@ -1224,8 +1311,8 @@ namespace dart {
   }
 
   template <class Array>
-  constexpr bool basic_array<Array>::is_array() const noexcept {
-    return true;
+  bool basic_array<Array>::is_array() const noexcept {
+    return val.is_array();
   }
 
   template <class String>
@@ -1264,13 +1351,13 @@ namespace dart {
   }
 
   template <class Object>
-  constexpr bool basic_object<Object>::is_aggregate() const noexcept {
-    return true;
+  bool basic_object<Object>::is_aggregate() const noexcept {
+    return is_object();
   }
 
   template <class Array>
-  constexpr bool basic_array<Array>::is_aggregate() const noexcept {
-    return true;
+  bool basic_array<Array>::is_aggregate() const noexcept {
+    return is_array();
   }
 
   template <class String>
@@ -1319,8 +1406,8 @@ namespace dart {
   }
 
   template <class String>
-  constexpr bool basic_string<String>::is_str() const noexcept {
-    return true;
+  bool basic_string<String>::is_str() const noexcept {
+    return val.is_str();
   }
 
   template <class Number>
@@ -1460,8 +1547,8 @@ namespace dart {
   }
 
   template <class Number>
-  constexpr bool basic_number<Number>::is_numeric() const noexcept {
-    return true;
+  bool basic_number<Number>::is_numeric() const noexcept {
+    return !is_null();
   }
 
   template <class Boolean>
@@ -1510,8 +1597,8 @@ namespace dart {
   }
 
   template <class Boolean>
-  constexpr bool basic_flag<Boolean>::is_boolean() const noexcept {
-    return true;
+  bool basic_flag<Boolean>::is_boolean() const noexcept {
+    return val.is_boolean();
   }
 
   template <class Null>
@@ -1535,28 +1622,28 @@ namespace dart {
   }
 
   template <class Object>
-  constexpr bool basic_object<Object>::is_null() const noexcept {
-    return false;
+  bool basic_object<Object>::is_null() const noexcept {
+    return val.is_null();
   }
 
   template <class Array>
-  constexpr bool basic_array<Array>::is_null() const noexcept {
-    return false;
+  bool basic_array<Array>::is_null() const noexcept {
+    return val.is_null();
   }
 
   template <class String>
-  constexpr bool basic_string<String>::is_null() const noexcept {
-    return false;
+  bool basic_string<String>::is_null() const noexcept {
+    return val.is_null();
   }
 
   template <class Number>
-  constexpr bool basic_number<Number>::is_null() const noexcept {
-    return false;
+  bool basic_number<Number>::is_null() const noexcept {
+    return val.is_null();
   }
 
   template <class Boolean>
-  constexpr bool basic_flag<Boolean>::is_null() const noexcept {
-    return false;
+  bool basic_flag<Boolean>::is_null() const noexcept {
+    return val.is_null();
   }
 
   template <class Null>
@@ -1606,7 +1693,7 @@ namespace dart {
 
   template <class Null>
   constexpr bool basic_null<Null>::is_primitive() const noexcept {
-    return false;
+    return true;
   }
 
   template <template <class> class RefCount>
@@ -1625,18 +1712,18 @@ namespace dart {
   }
 
   template <class Object>
-  constexpr auto basic_object<Object>::get_type() const noexcept -> type {
-    return type::object;
+  auto basic_object<Object>::get_type() const noexcept -> type {
+    return val.get_type();
   }
 
   template <class Array>
-  constexpr auto basic_array<Array>::get_type() const noexcept -> type {
-    return type::array;
+  auto basic_array<Array>::get_type() const noexcept -> type {
+    return val.get_type();
   }
 
   template <class String>
-  constexpr auto basic_string<String>::get_type() const noexcept -> type {
-    return type::string;
+  auto basic_string<String>::get_type() const noexcept -> type {
+    return val.get_type();
   }
 
   template <class Number>
@@ -1645,8 +1732,8 @@ namespace dart {
   }
 
   template <class Boolean>
-  constexpr auto basic_flag<Boolean>::get_type() const noexcept -> type {
-    return type::boolean;
+  auto basic_flag<Boolean>::get_type() const noexcept -> type {
+    return val.get_type();
   }
 
   template <class Null>

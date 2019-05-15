@@ -67,7 +67,10 @@ namespace dart {
       constexpr auto operator [](size_type idx) const noexcept -> const_reference;
 
       template <template <class, class> class View>
-      constexpr operator View<CharT, Traits>() const noexcept;
+      explicit constexpr operator View<CharT, Traits>() const noexcept;
+
+      template <class Allocator>
+      explicit operator std::basic_string<CharT, Traits, Allocator>() const;
 
       /*----- Public API -----*/
 

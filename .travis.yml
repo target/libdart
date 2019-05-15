@@ -160,5 +160,5 @@ script:
   - mkdir build
   - cd build
   - cmake .. -Dextended_test=ON
-  - make
+  - make VERBOSE=1
   - ctest
