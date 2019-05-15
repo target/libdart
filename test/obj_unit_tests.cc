@@ -652,35 +652,75 @@ SCENARIO("objects protect scope of shared resources", "[object unit]") {
   }
 }
 
-/*
 SCENARIO("objects can only be constructed from aligned pointers", "[object unit]") {
   GIVEN("an unaligned pointer") {
     dart::finalized_api_test([] (auto tag, auto idx) {
       using pkt = typename decltype(tag)::type;
 
-      // Get a smart pointer from our type.
-      auto unaligned = pkt::make_object().finalize().share_bytes();
-
-      // Allocate an unaligned region of memory and copy the data in.
-      gsl::byte* buf = reinterpret_cast<gsl::byte*>(malloc(2));
+      // Allocate an unaligned region of memory and set it up with a smart pointer.
+      std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)> owner {nullptr, nullptr};
+      gsl::byte* buf = reinterpret_cast<gsl::byte*>(malloc(64));
       uintptr_t addr = reinterpret_cast<uintptr_t>(buf);
-      if (!(addr & sizeof(gsl::byte*))) {
-        auto deleter = [] (auto* ptr) { free(ptr - 1); };
-        unaligned = std::unique_ptr<gsl::byte, std::function<void (gsl::byte*)>>(buf + 1, deleter);
+      if (!(addr & 7)) {
+        auto deleter = [] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr - 1)); };
+        owner = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>(buf + 1, deleter);
       } else {
-        auto deleter = [] (auto* ptr) { free(ptr); };
-        unaligned = std::unique_ptr<gsl::byte, std::function<void (gsl::byte*)>>(buf, deleter);
+        auto deleter = [] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+        owner = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>(buf, deleter);
       }
 
+      // Check to make sure our constructor throws.
       DYNAMIC_WHEN("a packet is constructed from that pointer", idx) {
         DYNAMIC_THEN("it refuses construction", idx) {
-          REQUIRE_THROWS_AS(pkt(std::move(unaligned)), std::invalid_argument);
+          REQUIRE_THROWS_AS(pkt(std::move(owner)), std::invalid_argument);
         }
       }
     });
   }
 }
-*/
+
+SCENARIO("finalized objects can be constructed from a variety of smart pointers", "[object unit]") {
+  GIVEN("an existing finalized buffer to base things on") {
+    dart::finalized_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      // Get a prototype object to base things on.
+      auto proto = pkt::make_object("yes", "no", "stop", "go").finalize();
+      auto buf = proto.dup_bytes();
+
+      DYNAMIC_WHEN("a new packet object is created directly from the buffer", idx) {
+        pkt dup {std::move(buf)};
+
+        DYNAMIC_THEN("it validates against the original object", idx) {
+          REQUIRE(dup == proto);
+        }
+      }
+
+      DYNAMIC_WHEN("a new packet is created from a reseated pointer to the buffer", idx) {
+        auto* del = buf.get_deleter();
+        std::unique_ptr<gsl::byte const, void (*) (gsl::byte const*)> dup_buf {buf.release(), del};
+        pkt dup {std::move(dup_buf)};
+
+        DYNAMIC_THEN("it validates against the original object", idx) {
+          REQUIRE(dup == proto);
+        }
+      }
+
+      DYNAMIC_WHEN("a new packet is created from a const-discarded pointer to the buffer", idx) {
+        // Don't discard const like this in user code.
+        // I'm just doing it to test constructor overload resolution.
+        auto* del = buf.get_deleter();
+        auto* ptr = const_cast<gsl::byte*>(buf.release());
+        std::unique_ptr<gsl::byte, void (*) (gsl::byte const*)> dup_buf {ptr, del};
+        pkt dup {std::move(dup_buf)};
+
+        DYNAMIC_THEN("it validates against the original object", idx) {
+          REQUIRE(dup == proto);
+        }
+      }
+    });
+  }
+}
 
 SCENARIO("objects optimize temporary objects", "[object unit]") {
   GIVEN("an object with some contents") {

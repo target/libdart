@@ -550,6 +550,14 @@ namespace dart {
 
     // Perform the insertion.
     if (tmp_key.is_str()) {
+      // Check to make sure we'll be able to encode the given string.
+      if (tmp_key.size() > std::numeric_limits<uint16_t>::max()) {
+        throw std::invalid_argument("dart::heap keys cannot be longer than UINT16_MAX");
+      }
+
+      // Attempt the insertion.
+      // Sucks that we have to copy the value here, but insert might fail,
+      // and the standard doesn't guarantee that tmp_value wouldn't be consumed if so.
       auto val = std::make_pair(std::forward<decltype(tmp_key)>(tmp_key), tmp_value);
       auto res = get_fields().insert(std::move(val));
 
@@ -1011,6 +1019,28 @@ namespace dart {
   template <template <class> class RefCount>
   gsl::span<gsl::byte const> basic_packet<RefCount>::get_bytes() const {
     return get_buffer().get_bytes();
+  }
+
+  template <class Object>
+  template <class RC, class>
+  auto basic_object<Object>::share_bytes(RC& bytes) const {
+    return val.share_bytes(bytes);
+  }
+
+  template <template <class> class RefCount>
+  size_t basic_buffer<RefCount>::share_bytes(RefCount<gsl::byte const>& bytes) const {
+    if (is_null()) throw type_error("dart::buffer is null and has no network buffer");
+
+    // Destroy and initialize the given reference counter instance as a copy of our buffer.
+    buffer_ref.share(bytes);
+
+    // Return the size of the packet.
+    return detail::find_sizeof<RefCount>({detail::raw_type::object, buffer_ref.get()});
+  }
+
+  template <template <class> class RefCount>
+  size_t basic_packet<RefCount>::share_bytes(RefCount<gsl::byte const>& bytes) const {
+    return get_buffer().share_bytes(bytes);
   }
 
   template <class Object>

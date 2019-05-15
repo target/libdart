@@ -97,8 +97,6 @@ namespace dart {
   class basic_object final {
 
     // Type aliases used to SFINAE away member functions we shouldn't have.
-    template <class T>
-    using strv_t = decltype(std::declval<T>().strv());
     template <class Obj, class K>
     using subscript_operator_t = decltype(std::declval<Obj>()[std::declval<K>()]);
     template <class Obj, class K, class V>
@@ -119,6 +117,28 @@ namespace dart {
     using get_bytes_t = decltype(std::declval<Obj>().get_bytes());
     template <class Obj, class A>
     using dup_bytes_t = decltype(std::declval<Obj>().dup_bytes(std::declval<A>()));
+    template <class Obj, class A>
+    using share_bytes_t = decltype(std::declval<Obj>().share_bytes(std::declval<A>()));
+
+    // Exists to check some basic cases for non type-converting
+    // member functions.
+    template <class KeyType>
+    struct probable_string :
+      meta::conjunction<
+        meta::negation<
+          std::is_convertible<
+            std::decay_t<KeyType>,
+            typename Object::size_type
+          >
+        >,
+        meta::negation<
+          meta::is_specialization_of<
+            std::decay_t<KeyType>,
+            dart::basic_number
+          >
+        >
+      >
+    {};
 
     public:
 
@@ -152,21 +172,72 @@ namespace dart {
 
       /**
        *  @brief
-       *  Constructor allows an existing packet instance to be wrapped
-       *  under the strongly typed API.
+       *  Function is responsible for forwarding any constructors
+       *  from the wrapped type up to the wrapper, including the
+       *  explicit/implicit declaration.
        *
        *  @details
-       *  If the passed packet is not an object, will throw an exception.
+       *  In practice, function allows the wrapper to be constructed
+       *  from the wrapped type itself, along with any network buffer
+       *  constructors (in the case of dart::buffer and dart::packet).
+       *
+       *  @remarks
+       *  I may regret making the constructor forwarding this wide open,
+       *  but as a fallback to ensure nothing slips through the tests,
+       *  the constructor will throw if the user somehow manages to
+       *  slip something through the API that results in a non-object.
        */
-      template <class Obj, class =
+      template <class Arg,
         std::enable_if_t<
-          std::is_same<
-            std::decay_t<Obj>,
+          !meta::is_specialization_of<
+            Arg,
+            dart::basic_object
+          >::value
+          &&
+          !std::is_convertible<
+            Arg,
             Object
           >::value
-        >
+          &&
+          std::is_constructible<
+            Object,
+            Arg
+          >::value
+        >* = nullptr
       >
-      explicit basic_object(Obj&& obj);
+      explicit basic_object(Arg&& arg);
+
+      /**
+       *  @brief
+       *  Function is responsible for forwarding any constructors
+       *  from the wrapped type up to the wrapper, including the
+       *  explicit/implicit declaration.
+       *
+       *  @details
+       *  In practice, function allows the wrapper to be constructed
+       *  from the wrapped type itself, along with any network buffer
+       *  constructors (in the case of dart::buffer and dart::packet).
+       *
+       *  @remarks
+       *  I may regret making the constructor forwarding this wide open,
+       *  but as a fallback to ensure nothing slips through the tests,
+       *  the constructor will throw if the user somehow manages to
+       *  slip something through the API that results in a non-object.
+       */
+      template <class Arg,
+        std::enable_if_t<
+          !meta::is_specialization_of<
+            Arg,
+            dart::basic_object
+          >::value
+          &&
+          std::is_convertible<
+            Arg,
+            Object
+          >::value
+        >* = nullptr
+      >
+      basic_object(Arg&& arg);
 
       /**
        *  @brief
@@ -297,6 +368,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          probable_string<KeyType>::value
+          &&
           meta::is_detected<subscript_operator_t, value_type const&, KeyType const&>::value
         >
       >
@@ -322,6 +395,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          probable_string<KeyType>::value
+          &&
           meta::is_detected<subscript_operator_t, value_type&&, KeyType const&>::value
         >
       >
@@ -506,15 +581,19 @@ namespace dart {
        *  (built-in types, STL containers of built-in types, user types for which an
        *  explicit conversion has been defined, and STL containers of such user types).
        *  The result of converting the key must yield a string.
+       *
+       *  @remarks
+       *  add_field/insert allow the user to pass non-string values, falling back on
+       *  runtime checks, and this function does not.
+       *  An unfortunate irregularity, hopefully it won't cause any problems.
+       *  add_field/insert **has** to convert its key argument into a dart::packet,
+       *  which uses the same conversion pathway as everything else, which means it could
+       *  call user conversions, which can't be statically checked at this time.
+       *  erase doesn't convert its argument, and so allows a much smaller set of types
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
           meta::is_detected<insert_t, value_type&, KeyType, ValueType>::value
-          &&
-          !std::is_convertible<
-            std::decay_t<KeyType>,
-            size_type
-          >::value
         >
       >
       auto insert(KeyType&& key, ValueType&& value) -> iterator;
@@ -527,15 +606,21 @@ namespace dart {
        *  If the key-value pair is not present in the current object, function
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
+       *
+       *  @remarks
+       *  add_field/insert allow the user to pass non-string values, falling back on
+       *  runtime checks, and this function does not.
+       *  An unfortunate irregularity, hopefully it won't cause any problems.
+       *  add_field/insert **has** to convert its key argument into a dart::packet,
+       *  which uses the same conversion pathway as everything else, which means it could
+       *  call user conversions, which can't be statically checked at this time.
+       *  erase doesn't convert its argument, and so allows a much smaller set of types
        */
       template <class KeyType, class =
         std::enable_if_t<
-          meta::is_detected<erase_t, value_type&, KeyType const&>::value
+          probable_string<KeyType>::value
           &&
-          !std::is_convertible<
-            std::decay_t<KeyType>,
-            size_type
-          >::value
+          meta::is_detected<erase_t, value_type&, KeyType const&>::value
         >
       >
       auto erase(KeyType const& key) -> iterator;
@@ -732,6 +817,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          probable_string<KeyType>::value
+          &&
           meta::is_detected<get_t, value_type const&, KeyType const&>::value
         >
       >
@@ -756,6 +843,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          probable_string<KeyType>::value
+          &&
           meta::is_detected<get_t, value_type&&, KeyType const&>::value
         >
       >
@@ -779,6 +868,8 @@ namespace dart {
        */
       template <class KeyType, class T, class =
         std::enable_if_t<
+          probable_string<KeyType>::value
+          &&
           meta::is_detected<get_or_t, value_type const&, KeyType const&, T>::value
         >
       >
@@ -911,6 +1002,27 @@ namespace dart {
       auto refcount() const noexcept -> size_type;
 
       /*----- Network Buffer Accessors -----*/
+
+      /**
+       *  @brief
+       *  Function allows the network buffer of the current packet to be exported
+       *  directly, without copies.
+       *
+       *  @details
+       *  Function has a fairly awkward API, requiring the user to pass an existing
+       *  instance (potentially default-constructed) of the reference counter type,
+       *  which it then destroys and reconstructs such that it is a copy of the
+       *  current reference counter.
+       *  Function is written this way as the reference counter type cannot be assumed
+       *  to be either copyable or moveable, and at this time I don't want to expose
+       *  dart::shareable_ptr externally.
+       */
+      template <class RC, class =
+        std::enable_if_t<
+          meta::is_detected<share_bytes_t, Object&, RC&>::value
+        >
+      >
+      auto share_bytes(RC& bytes) const;
 
       /**
        *  @brief
@@ -1142,6 +1254,10 @@ namespace dart {
 
     private:
 
+      /*----- Private Helpers -----*/
+
+      void ensure_object(shim::string_view msg) const;
+
       /*----- Private Members -----*/
 
       value_type val;
@@ -1177,8 +1293,6 @@ namespace dart {
   class basic_array final {
 
     // Type aliases used to SFINAE away member functions we shouldn't have.
-    template <class T>
-    using integer_t = decltype(std::declval<T>().integer());
     template <class Arr, class... Args>
     using make_array_t = decltype(Arr::make_array(std::declval<Args>()...));
     template <class Arr, class I>
@@ -1203,6 +1317,24 @@ namespace dart {
     using front_or_t = decltype(std::declval<Arr>().front_or(std::declval<T>()));
     template <class Arr, class T>
     using back_or_t = decltype(std::declval<Arr>().back_or(std::declval<T>()));
+
+    template <class Index>
+    struct probable_integer :
+      meta::conjunction<
+        meta::negation<
+          std::is_convertible<
+            Index,
+            shim::string_view
+          >
+        >,
+        meta::negation<
+          meta::is_specialization_of<
+            std::decay_t<Index>,
+            dart::basic_string
+          >
+        >
+      >
+    {};
 
     public:
 
@@ -1390,6 +1522,8 @@ namespace dart {
        */
       template <class Index, class =
         std::enable_if_t<
+          probable_integer<Index>::value
+          &&
           meta::is_detected<subscript_operator_t, value_type const&, Index const&>::value
         >
       >
@@ -1414,6 +1548,8 @@ namespace dart {
        */
       template <class Index, class =
         std::enable_if_t<
+          probable_integer<Index>::value
+          &&
           meta::is_detected<subscript_operator_t, value_type&&, Index const&>::value
         >
       >
@@ -1676,11 +1812,6 @@ namespace dart {
       template <class Index, class ValueType, class =
         std::enable_if_t<
           meta::is_detected<insert_t, value_type&, Index, ValueType>::value
-          &&
-          !std::is_convertible<
-            std::decay_t<Index>,
-            shim::string_view
-          >::value
         >
       >
       auto insert(Index&& idx, ValueType&& value) -> iterator;
@@ -1696,12 +1827,9 @@ namespace dart {
        */
       template <class Index, class =
         std::enable_if_t<
-          meta::is_detected<erase_t, value_type&, Index const&>::value
+          probable_integer<Index>::value
           &&
-          !std::is_convertible<
-            std::decay_t<Index>,
-            shim::string_view
-          >::value
+          meta::is_detected<erase_t, value_type&, Index const&>::value
         >
       >
       auto erase(Index const& idx) -> iterator;
@@ -1739,6 +1867,8 @@ namespace dart {
        */
       template <class Index, class =
         std::enable_if_t<
+          probable_integer<Index>::value
+          &&
           meta::is_detected<get_t, value_type const&, Index const&>::value
         >
       >
@@ -1764,6 +1894,8 @@ namespace dart {
        */
       template <class Index, class =
         std::enable_if_t<
+          probable_integer<Index>::value
+          &&
           meta::is_detected<get_t, value_type&&, Index const&>::value
         >
       >
@@ -1786,6 +1918,8 @@ namespace dart {
        */
       template <class Index, class T, class =
         std::enable_if_t<
+          probable_integer<Index>::value
+          &&
           meta::is_detected<get_or_t, value_type const&, Index const&, T>::value
         >
       >
@@ -5760,14 +5894,17 @@ namespace dart {
 
       /**
        *  @brief
-       *  Network object constructor.
+       *  Copying network object constructor.
        *
        *  @details
-       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       *  Reconstitutes a previously finalized packet from a buffer of bytes
+       *  by allocating space for, and copying, the given buffer.
+       *  Given buffer pointer need not be well aligned, function will
+       *  internally handle alignment requirements.
        */
-      explicit basic_buffer(shareable_ptr<RefCount<gsl::byte const>> const& buffer) :
-        raw({detail::raw_type::object, buffer.get()}),
-        buffer_ref(validate_pointer(buffer))
+      explicit basic_buffer(gsl::span<gsl::byte const> buffer) :
+        raw({detail::raw_type::object, buffer.data()}),
+        buffer_ref(allocate_pointer(buffer))
       {}
 
       /**
@@ -5777,7 +5914,7 @@ namespace dart {
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
        */
-      explicit basic_buffer(shareable_ptr<RefCount<gsl::byte const>>&& buffer) :
+      explicit basic_buffer(shareable_ptr<RefCount<gsl::byte const>> buffer) :
         raw({detail::raw_type::object, buffer.get()}),
         buffer_ref(validate_pointer(std::move(buffer)))
       {}
@@ -5788,9 +5925,47 @@ namespace dart {
        *
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       *
+       *  @remarks
+       *  Function is so heavily overloaded because the portability of
+       *  std::unique_ptr converting constructors has been pretty flakey in practice.
        */
       template <class Del>
       explicit basic_buffer(std::unique_ptr<gsl::byte const[], Del>&& buffer) :
+        raw({detail::raw_type::object, buffer.get()}),
+        buffer_ref(normalize(validate_pointer(std::move(buffer))))
+      {}
+
+      /**
+       *  @brief
+       *  Network object constructor.
+       *  
+       *  @details
+       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       *
+       *  @remarks
+       *  Function is so heavily overloaded because the portability of
+       *  std::unique_ptr converting constructors has been pretty flakey in practice.
+       */
+      template <class Del>
+      explicit basic_buffer(std::unique_ptr<gsl::byte const, Del>&& buffer) :
+        raw({detail::raw_type::object, buffer.get()}),
+        buffer_ref(normalize(validate_pointer(std::move(buffer))))
+      {}
+
+      /**
+       *  @brief
+       *  Network object constructor.
+       *  
+       *  @details
+       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       *
+       *  @remarks
+       *  Function is so heavily overloaded because the portability of
+       *  std::unique_ptr converting constructors has been pretty flakey in practice.
+       */
+      template <class Del>
+      explicit basic_buffer(std::unique_ptr<gsl::byte, Del>&& buffer) :
         raw({detail::raw_type::object, buffer.get()}),
         buffer_ref(normalize(validate_pointer(std::move(buffer))))
       {}
@@ -6951,6 +7126,22 @@ namespace dart {
 
       /**
        *  @brief
+       *  Function allows the network buffer of the current packet to be exported
+       *  directly, without copies.
+       *
+       *  @details
+       *  Function has a fairly awkward API, requiring the user to pass an existing
+       *  instance (potentially default-constructed) of the reference counter type,
+       *  which it then destroys and reconstructs such that it is a copy of the
+       *  current reference counter.
+       *  Function is written this way as the reference counter type cannot be assumed
+       *  to be either copyable or moveable, and at this time I don't want to expose
+       *  dart::shareable_ptr externally.
+       */
+      size_t share_bytes(RefCount<gsl::byte const>& bytes) const;
+
+      /**
+       *  @brief
        *  Function returns an owning copy of the network-level buffer for a
        *  finalized packet.
        *
@@ -7165,12 +7356,13 @@ namespace dart {
 
       /*----- Private Lifecycle Functions -----*/
 
-      basic_buffer(detail::raw_element raw, buffer_ref_type const& ref);
+      basic_buffer(detail::raw_element raw, buffer_ref_type ref);
 
+      auto allocate_pointer(gsl::span<gsl::byte const> buffer) const -> buffer_ref_type;
       template <class Pointer>
-      Pointer&& validate_pointer(Pointer&& ptr);
+      Pointer&& validate_pointer(Pointer&& ptr) const;
       template <class Pointer>
-      auto normalize(Pointer ptr) -> buffer_ref_type;
+      auto normalize(Pointer ptr) const -> buffer_ref_type;
 
       /*----- Private Members -----*/
 
@@ -7364,12 +7556,15 @@ namespace dart {
 
       /**
        *  @brief
-       *  Network object constructor.
+       *  Copying network object constructor
        *
        *  @details
-       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       *  Reconstitutes a previously finalized packet from a buffer of bytes
+       *  by allocating space for, and copying, the given buffer.
+       *  Given buffer pointer need not be well aligned, function will
+       *  internally handle alignment requirements.
        */
-      explicit basic_packet(shareable_ptr<RefCount<gsl::byte const>> const& buffer) :
+      explicit basic_packet(gsl::span<gsl::byte const> buffer) :
         impl(basic_buffer<RefCount>(buffer))
       {}
 
@@ -7380,7 +7575,7 @@ namespace dart {
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
        */
-      explicit basic_packet(shareable_ptr<RefCount<gsl::byte const>>&& buffer) :
+      explicit basic_packet(shareable_ptr<RefCount<gsl::byte const>> buffer) :
         impl(basic_buffer<RefCount>(std::move(buffer)))
       {}
 
@@ -7393,6 +7588,30 @@ namespace dart {
        */
       template <class Del>
       explicit basic_packet(std::unique_ptr<gsl::byte const[], Del>&& buffer) :
+        impl(basic_buffer<RefCount>(std::move(buffer)))
+      {}
+
+      /**
+       *  @brief
+       *  Network object constructor.
+       *
+       *  @details
+       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       */
+      template <class Del>
+      explicit basic_packet(std::unique_ptr<gsl::byte const, Del>&& buffer) :
+        impl(basic_buffer<RefCount>(std::move(buffer)))
+      {}
+
+      /**
+       *  @brief
+       *  Network object constructor.
+       *
+       *  @details
+       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       */
+      template <class Del>
+      explicit basic_packet(std::unique_ptr<gsl::byte, Del>&& buffer) :
         impl(basic_buffer<RefCount>(std::move(buffer)))
       {}
 
@@ -9138,6 +9357,22 @@ namespace dart {
        *  packet.
        */
       gsl::span<gsl::byte const> get_bytes() const;
+
+      /**
+       *  @brief
+       *  Function allows the network buffer of the current packet to be exported
+       *  directly, without copies.
+       *
+       *  @details
+       *  Function has a fairly awkward API, requiring the user to pass an existing
+       *  instance (potentially default-constructed) of the reference counter type,
+       *  which it then destroys and reconstructs such that it is a copy of the
+       *  current reference counter.
+       *  Function is written this way as the reference counter type cannot be assumed
+       *  to be either copyable or moveable, and at this time I don't want to expose
+       *  dart::shareable_ptr externally.
+       */
+      size_t share_bytes(RefCount<gsl::byte const>& bytes) const;
 
       /**
        *  @brief

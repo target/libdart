@@ -41,10 +41,44 @@ namespace dart {
   }
 
   template <class Object>
-  template <class Obj, class>
-  basic_object<Object>::basic_object(Obj&& obj) {
-    if (!obj.is_object()) throw type_error("dart::packet::object can only be constructed from an object");
-    this->val = std::forward<Obj>(obj);
+  template <class Arg,
+    std::enable_if_t<
+      !meta::is_specialization_of<
+        Arg,
+        dart::basic_object
+      >::value
+      &&
+      !std::is_convertible<
+        Arg,
+        Object
+      >::value
+      &&
+      std::is_constructible<
+        Object,
+        Arg
+      >::value
+    >*
+  >
+  basic_object<Object>::basic_object(Arg&& arg) : val(std::forward<Arg>(arg)) {
+    ensure_object("dart::packet::object can only be constructed as an object");
+  }
+
+  template <class Object>
+  template <class Arg,
+    std::enable_if_t<
+      !meta::is_specialization_of<
+        Arg,
+        dart::basic_object
+      >::value
+      &&
+      std::is_convertible<
+        Arg,
+        Object
+      >::value
+    >*
+  >
+  basic_object<Object>::basic_object(Arg&& arg) : val(std::forward<Arg>(arg)) {
+    ensure_object("dart::packet::object can only be constructed as an object");
   }
 
   template <template <class> class RefCount>
@@ -75,7 +109,6 @@ namespace dart {
   template <template <class> class RefCount>
   template <class KeyType, class ValueType, class>
   basic_heap<RefCount>& basic_heap<RefCount>::add_field(KeyType&& key, ValueType&& value) & {
-    detail::require_string(key);
     insert(std::forward<KeyType>(key), std::forward<ValueType>(value));
     return *this;
   }
@@ -487,6 +520,11 @@ namespace dart {
   bool basic_packet<RefCount>::has_key(KeyType const& key) const {
     if (key.get_type() == type::string) return has_key(key.strv());
     else return false;
+  }
+
+  template <class Object>
+  void basic_object<Object>::ensure_object(shim::string_view msg) const {
+    if (!val.is_object()) throw type_error(msg.data());
   }
 
   template <template <class> class RefCount>

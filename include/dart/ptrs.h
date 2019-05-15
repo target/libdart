@@ -235,8 +235,12 @@ namespace dart {
   template <class T>
   class shareable_ptr {
 
-    static constexpr bool is_nothrow_assignable_v =
-      refcount_traits<T>::is_nothrow_copyable_v && refcount_traits<T>::is_nothrow_moveable_v;
+    struct is_nothrow_assignable :
+      meta::conjunction<
+        typename refcount_traits<T>::is_nothrow_copyable,
+        typename refcount_traits<T>::is_nothrow_moveable
+      >
+    {};
 
     public:
 
@@ -258,8 +262,8 @@ namespace dart {
       >
       explicit shareable_ptr(std::unique_ptr<U, D>&& ptr)
           noexcept(refcount_traits<T>::template can_nothrow_take<U*, D>::value);
-      explicit shareable_ptr(T const& other) noexcept(refcount_traits<T>::is_nothrow_copyable_v);
-      explicit shareable_ptr(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v);
+      shareable_ptr(T const& other) noexcept(refcount_traits<T>::is_nothrow_copyable::value);
+      shareable_ptr(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value);
 
       // Ownership transfer constructors.
       template <class U, class =
@@ -282,8 +286,8 @@ namespace dart {
       // Special Constructors.
       shareable_ptr()
           noexcept(refcount_traits<T>::template can_nothrow_take<element_type*, std::default_delete<element_type>>::value);
-      shareable_ptr(shareable_ptr const& other) noexcept(refcount_traits<T>::is_nothrow_copyable_v);
-      shareable_ptr(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v);
+      shareable_ptr(shareable_ptr const& other) noexcept(refcount_traits<T>::is_nothrow_copyable::value);
+      shareable_ptr(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value);
       ~shareable_ptr() noexcept;
 
       /*----- Operators -----*/
@@ -296,37 +300,49 @@ namespace dart {
       >
       shareable_ptr& operator =(std::unique_ptr<U, D>&& ptr)
           noexcept(refcount_traits<T>::template can_nothrow_take<U*, D>::value);
-      shareable_ptr& operator =(T const& other) noexcept(is_nothrow_assignable_v);
-      shareable_ptr& operator =(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v);
+      shareable_ptr& operator =(T const& other) noexcept(is_nothrow_assignable::value);
+      shareable_ptr& operator =(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value);
       shareable_ptr& operator =(std::nullptr_t)
           noexcept(refcount_traits<T>::template can_nothrow_take<element_type*, std::default_delete<element_type>>::value);
-      shareable_ptr& operator =(shareable_ptr const& other) noexcept(is_nothrow_assignable_v);
-      shareable_ptr& operator =(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable_v);
+      shareable_ptr& operator =(shareable_ptr const& other) noexcept(is_nothrow_assignable::value);
+      shareable_ptr& operator =(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value);
 
       // Dereference.
-      auto operator *() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v) -> element_type&;
-      auto operator ->() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v) -> element_type*;
+      auto operator *() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) -> element_type&;
+      auto operator ->() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) -> element_type*;
 
       // Comparison.
-      bool operator ==(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v);
-      bool operator !=(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v);
-      bool operator <(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v);
-      bool operator <=(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v);
-      bool operator >(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v);
-      bool operator >=(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v);
+      bool operator ==(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value);
+      bool operator !=(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value);
+      bool operator <(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value);
+      bool operator <=(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value);
+      bool operator >(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value);
+      bool operator >=(shareable_ptr const& other) const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value);
 
       // Conversion.
-      explicit operator bool() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v);
+      explicit operator bool() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value);
 
       /*----- Public API -----*/
 
       // Accessors.
-      auto get() const noexcept(refcount_traits<T>::is_nothrow_unwrappable_v) -> element_type*;
-      bool unique() const noexcept(refcount_traits<T>::has_nothrow_use_count_v);
-      int64_t use_count() const noexcept(refcount_traits<T>::has_nothrow_use_count_v);
+      auto get() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) -> element_type*;
+      bool unique() const noexcept(refcount_traits<T>::has_nothrow_use_count::value);
+      int64_t use_count() const noexcept(refcount_traits<T>::has_nothrow_use_count::value);
 
       // Mutators.
-      void reset() noexcept(refcount_traits<T>::has_nothrow_reset_v);
+      void reset() noexcept(refcount_traits<T>::has_nothrow_reset::value);
+
+      // Extremely awkward "copy-constructor" that allows us to copy our
+      // wrapped value into a raw instance of T.
+      // Function has to be written this way since we can't assume T is copyable/moveable
+      // The only thing we can definitely do with T is pass it into dart::refcount_traits::copy.
+      void share(T& ptr) const noexcept(refcount_traits<T>::is_nothrow_copyable::value);
+
+      // Extremely awkward "move-constructor" that allows us to move our
+      // wrapped value into a raw instance of T.
+      // Function has to be written this way since we can't assume T is copyable/moveable
+      // The only thing we can definitely do with T is pass it into dart::refcount_traits::move.
+      void transfer(T& ptr) && noexcept(refcount_traits<T>::is_nothrow_moveable::value);
 
     private:
 
