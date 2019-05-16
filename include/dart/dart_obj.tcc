@@ -656,7 +656,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   bool basic_buffer<RefCount>::has_key(shim::string_view key) const {
-    auto elem = std::get<detail::raw_element>(detail::get_object<RefCount>(raw)->get_key(key));
+    auto elem = detail::get_object<RefCount>(raw)->get_key(key, [] (auto) {});
     return elem.buffer != nullptr;
   }
 
@@ -815,7 +815,8 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    auto object<RefCount>::get_key(shim::string_view const key) const noexcept -> std::tuple<raw_element, size_t> {
+    template <class Callback>
+    auto object<RefCount>::get_key(shim::string_view const key, Callback&& cb) const noexcept -> raw_element {
       // Get the size of the vtable.
       size_t const num_keys = size();
 
@@ -824,7 +825,6 @@ namespace dart {
       auto type = detail::raw_type::null;
       int32_t low = 0, high = num_keys - 1;
       gsl::byte const* const base = DART_FROM_THIS;
-      size_t idx = std::numeric_limits<size_t>::max();
       while (high >= low) {
         // Calculate the location of the next guess.
         auto const mid = (low + high) / 2;
@@ -840,7 +840,12 @@ namespace dart {
         // Update.
         if (comparison == 0) {
           // We've found it!
-          idx = mid;
+          // The lambda is passed through here specifically so that get_it and get_key_it can return
+          // iterators without having to duplicate the logic in this function.
+          // I originally had a more straightforward approach where we always returned an integer along
+          // with the raw_element, but it caused like a 15% performance regression, so now we're
+          // taking this approach.
+          cb(mid);
           type = entry.get_type();
           target = base + entry.get_offset();
           break;
@@ -850,29 +855,32 @@ namespace dart {
           high = mid - 1;
         }
       }
-      return std::tuple<raw_element, size_t> {raw_element {type, target}, idx};
+      return {type, target};
     }
 
     template <template <class> class RefCount>
     auto object<RefCount>::get_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount> {
-      auto idx = std::get<size_t>(get_key(key));
+      size_t idx;
+      get_key(key, [&] (auto target) { idx = target; });
       return ll_iterator<RefCount>(idx, DART_FROM_THIS, load_value);
     }
 
     template <template <class> class RefCount>
     auto object<RefCount>::get_key_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount> {
-      auto idx = std::get<size_t>(get_key(key));
+      size_t idx;
+      get_key(key, [&] (auto target) { idx = target; });
       return ll_iterator<RefCount>(idx, DART_FROM_THIS, load_key);
     }
 
     template <template <class> class RefCount>
     auto object<RefCount>::get_value(shim::string_view const key) const noexcept -> raw_element {
-      return get_value_impl(key, false);
+      return get_value_impl(key, [] (auto) {});
     }
 
     template <template <class> class RefCount>
     auto object<RefCount>::at_value(shim::string_view const key) const -> raw_element {
-      return get_value_impl(key, true);
+      auto& ex_msg = "dart::buffer does not contain the requested mapping";
+      return get_value_impl(key, [&] (auto& elem) { if (!elem.buffer) throw std::out_of_range(ex_msg); });
     }
 
     template <template <class> class RefCount>
@@ -898,13 +906,20 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    auto object<RefCount>::get_value_impl(shim::string_view const key, bool throw_if_absent) const -> raw_element {
+    template <class Callback>
+    auto object<RefCount>::get_value_impl(shim::string_view const key, Callback&& cb) const -> raw_element {
       // Propagate through to get_key to grab the pointer to our key and the type of our value.
-      auto const field = std::get<raw_element>(get_key(key));
+      auto const field = get_key(key, [] (auto) {});
 
       // If the pointer is null, the key didn't exist, and we're done.
-      if (!field.buffer && !throw_if_absent) return field;
-      else if (!field.buffer) throw std::out_of_range("dart::buffer does not contain the requested mapping");
+      // Callback function is passed through here specifically so that at_value can throw without having
+      // to duplicate logic from get_value.
+      // Originally had a simple if here, with a boolean argument to control throwing behavior, but it
+      // caused a performance regression.
+      // The approach with the lambda appears to allow the compiler to completely remove the code when
+      // called from get_value but still allow the throwing behavior for at_value.
+      cb(field);
+      if (!field.buffer) return field;
 
       // If the type is null, we need to ignore the pointer (nulls are identifiers and
       // do not hold memory, so the pointer is worthless).

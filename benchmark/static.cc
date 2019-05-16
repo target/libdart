@@ -1,7 +1,6 @@
 /*----- System Includes -----*/
 
 #include <random>
-#include <dart.h>
 #include <cassert>
 #include <algorithm>
 #include <benchmark/benchmark.h>
@@ -13,6 +12,10 @@
 #ifdef DART_HAS_SAJSON
 #include <sajson.h>
 #endif
+
+/*----- Local Includes -----*/
+
+#include "../include/dart.h"
 
 /*----- Type Declarations -----*/
 
