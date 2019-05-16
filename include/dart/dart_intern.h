@@ -457,7 +457,8 @@ namespace dart {
         auto end() const noexcept -> ll_iterator<RefCount>;
         auto key_end() const noexcept -> ll_iterator<RefCount>;
 
-        auto get_key(shim::string_view const key) const noexcept -> std::tuple<raw_element, size_t>;
+        template <class Callback>
+        auto get_key(shim::string_view const key, Callback&& cb) const noexcept -> raw_element;
         auto get_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount>;
         auto get_key_it(shim::string_view const key) const noexcept -> ll_iterator<RefCount>;
         auto get_value(shim::string_view const key) const noexcept -> raw_element;
@@ -474,7 +475,8 @@ namespace dart {
 
         /*----- Private Helpers -----*/
 
-        auto get_value_impl(shim::string_view const key, bool throw_if_absent) const -> raw_element;
+        template <class Callback>
+        auto get_value_impl(shim::string_view const key, Callback&& cb) const -> raw_element;
 
         object_entry* vtable() noexcept;
         object_entry const* vtable() const noexcept;
