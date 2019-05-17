@@ -684,13 +684,41 @@ namespace dart {
 
   namespace detail {
 
-    // FIXME: Audit this function. A LOT has changed since it was written.
+#if DART_HAS_RAPIDJSON
     template <template <class> class RefCount>
-    array<RefCount>::array(packet_elements<RefCount> const* elems) noexcept : elems(elems->size()) {
+    array<RefCount>::array(rapidjson::Value const& vals) noexcept : elems(vals.Size()) {
       // Iterate over our elements and write each one into the buffer.
       array_entry* entry = vtable();
-      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems->size()]) - DART_FROM_THIS_MUT;
-      for (auto const& elem : *elems) {
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
+      for (auto it = vals.Begin(); it != vals.End(); ++it) {
+        // Identify the internal type of the current element.
+        auto& curr_val = *it;
+        auto val_type = json_identify<RefCount>(curr_val);
+
+        // Using the current offset, align a pointer for the next element type.
+        auto* unaligned = DART_FROM_THIS_MUT + offset;
+        auto* aligned = detail::align_pointer<RefCount>(unaligned, val_type);
+        offset += aligned - unaligned;
+
+        // Add an entry to the vtable.
+        new(entry++) array_entry(val_type, offset);
+
+        // Recurse.
+        offset += json_lower<RefCount>(aligned, curr_val);
+      }
+
+      // array is laid out, write in our final size.
+      bytes = offset;
+    }
+#endif
+
+    // FIXME: Audit this function. A LOT has changed since it was written.
+    template <template <class> class RefCount>
+    array<RefCount>::array(packet_elements<RefCount> const* vals) noexcept : elems(vals->size()) {
+      // Iterate over our elements and write each one into the buffer.
+      array_entry* entry = vtable();
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
+      for (auto const& elem : *vals) {
         // Using the current offset, align a pointer for the next element type.
         auto* unaligned = DART_FROM_THIS_MUT + offset;
         auto* aligned = detail::align_pointer<RefCount>(unaligned, elem.get_raw_type());

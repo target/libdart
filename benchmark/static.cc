@@ -53,7 +53,7 @@ std::string rand_string(size_t len);
 /*----- Benchmark Definitions -----*/
 
 #if DART_HAS_RAPIDJSON
-BENCHMARK_F(benchmark_helper, parse_flat_packet) (benchmark::State& state) {
+BENCHMARK_F(benchmark_helper, parse_dynamic_flat_packet) (benchmark::State& state) {
   for (auto _ : state) {
     benchmark::DoNotOptimize(unsafe_heap::from_json(flat_json));
     ++rate_counter;
@@ -61,9 +61,24 @@ BENCHMARK_F(benchmark_helper, parse_flat_packet) (benchmark::State& state) {
   state.counters["parsed flat packets"] = rate_counter;
 }
 
-BENCHMARK_F(benchmark_helper, parse_nested_packet) (benchmark::State& state) {
+BENCHMARK_F(benchmark_helper, parse_dynamic_nested_packet) (benchmark::State& state) {
   for (auto _ : state) {
     benchmark::DoNotOptimize(unsafe_heap::from_json(nested_json));
+    ++rate_counter;
+  }
+  state.counters["parsed nested packets"] = rate_counter;
+}
+BENCHMARK_F(benchmark_helper, parse_finalized_flat_packet) (benchmark::State& state) {
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(unsafe_buffer::from_json(flat_json));
+    ++rate_counter;
+  }
+  state.counters["parsed flat packets"] = rate_counter;
+}
+
+BENCHMARK_F(benchmark_helper, parse_finalized_nested_packet) (benchmark::State& state) {
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(unsafe_buffer::from_json(nested_json));
     ++rate_counter;
   }
   state.counters["parsed nested packets"] = rate_counter;

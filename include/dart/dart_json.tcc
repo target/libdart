@@ -11,7 +11,7 @@
 namespace dart {
   namespace detail {
     template <template <class> class RefCount>
-    struct json_parser {
+    struct heap_parser {
 
       /*----- Types -----*/
 
@@ -41,6 +41,7 @@ namespace dart {
 
       basic_heap<RefCount> curr_key, curr_obj;
       std::vector<basic_heap<RefCount>> key_stack, obj_stack;
+
     };
   }
 }
@@ -64,8 +65,8 @@ namespace dart {
     // Construct a reader class to parse this string.
     rapidjson::Reader reader;
 
-    // Construct a dart::packet json_parser context to go with it.
-    detail::json_parser<RefCount> context;
+    // Construct a dart::packet heap_parser context to go with it.
+    detail::heap_parser<RefCount> context;
 
     // Parse!
     rapidjson::StringStream ss(json.data());
@@ -78,15 +79,42 @@ namespace dart {
   template <template <class> class RefCount>
   template <unsigned flags>
   basic_buffer<RefCount> basic_buffer<RefCount>::from_json(shim::string_view json) {
-    return basic_buffer {basic_heap<RefCount>::template from_json<flags>(json)};
+    // Duplicate the given string locally so we can use the RapidJSON in-situ parser.
+    auto buf = std::make_unique<char[]>(json.size() + 1);
+    std::copy_n(json.data(), json.size(), buf.get());
+    buf[json.size()] = '\0';
+
+    // Fire up RapidJSON.
+    rapidjson::Document doc;
+    if (doc.ParseInsitu<flags>(buf.get()).HasParseError()) {
+      throw std::runtime_error("dart::buffer could not parse given JSON string.");
+    } else if (!doc.IsObject()) {
+      throw type_error("dart::buffer root must be an object.");
+    }
+
+    // Allocate space to store our finalized representation.
+    // FIXME: Make this allocation size more intelligent.
+    gsl::byte* tmp;
+    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
+        detail::alignment_of<RefCount>(detail::raw_type::object), json.size() * 8);
+    if (retval) throw std::bad_alloc();
+
+    // Forgive me this one indiscretion.
+    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+    std::unique_ptr<gsl::byte, void (*) (gsl::byte const*)> block {tmp, del};
+
+    // Lower RapidJSON into our buffer.
+    detail::json_lower<RefCount>(tmp, doc);
+
+    // Export our buffer to the user.
+    return basic_buffer {std::move(block)};
   }
 
   template <template <class> class RefCount>
   template <unsigned flags>
   basic_packet<RefCount> basic_packet<RefCount>::from_json(shim::string_view json, bool finalized) {
-    auto tmp = basic_heap<RefCount>::template from_json<flags>(json);
-    if (finalized) return basic_buffer<RefCount> {std::move(tmp)};
-    else return basic_packet {std::move(tmp)};
+    if (finalized) return basic_buffer<RefCount>::template from_json<flags>(json);
+    else return basic_heap<RefCount>::template from_json<flags>(json);
   }
 
   template <class Object>
@@ -170,7 +198,7 @@ namespace dart {
 namespace dart {
   namespace detail {
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::StartObject() {
+    bool heap_parser<RefCount>::StartObject() {
       if (curr_key) key_stack.push_back(std::move(curr_key));
       if (curr_obj) obj_stack.push_back(std::move(curr_obj));
       curr_obj = basic_heap<RefCount>::make_object();
@@ -178,19 +206,19 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Key(char const* str, size_type len, bool) {
+    bool heap_parser<RefCount>::Key(char const* str, size_type len, bool) {
       curr_key = basic_heap<RefCount>::make_string({str, len});
       return true;
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::EndObject(size_type) {
+    bool heap_parser<RefCount>::EndObject(size_type) {
       EndAggregate();
       return true;
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::StartArray() {
+    bool heap_parser<RefCount>::StartArray() {
       if (curr_key) key_stack.push_back(std::move(curr_key));
       if (curr_obj) obj_stack.push_back(std::move(curr_obj));
       curr_obj = basic_heap<RefCount>::make_array();
@@ -198,13 +226,13 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::EndArray(size_type) {
+    bool heap_parser<RefCount>::EndArray(size_type) {
       EndAggregate();
       return true;
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::EndAggregate() {
+    bool heap_parser<RefCount>::EndAggregate() {
       if (!obj_stack.empty()) {
         // Move the current object into its parent.
         auto& parent = obj_stack.back();
@@ -222,7 +250,7 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::String(char const* str, size_type len, bool) {
+    bool heap_parser<RefCount>::String(char const* str, size_type len, bool) {
       // Embed the string.
       auto str_obj = basic_heap<RefCount>::make_string({str, len});
       if (curr_obj.is_object()) curr_obj.add_field(std::move(curr_key), std::move(str_obj));
@@ -231,17 +259,17 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Int(int num) {
+    bool heap_parser<RefCount>::Int(int num) {
       return Int64(num);
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Uint(unsigned num) {
+    bool heap_parser<RefCount>::Uint(unsigned num) {
       return Int64(num);
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Int64(int64_t num) {
+    bool heap_parser<RefCount>::Int64(int64_t num) {
       // Embed the integer.
       if (curr_obj.is_object()) curr_obj.add_field(std::move(curr_key), num);
       else curr_obj.push_back(num);
@@ -249,12 +277,12 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Uint64(uint64_t num) {
+    bool heap_parser<RefCount>::Uint64(uint64_t num) {
       return Int64(num);
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Double(double num) {
+    bool heap_parser<RefCount>::Double(double num) {
       // Embed the double.
       if (curr_obj.is_object()) curr_obj.add_field(std::move(curr_key), num);
       else curr_obj.push_back(num);
@@ -262,14 +290,14 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::RawNumber(char const*, size_type, bool) {
+    bool heap_parser<RefCount>::RawNumber(char const*, size_type, bool) {
       // Rapidjson doesn't detect characteristics of incoming parse-type, so this has to be implemented
       // regardless of whether it'll be used.
       throw std::logic_error("dart::packet library is misconfigured, unimplemented RawNumber handler called");
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Bool(bool val) {
+    bool heap_parser<RefCount>::Bool(bool val) {
       // Embed the boolean.
       if (curr_obj.is_object()) curr_obj.add_field(std::move(curr_key), val);
       else curr_obj.push_back(val);
@@ -277,7 +305,7 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool json_parser<RefCount>::Null() {
+    bool heap_parser<RefCount>::Null() {
       auto null = basic_heap<RefCount>::make_null();
       if (curr_obj.is_object()) curr_obj.add_field(std::move(curr_key), null);
       else curr_obj.push_back(null);

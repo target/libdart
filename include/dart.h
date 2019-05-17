@@ -10600,10 +10600,10 @@ namespace dart {
 /*----- Function Template Implementations -----*/
 
 #include "dart/dart_meta.h"
+#include "dart/dart_intern.tcc"
 #include "dart/dart_operators.tcc"
 #include "dart/dart_api.tcc"
 #include "dart/dart_arr.tcc"
-#include "dart/dart_intern.tcc"
 #include "dart/dart_iterator.tcc"
 #include "dart/dart_json.tcc"
 #include "dart/dart_obj.tcc"
