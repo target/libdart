@@ -55,8 +55,8 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 /*----- Macro Definitions -----*/
 
 // Version macros for conditional compilation/feature checks.
-#define DART_MAJOR_VERSION          1
-#define DART_MINOR_VERSION          0
+#define DART_MAJOR_VERSION          0
+#define DART_MINOR_VERSION          9
 #define DART_PATCH_VERSION          0
 
 /*----- Type Declarations -----*/

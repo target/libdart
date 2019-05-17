@@ -7,12 +7,17 @@ Dart
 and surprisingly high level, `C++` API to interact with that `JSON`.
 It is primarily optimized for on-the-wire representation size along with
 efficiency of receiver-side interaction, however, it also allows for reasonably 
-performant dynamic modification when necessary. Dart can be used in any application
-as a dead-simple and lightweight `JSON` parser, but first and foremost it targets
-real-time stream processing engines in a schema-less environment.
-It retains logarithmic complexity of object key-lookup, requires **zero**
-receiver-side memory allocations for read-only interactions, and requires an
-average of 20% memory overhead compared to the input `JSON`.  
+performant dynamic modification when necessary.
+
+**Dart** can be used in any application as a dead-simple, fast, and lightweight
+`JSON` parser, but it first and foremost targets real-time stream processing engines
+in a schema-less environment.
+
+It retains logarithmic complexity of object key-lookup, scales extremely well as packet
+sizes increase (see performance below), requires **zero** receiver-side memory
+allocations/parsing/unpacking for read-only interactions, and is header-only, allowing
+for trivially easy installation.
+
 Although not a `JSON` parser itself, **Dart** leverages the fastest general purpose
 `JSON` parser available ([source](https://github.com/miloyip/nativejson-benchmark)),
 [RapidJSON](https://github.com/Tencent/rapidjson), for format conversion both into,
@@ -26,6 +31,17 @@ As **Dart** can also be useful when working with config files, it also supports 
 For more in depth performance details, see our [performance](PERFORMANCE.md) document,
 for those interested in where this performance comes from, see our
 [implementation](IMPLEMENTATION.md) document.
+
+## API Stability
+
+**Dart** has been an ongoing development effort over the last few years, and its API has
+morphed several times during that period. All of the network-level logic is very stable
+and has not changed significantly in some time, but the user-facing API is still being
+finalized and may change some before the first release.
+
+The library is currently set at version `0.9.0`, and after a period of a few weeks, collecting
+user/community feedback on the API, the project will transition to its `1.0.0` release,
+at which point the API will be considered stable.
 
 ## Compilation and Installation
 **Dart** is implemented using modern C++, and requires both Microsoft's Guidelines
@@ -408,6 +424,34 @@ it does _not_ come with any performance improvement.
 The type-safe API is implemented on top of the API described up to this point, should exhibit
 identical performance characteristics, and exists solely for the purposes of
 code-organization/developer quality of life improvements.
+
+A consequence of all this conversion logic, and becoming especially compelling with
+class template argument deduction in C++17, is that code like this is actually valid:
+```c++
+#include <map>
+#include <dart.h>
+#include <vector>
+#include <variant>
+#include <iostream>
+
+int main() {
+  std::cout << dart::packet::object {
+    "a key", "a value",
+    "a homogenous array", std::vector {1, 1, 2, 3, 5, 8, 13},
+    "a heterogenous array", std::tuple {false, 0.0, "hello"},
+    "an object", dart::packet::object {
+      "oneof", std::variant<int, float, bool> {false},
+      "maybe_null", std::optional {"present"}
+    }
+  } << std::endl;
+}
+```
+Which outputs:
+```
+{"a heterogenous array":[false,0.0,"hello"],"a homogenous array":[1,1,2,3,5,8,13],"a key":"a value","an object":{"maybe_null":"present","oneof":false}}
+```
+Deciding as to whether it's actually sensible/ethical/_practically useful_ to do so
+is left as an exercise to the reader.
 
 ## Customization Points/Expert Usage
 For a guide on the customization points the library exposes, see our

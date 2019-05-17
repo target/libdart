@@ -222,7 +222,7 @@ namespace dart {
     if (target.size() + offset > size()) return npos;
 
     // Search until we find it or walk off the end.
-    while (offset + target.size() < size()) {
+    while (offset + target.size() <= size()) {
       if (compare(offset, target.size(), target) == 0) return offset;
       ++offset;
     }
@@ -298,7 +298,7 @@ namespace dart {
     auto found = std::find_if(begin() + offset, end(), [=] (auto c) {
       return target.find(c) != npos;
     });
-    return found != end() ? begin() - found : npos;
+    return found != end() ? found - begin() : npos;
   }
 
   template <class CharT, class Traits>
@@ -330,13 +330,14 @@ namespace dart {
     -> size_type
   {
     // Short-circuit if we know this can't work.
-    if (offset >= size()) return npos;
+    auto len = size();
+    if (offset >= len) return npos;
 
     // Try to find one of the requested characters.
     auto found = std::find_if(rbegin() + offset, rend(), [=] (auto c) {
       return target.find(c) != npos;
     });
-    return found != rend() ? rbegin() - found : npos;
+    return found != rend() ? rend() - found - 1 : npos;
   }
 
   template <class CharT, class Traits>
