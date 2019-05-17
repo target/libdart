@@ -11,7 +11,7 @@ branches:
 
 # Common external dependencies.
 before_install:
-  # Install GSL
+  # Install GSL and rapidjson
   # Easy for mac, difficult for linux
   - |
     if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
@@ -20,11 +20,15 @@ before_install:
       curl -sL "https://github.com/microsoft/GSL/archive/v2.0.0.tar.gz" | tar xzf -
       cd GSL-2.0.0
       sudo cp -r include/gsl /usr/local/include/gsl
+      cd ..
+      curl -sL "https://github.com/Tencent/rapidjson/archive/v1.1.0.tar.gz" | tar xzf -
+      cd rapidjson-1.1.0
+      sudo cp -r include/rapidjson /usr/local/include/rapidjson
       popd
       rm -rf $BUILD_DIR
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       brew update
-      brew install cpp-gsl
+      brew install cpp-gsl rapidjson
     fi
 
 # Final environment configs.
@@ -56,6 +60,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - clang-3.8
             - g++-7
     - env: VERSION=3.9
@@ -66,6 +71,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - clang-3.9
             - g++-7
     - env: VERSION=4.0
@@ -76,6 +82,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - clang-4.0
             - g++-7
     - env: VERSION=5.0
@@ -86,6 +93,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - clang-5.0
             - g++-7
     - env: VERSION=6.0
@@ -96,6 +104,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - clang-6.0
             - g++-7
     - env: VERSION=7
@@ -107,6 +116,7 @@ matrix:
             - llvm-toolchain-xenial-7
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - clang-7
             - g++-7
     - env: VERSION=5
@@ -117,6 +127,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - g++-5
     - env: VERSION=6
       os: linux
@@ -126,6 +137,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - g++-6
     - env: VERSION=7
       os: linux
@@ -135,6 +147,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - g++-7
     - env: VERSION=8
       os: linux
@@ -144,6 +157,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
+            - rapidjson-dev
             - g++-8
     - os: osx
       compiler: clang

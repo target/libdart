@@ -26,6 +26,7 @@
 #if DART_HAS_RAPIDJSON
 #include <rapidjson/reader.h>
 #include <rapidjson/writer.h>
+#include <rapidjson/document.h>
 #endif
 
 /*----- Local Includes -----*/
@@ -439,6 +440,9 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         object() = delete;
+#if DART_HAS_RAPIDJSON
+        object(rapidjson::Value const& fields) noexcept;
+#endif
         object(packet_fields<RefCount> const* fields) noexcept;
         object(object const&) = delete;
         ~object() = delete;
@@ -507,6 +511,9 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         array() = delete;
+#if DART_HAS_RAPIDJSON
+        array(rapidjson::Value const& elems) noexcept;
+#endif
         array(packet_elements<RefCount> const* elems) noexcept;
         array(array const&) = delete;
         ~array() = delete;

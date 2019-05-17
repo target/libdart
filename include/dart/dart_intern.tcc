@@ -23,6 +23,74 @@ namespace dart {
       else return 0;
     }
 
+#if DART_HAS_RAPIDJSON
+    // FIXME: Find somewhere better to put these functions.
+    template <template <class> class RefCount>
+    raw_type json_identify(rapidjson::Value const& curr_val) {
+      switch (curr_val.GetType()) {
+        case rapidjson::kObjectType:
+          return raw_type::object;
+        case rapidjson::kArrayType:
+          return raw_type::array;
+        case rapidjson::kStringType:
+          // Figure out what type of string we've been given.
+          return identify_string<RefCount>({curr_val.GetString(), curr_val.GetStringLength()});
+        case rapidjson::kNumberType:
+          // Figure out what type of number we've been given.
+          if (curr_val.IsInt()) return identify_integer(curr_val.GetInt64());
+          else return identify_decimal(curr_val.GetDouble());
+        case rapidjson::kTrueType:
+        case rapidjson::kFalseType:
+          return raw_type::boolean;
+        default:
+          DART_ASSERT(curr_val.IsNull());
+          return raw_type::null;
+      }
+    }
+
+    template <template <class> class RefCount>
+    size_t json_lower(gsl::byte* buffer, rapidjson::Value const& curr_val) {
+      auto raw = json_identify<RefCount>(curr_val);
+      switch (raw) {
+        case raw_type::object:
+          new(buffer) object<RefCount>(curr_val);
+          break;
+        case raw_type::array:
+          new(buffer) array<RefCount>(curr_val);
+          break;
+        case raw_type::small_string:
+        case raw_type::string:
+          new(buffer) string(curr_val.GetString(), curr_val.GetStringLength());
+          break;
+        case raw_type::big_string:
+          new(buffer) big_string(curr_val.GetString(), curr_val.Size());
+          break;
+        case raw_type::short_integer:
+          new(buffer) primitive<int16_t>(curr_val.GetInt());
+          break;
+        case raw_type::integer:
+          new(buffer) primitive<int32_t>(curr_val.GetInt());
+          break;
+        case raw_type::long_integer:
+          new(buffer) primitive<int64_t>(curr_val.GetInt64());
+          break;
+        case raw_type::decimal:
+          new(buffer) primitive<float>(curr_val.GetFloat());
+          break;
+        case raw_type::long_decimal:
+          new(buffer) primitive<double>(curr_val.GetDouble());
+          break;
+        case raw_type::boolean:
+          new(buffer) detail::primitive<bool>(curr_val.GetBool());
+          break;
+        default:
+          DART_ASSERT(curr_val.IsNull());
+          break;
+      }
+      return detail::find_sizeof<RefCount>({raw, buffer});
+    }
+#endif
+
   }
 
   template <template <class> class RefCount>
