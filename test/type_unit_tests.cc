@@ -427,6 +427,55 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
   }
 }
 
+SCENARIO("objects can set individual indices", "[type unit]") {
+  GIVEN("a statically typed, mutable object with contents") {
+    dart::mutable_object_api_test([] (auto tag, auto idx) {
+      using object = typename decltype(tag)::type;
+      using string = dart::basic_string<typename object::value_type>;
+      using number = dart::basic_number<typename object::value_type>;
+      using flag = dart::basic_flag<typename object::value_type>;
+      using null = dart::basic_null<typename object::value_type>;
+
+      object obj {"first", "wrong", "second", "fail", "third", "error"};
+      DYNAMIC_WHEN("values are set", idx) {
+        auto set_one = obj.set(string {"first"}, "correct");
+        auto set_two = obj.set("second", string {"pass"});
+        auto set_three = obj.set(string {"third"}, string {"ack"});
+        DYNAMIC_THEN("everything is where we expect", idx) {
+          REQUIRE(obj[string {"first"}] == "correct");
+          REQUIRE("correct" == *obj.find(string {"first"}));
+          REQUIRE(*obj.find("second") == string {"pass"});
+          REQUIRE(obj.get("third") == "ack");
+          REQUIRE(set_one == obj.find("first"));
+          REQUIRE(set_two == obj.find(string {"second"}));
+          REQUIRE(set_three == obj.find(string {"third"}.strv()));
+        }
+      }
+
+      DYNAMIC_WHEN("iterators are set", idx) {
+        auto set_one = obj.set(obj.begin(), "correct");
+        auto set_two = obj.set(++obj.begin(), string {"pass"});
+        auto set_three = obj.set(--obj.end(), string {"ack"}.strv());
+        DYNAMIC_THEN("everything is where we expect", idx) {
+          REQUIRE(obj[string {"first"}] == "correct");
+          REQUIRE("correct" == *obj.find(string {"first"}));
+          REQUIRE(*obj.find("second") == string {"pass"});
+          REQUIRE(obj.get("third") == "ack");
+          REQUIRE(set_one == obj.find("first"));
+          REQUIRE(set_two == obj.find(string {"second"}));
+          REQUIRE(set_three == obj.find(string {"third"}.strv()));
+        }
+      }
+
+      DYNAMIC_WHEN("a non-existent assignment is attempted", idx) {
+        DYNAMIC_THEN("it refuses the assignment", idx) {
+          REQUIRE_THROWS_AS(obj.set("sorry", "nope"), std::out_of_range);
+        }
+      }
+    });
+  }
+}
+
 SCENARIO("object keys must be strings", "[type unit]") {
   GIVEN("a statically typed, mutable object") {
     dart::mutable_object_api_test([] (auto tag, auto idx) {
@@ -936,6 +985,66 @@ SCENARIO("arrays can be resized dynamically", "[type unit]") {
           DYNAMIC_THEN("all values added are still set to it", idx) {
             for (auto v : buff) REQUIRE(v == "will it work?");
           }
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("arrays can set individual indices", "[type unit]") {
+  GIVEN("a statically typed, sized, mutable array") {
+    dart::mutable_array_api_test([] (auto tag, auto idx) {
+      using array = typename decltype(tag)::type;
+      using string = dart::basic_string<typename array::value_type>;
+      using number = dart::basic_number<typename array::value_type>;
+      using flag = dart::basic_flag<typename array::value_type>;
+      using null = dart::basic_null<typename array::value_type>;
+
+      array arr;
+      arr.resize(4);
+      DYNAMIC_WHEN("values are set", idx) {
+        arr.set(0, string {"yes"});
+        arr.set(number {1}, "no");
+        arr.set(2, "stop");
+        arr.set(number {3}, string {"go"});
+        DYNAMIC_THEN("everything is where we expect", idx) {
+          REQUIRE(arr.front() == string {"yes"});
+          REQUIRE(string {"yes"} == arr.front());
+          REQUIRE(arr[0] == "yes");
+          REQUIRE("yes" == arr[0]);
+          REQUIRE(arr[number {1}] == "no");
+          REQUIRE("no" == arr[number {1}]);
+          REQUIRE(arr[2] == "stop");
+          REQUIRE("stop" == arr[2]);
+          REQUIRE(arr[3] == "go");
+          REQUIRE("go" == arr[3]);
+          REQUIRE(arr.back() == "go");
+          REQUIRE("go" == arr.back());
+        }
+      }
+
+      DYNAMIC_WHEN("iterators are set", idx) {
+        arr.resize(3);
+        arr.set(arr.begin(), string {"yes"});
+        arr.set(++arr.begin(), "no");
+        arr.set(--arr.end(), "stop and go");
+        DYNAMIC_THEN("everything is where we expect", idx) {
+          REQUIRE(arr.front() == string {"yes"});
+          REQUIRE(string {"yes"} == arr.front());
+          REQUIRE(arr[0] == "yes");
+          REQUIRE("yes" == arr[0]);
+          REQUIRE(arr[number {1}] == "no");
+          REQUIRE("no" == arr[number {1}]);
+          REQUIRE(arr[2] == "stop and go");
+          REQUIRE("stop and go" == arr[2]);
+          REQUIRE(arr.back() == "stop and go");
+          REQUIRE("stop and go" == arr.back());
+        }
+      }
+
+      DYNAMIC_WHEN("an out of bounds assignment is attempted", idx) {
+        DYNAMIC_THEN("it refuses the assignment", idx) {
+          REQUIRE_THROWS_AS(arr.set(4, "nope"), std::out_of_range);
         }
       }
     });

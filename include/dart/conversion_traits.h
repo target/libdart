@@ -423,6 +423,7 @@ namespace dart {
       }
     };
 
+    // Specialization for interoperability with std::optional.
     template <class T>
     struct to_dart<shim::optional<T>> {
       template <class Packet, class =
@@ -445,6 +446,7 @@ namespace dart {
       }
     };
 
+    // Specialization for interoperability with std::variant.
     template <class... Ts>
     struct to_dart<shim::variant<Ts...>> {
       template <class Packet, class =
@@ -469,6 +471,7 @@ namespace dart {
       }
     };
 
+    // Specialization for interoperability with std::tuple.
     template <class... Ts>
     struct to_dart<std::tuple<Ts...>> {
       template <class Packet, class Tuple, size_t... idxs>
@@ -495,6 +498,15 @@ namespace dart {
       >
       static Packet cast(std::tuple<Ts...>&& tup) {
         return unpack<Packet>(std::move(tup), std::index_sequence_for<Ts...> {});
+      }
+    };
+
+    // Bizzarely useful in some meta-programming situations.
+    template <class T, T val>
+    struct to_dart<std::integral_constant<T, val>> {
+      template <class Packet>
+      static Packet cast(std::integral_constant<T, val>) {
+        return convert::cast<Packet>(val);
       }
     };
 

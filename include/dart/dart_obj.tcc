@@ -216,6 +216,12 @@ namespace dart {
   }
 
   template <class Object>
+  template <class KeyType, class ValueType, class>
+  auto basic_object<Object>::set(KeyType&& key, ValueType&& value) -> iterator {
+    return val.set(std::forward<KeyType>(key), std::forward<ValueType>(value));
+  }
+
+  template <class Object>
   template <class KeyType, class>
   auto basic_object<Object>::erase(KeyType const& key) -> iterator {
     return val.erase(key);

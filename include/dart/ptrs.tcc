@@ -294,7 +294,7 @@ namespace dart {
   }
 
   template <class T>
-  shareable_ptr<T>& shareable_ptr<T>::operator =(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value) {
+  shareable_ptr<T>& shareable_ptr<T>::operator =(T&& other) noexcept {
     // XXX: If you have a throwing move constructor, you get what you deserve.
     // I'm not allocating to avoid this, and I'm definitely not adding a "valueless by exception" state.
     // Good people don't throw from move constructors.
@@ -321,7 +321,7 @@ namespace dart {
   }
 
   template <class T>
-  shareable_ptr<T>& shareable_ptr<T>::operator =(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value) {
+  shareable_ptr<T>& shareable_ptr<T>::operator =(shareable_ptr&& other) noexcept {
     // XXX: If you have a throwing move constructor, you get what you deserve.
     // I'm not allocating to avoid this, and I'm definitely not adding a "valueless by exception" state.
     // Good people don't throw from move constructors.
