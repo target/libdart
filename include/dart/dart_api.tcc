@@ -611,6 +611,69 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <class KeyType, class ValueType, class>
+  auto basic_heap<RefCount>::set(KeyType&& key, ValueType&& value) -> iterator {
+    // Perform our copy on write if our heap is shared.
+    copy_on_write();
+
+    // Cast and forward the key/value into something we can use.
+    auto&& tmp_key = convert::cast<basic_heap>(std::forward<KeyType>(key));
+    auto&& tmp_val = convert::cast<basic_heap>(std::forward<ValueType>(value));
+
+    // Update the given value IF present.
+    if (tmp_key.is_str()) {
+      if (tmp_key.size() > std::numeric_limits<uint16_t>::max()) {
+        throw std::invalid_argument("dart::heap keys cannot be longer than UINT16_MAX");
+      }
+
+      // Update the mapping IF it exists.
+      auto& fields = get_fields();
+      auto it = fields.find(tmp_key);
+      if (it == fields.end()) throw std::out_of_range("dart::heap cannot set a non-existent key");
+      it->second = std::forward<decltype(tmp_val)>(tmp_val);
+      return detail::dn_iterator<RefCount>{it, [] (auto& it) { return it->second; }};
+    } else if (tmp_key.is_integer()) {
+      auto& elements = get_elements();
+      auto pos = static_cast<size_type>(tmp_key.integer());
+      if (pos >= elements.size()) throw std::out_of_range("dart::heap cannot set a value at out of range index");
+      auto it = elements.begin() + pos;
+      *it = std::forward<decltype(tmp_val)>(tmp_val);
+      return detail::dn_iterator<RefCount> {it, [] (auto& it) { return *it; }};
+    } else {
+      throw type_error("dart::heap cannot set keys with non string/integer types");
+    }
+  }
+
+  template <template <class> class RefCount>
+  template <class KeyType, class ValueType, class>
+  auto basic_packet<RefCount>::set(KeyType&& key, ValueType&& value) -> iterator {
+    return get_heap().set(std::forward<KeyType>(key), std::forward<ValueType>(value));
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  auto basic_heap<RefCount>::set(iterator pos, ValueType&& value) -> iterator {
+    // Dig all the way down and get the underlying iterator layout.
+    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+
+    // Make sure our iterator can be used.
+    if (!pos) throw std::invalid_argument("dart::heap cannot insert from a valueless iterator");
+
+    // Map the interator's index, and perform the insertion.
+    if (is_object()) return set(iterator_key(pos), std::forward<ValueType>(value));
+    else return set(iterator_index(pos), std::forward<ValueType>(value));
+  }
+
+  template <template <class> class RefCount>
+  template <class ValueType, class>
+  auto basic_packet<RefCount>::set(iterator pos, ValueType&& value) -> iterator {
+    if (!pos) throw std::invalid_argument("dart::packet cannot set from a valueless iterator");
+    auto* it = shim::get_if<typename basic_heap<RefCount>::iterator>(&pos.impl);
+    if (it) return get_heap().set(*it, std::forward<ValueType>(value));
+    else throw type_error("dart::packet cannot set iterators from other/finalized packets");
+  }
+
+  template <template <class> class RefCount>
   template <class KeyType, class>
   auto basic_heap<RefCount>::erase(KeyType const& identifier) -> iterator {
     switch (identifier.get_type()) {

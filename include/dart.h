@@ -105,6 +105,8 @@ namespace dart {
     using remove_field_t = decltype(std::declval<Obj>().remove_field(std::declval<A>()));
     template <class Obj, class K, class V>
     using insert_t = decltype(std::declval<Obj>().insert(std::declval<K>(), std::declval<V>()));
+    template <class Obj, class K, class V>
+    using set_t = decltype(std::declval<Obj>().set(std::declval<K>(), std::declval<V>()));
     template <class Obj, class A>
     using erase_t = decltype(std::declval<Obj>().erase(std::declval<A>()));
     template <class Obj, class A>
@@ -614,6 +616,23 @@ namespace dart {
         >
       >
       auto insert(KeyType&& key, ValueType&& value) -> iterator;
+
+      /**
+       *  @brief
+       *  Function replaces a key-value pair in a non-finalized object.
+       *
+       *  @details
+       *  Given key and value can be any types for which type conversions are defined
+       *  (built-in types, STL containers of built-in types, user types for which an
+       *  explicit conversion has been defined, and STL containers of such user types).
+       *  The result of converting the key must yield a string.
+       */
+      template <class KeyType, class ValueType, class =
+        std::enable_if_t<
+          meta::is_detected<set_t, value_type&, KeyType, ValueType>::value
+        >
+      >
+      auto set(KeyType&& key, ValueType&& value) -> iterator;
 
       /**
        *  @brief
@@ -1406,6 +1425,8 @@ namespace dart {
     using pop_back_t = decltype(std::declval<Arr>().pop_back());
     template <class Arr, class I, class V>
     using insert_t = decltype(std::declval<Arr>().insert(std::declval<I>(), std::declval<V>()));
+    template <class Arr, class I, class V>
+    using set_t = decltype(std::declval<Arr>().set(std::declval<I>(), std::declval<V>()));
     template <class Arr, class I>
     using erase_t = decltype(std::declval<Arr>().erase(std::declval<I>()));
     template <class Arr, class A>
@@ -1942,6 +1963,23 @@ namespace dart {
         >
       >
       auto insert(Index&& idx, ValueType&& value) -> iterator;
+
+      /**
+       *  @brief
+       *  Function replaces an index-value pair in a non-finalized array.
+       *
+       *  @details
+       *  Given key and value can be any types for which type conversions are defined
+       *  (built-in types, STL containers of built-in types, user types for which an
+       *  explicit conversion has been defined, and STL containers of such user types).
+       *  The reuslt of converting the key must yield an integer.
+       */
+      template <class Index, class ValueType, class =
+        std::enable_if_t<
+          meta::is_detected<set_t, value_type&, Index, ValueType>::value
+        >
+      >
+      auto set(Index&& idx, ValueType&& value) -> iterator;
 
       /**
        *  @brief
@@ -4889,6 +4927,44 @@ namespace dart {
         >
       >
       auto insert(iterator pos, ValueType&& value) -> iterator;
+
+      /**
+       *  @brief
+       *  Assuming this is a non-finalized aggregate, function replaces an existing
+       *  (index|key)-value pair.
+       *
+       *  @details
+       *  Given key and value can be any types for which type conversions are defined
+       *  (built-in types, STL containers of built-in types, user types for which an
+       *  explicit conversion has been defined, and STL containers of such user types).
+       *  The result of converting the key must yield a string.
+       */
+      template <class KeyType, class ValueType, class =
+        std::enable_if_t<
+          convert::is_castable<KeyType, basic_heap>::value
+          &&
+          convert::is_castable<ValueType, basic_heap>::value
+        >
+      >
+      auto set(KeyType&& key, ValueType&& value) -> iterator;
+
+      /**
+       *  @brief
+       *  Assuming this is a non-finalized aggregate, function replaces an existing
+       *  (index|key)-value pair.
+       *
+       *  @details
+       *  Given key and value can be any types for which type conversions are defined
+       *  (built-in types, STL containers of built-in types, user types for which an
+       *  explicit conversion has been defined, and STL containers of such user types).
+       *  The result of converting the key must yield a string.
+       */
+      template <class ValueType, class =
+        std::enable_if_t<
+          convert::is_castable<ValueType, basic_heap>::value
+        >
+      >
+      auto set(iterator pos, ValueType&& value) -> iterator;
 
       /**
        *  @brief
@@ -9045,6 +9121,44 @@ namespace dart {
         >
       >
       auto insert(iterator pos, ValueType&& value) -> iterator;
+
+      /**
+       *  @brief
+       *  Assuming this is a non-finalized aggregate, function replaces an existing
+       *  (index|key)-value pair.
+       *
+       *  @details
+       *  Given key and value can be any types for which type conversions are defined
+       *  (built-in types, STL containers of built-in types, user types for which an
+       *  explicit conversion has been defined, and STL containers of such user types).
+       *  The result of converting the key must yield a string.
+       */
+      template <class KeyType, class ValueType, class =
+        std::enable_if_t<
+          convert::is_castable<KeyType, basic_packet>::value
+          &&
+          convert::is_castable<ValueType, basic_packet>::value
+        >
+      >
+      auto set(KeyType&& key, ValueType&& value) -> iterator;
+
+      /**
+       *  @brief
+       *  Assuming this is a non-finalized aggregate, function replaces an existing
+       *  (index|key)-value pair.
+       *
+       *  @details
+       *  Given key and value can be any types for which type conversions are defined
+       *  (built-in types, STL containers of built-in types, user types for which an
+       *  explicit conversion has been defined, and STL containers of such user types).
+       *  The result of converting the key must yield a string.
+       */
+      template <class ValueType, class =
+        std::enable_if_t<
+          convert::is_castable<ValueType, basic_packet>::value
+        >
+      >
+      auto set(iterator pos, ValueType&& value) -> iterator;
 
       /**
        *  @brief

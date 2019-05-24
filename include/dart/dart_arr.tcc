@@ -200,6 +200,12 @@ namespace dart {
   }
 
   template <class Array>
+  template <class Index, class ValueType, class>
+  auto basic_array<Array>::set(Index&& idx, ValueType&& value) -> iterator {
+    return val.set(std::forward<Index>(idx), std::forward<ValueType>(value));
+  }
+
+  template <class Array>
   template <class Index, class>
   auto basic_array<Array>::erase(Index const& idx) -> iterator {
     return val.erase(idx);

@@ -301,11 +301,11 @@ namespace dart {
       shareable_ptr& operator =(std::unique_ptr<U, D>&& ptr)
           noexcept(refcount_traits<T>::template can_nothrow_take<U*, D>::value);
       shareable_ptr& operator =(T const& other) noexcept(is_nothrow_assignable::value);
-      shareable_ptr& operator =(T&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value);
+      shareable_ptr& operator =(T&& other) noexcept;
       shareable_ptr& operator =(std::nullptr_t)
           noexcept(refcount_traits<T>::template can_nothrow_take<element_type*, std::default_delete<element_type>>::value);
       shareable_ptr& operator =(shareable_ptr const& other) noexcept(is_nothrow_assignable::value);
-      shareable_ptr& operator =(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value);
+      shareable_ptr& operator =(shareable_ptr&& other) noexcept;
 
       // Dereference.
       auto operator *() const noexcept(refcount_traits<T>::is_nothrow_unwrappable::value) -> element_type&;
