@@ -1,32 +1,85 @@
-# Have cmake distinguish between clang and apple clang.
-cmake_policy(SET CMP0025 NEW)
-
-# Name the project.
-project(libdart)
 cmake_minimum_required(VERSION 3.1.0)
-include(CheckIncludeFileCXX)
+project(libdart)
 
-# Check which dependencies are installed.
-find_path(libgsl gsl/gsl)
-find_library(libyaml yaml)
-find_path(librj rapidjson/reader.h)
-if (NOT librj)
-  CHECK_INCLUDE_FILE_CXX("rapidjson/reader.h" librj)
-endif ()
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-# GSL is our only hard dependency, error out if it's not here.
-if (NOT libgsl)
-  message(FATAL_ERROR "Microsoft GSL must be installed")
-endif ()
-include_directories(${libgsl})
+include(CMakeDependentOption)
+include(CTest)
 
-# Decide if we can build the YAML features or not.
-if (libyaml AND librj)
+include(FetchDependency) # Local
+
+fetch_option(LIBDART_FETCH_MicrosoftGSL "Fetch Microsoft GSL if not installed")
+fetch_option(LIBDART_FETCH_RapidJSON "Fetch RapidJSON if not installed")
+fetch_option(LIBDART_FETCH_libyaml "Fetch libyaml if not installed")
+
+set(json-fetch-url "https://github.com/Tencent/rapidjson/archive/v1.1.0.zip")
+set(yaml-fetch-url "https://github.com/yaml/libyaml/archive/0.2.2.zip")
+set(gsl-fetch-url "https://github.com/microsoft/GSL/archive/v2.0.0.zip")
+
+find_package(MicrosoftGSL)
+find_package(RapidJSON MODULE)
+find_package(Yaml)
+
+option(BUILD_BENCHMARKS "Build project benchmarks")
+
+# Explicitly disable C++17 for whatever reason.
+#option(no_cxx17 "Disabling c++17" OFF)
+
+# Define an option for our tests.
+option(32bit "Building for a 32-bit target..." OFF)
+option(static_test "Statically linking tests..." OFF)
+option(extended_test "Building extended tests..." OFF)
+option(force_build "Proceeding with unsupported compilation...")
+
+if (NOT MicrosoftGSL_FOUND)
+  if (LIBDART_FETCH_MicrosoftGSL)
+    libdart_fetch_dependency(MicrosoftGSL URL ${gsl-fetch-url})
+    add_subdirectory(${MicrosoftGSL_SOURCE_DIR} ${MicrosoftGSL_BINARY_DIR})
+    add_library(MicrosoftGSL ALIAS GSL)
+  else()
+    message(FATAL_ERROR "Microsoft GSL must be installed")
+  endif()
+endif()
+
+if (NOT Yaml_FOUND AND LIBDART_FETCH_libyaml)
+  libdart_fetch_dependency(Yaml URL ${yaml-fetch-url})
+  set(BUILD_TESTING OFF)
+  add_subdirectory(${Yaml_SOURCE_DIR} ${Yaml_BINARY_DIR} EXCLUDE_FROM_ALL)
+  set(BUILD_TESTING ON)
+  add_library(Yaml::Yaml ALIAS yaml)
+endif()
+
+if (NOT RapidJSON_FOUND AND LIBDART_FETCH_RapidJSON)
+  libdart_fetch_dependency(RapidJSON URL ${json-fetch-url})
+  add_subdirectory(${RapidJSON_SOURCE_DIR} ${RapidJSON_BINARY_DIR} EXCLUDE_FROM_ALL)
+  add_library(RapidJSON INTERFACE)
+  add_library(RapidJSON::RapidJSON ALIAS RapidJSON)
+  target_include_directories(RapidJSON INTERFACE ${RapidJSON_SOURCE_DIR}/include)
+endif()
+
+if (TARGET Yaml::Yaml AND TARGET RapidJSON::RapidJSON)
   set(can_build_yaml ON)
-endif ()
+endif()
+
+add_library(dart INTERFACE)
+target_include_directories(dart INTERFACE
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_definitions(dart INTERFACE
+  $<$<TARGET_EXISTS:RapidJSON::RapidJSON>:DART_HAS_RAPIDJSON>
+  $<$<TARGET_EXISTS:Yaml::Yaml>:DART_HAS_YAML>)
+
+target_compile_options(dart INTERFACE
+  $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wno-implicit-fallthrough -Wno-unused-local-typedefs>)
+
+target_compile_features(dart INTERFACE cxx_std_17)
+
+target_link_libraries(dart INTERFACE
+  MicrosoftGSL
+  $<TARGET_NAME_IF_EXISTS:Yaml::Yaml>
+  $<TARGET_NAME_IF_EXISTS:RapidJSON::RapidJSON>)
 
 # Figure out what toolchain we're using.
-option(force_build "Proceeding with unsupported compilation...")
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "[cC][lL][aA][nN][gG]")
   set(using_clang ON)
   if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "AppleClang")
@@ -48,40 +101,13 @@ elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.9 AND using_clang AND using
   try_compile(using_cxx17 ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/test/macos_feature_check.cc)
 endif ()
 
-# Explicitly disable C++17 for whatever reason.
-option(no_cxx17 "Disabling c++17" OFF)
-
-# Define an option for our tests.
-option(test "Building tests..." ON)
-option(32bit "Building for a 32-bit target..." OFF)
-option(static_test "Statically linking tests..." OFF)
-option(extended_test "Building extended tests..." OFF)
-
 # Define global compiler flags.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-implicit-fallthrough -Wno-unused-local-typedefs")
-if (using_cxx17 AND NOT no_cxx17)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-else ()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-endif ()
-if (librj)
-  add_definitions("-DDART_HAS_RAPIDJSON")
-endif ()
-if (can_build_yaml)
-  add_definitions("-DDART_HAS_YAML")
-endif ()
-
-# Define our source files.
-include_directories(include)
-
-# Conditionally setup our tests.
-if (test)
-  enable_testing()
+if (BUILD_TESTING)
   add_subdirectory(test)
 endif ()
 
 # Conditionally setup our benchmarks.
-if (benchmark)
+if (BUILD_BENCHMARKS)
   add_subdirectory(benchmark)
 endif ()
 
