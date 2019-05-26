@@ -73,63 +73,108 @@ benchmark/static_bench
 ```
 On my middle-end 2018 MacBook Pro, this outputs something like the following:
 ```
-Christophers-Macbook-Pro:build z002022$ benchmark/static_bench
-2019-05-17 03:45:38
+Christophers-MacBook-Pro-2:build christopherfretz$ benchmark/static_bench
+2019-05-26 17:51:30
 Running benchmark/static_bench
-Run on (8 X 2700 MHz CPU s)
+Run on (8 X 2300 MHz CPU s)
 CPU Caches:
   L1 Data 32K (x4)
   L1 Instruction 32K (x4)
   L2 Unified 262K (x4)
-  L3 Unified 8388K (x1)
---------------------------------------------------------------------------------------------------------------------
-Benchmark                                                             Time           CPU Iterations UserCounters...
---------------------------------------------------------------------------------------------------------------------
-benchmark_helper/parse_dynamic_flat_packet                         5048 ns       5045 ns     125143 parsed flat packets=198.233k/s
-benchmark_helper/parse_dynamic_nested_packet                       3878 ns       3877 ns     175637 parsed nested packets=257.921k/s
-benchmark_helper/parse_finalized_flat_packet                       3169 ns       3169 ns     214563 parsed flat packets=315.604k/s
-benchmark_helper/parse_finalized_nested_packet                     2276 ns       2276 ns     300329 parsed nested packets=439.355k/s
-benchmark_helper/lookup_finalized_fields                            252 ns        252 ns    2694577 finalized field lookups=59.5896M/s
-benchmark_helper/lookup_finalized_random_fields/1/4                  11 ns         11 ns   61350769 finalized random field lookups=91.3506M/s
-benchmark_helper/lookup_finalized_random_fields/8/4                 100 ns        100 ns    6698821 finalized random field lookups=80.131M/s
-benchmark_helper/lookup_finalized_random_fields/64/4               1076 ns       1076 ns     618500 finalized random field lookups=59.4998M/s
-benchmark_helper/lookup_finalized_random_fields/256/4              7934 ns       7931 ns      85135 finalized random field lookups=32.2775M/s
-benchmark_helper/lookup_finalized_random_fields/1/8                  13 ns         13 ns   56890218 finalized random field lookups=79.5126M/s
-benchmark_helper/lookup_finalized_random_fields/8/8                 106 ns        106 ns    6471176 finalized random field lookups=75.7222M/s
-benchmark_helper/lookup_finalized_random_fields/64/8               1135 ns       1135 ns     559978 finalized random field lookups=56.3966M/s
-benchmark_helper/lookup_finalized_random_fields/256/8              8313 ns       8311 ns      76428 finalized random field lookups=30.8035M/s
-benchmark_helper/lookup_finalized_random_fields/1/64                 12 ns         12 ns   56405215 finalized random field lookups=84.8426M/s
-benchmark_helper/lookup_finalized_random_fields/8/64                103 ns        103 ns    6237970 finalized random field lookups=77.3428M/s
-benchmark_helper/lookup_finalized_random_fields/64/64              1105 ns       1104 ns     618462 finalized random field lookups=57.9479M/s
-benchmark_helper/lookup_finalized_random_fields/256/64             7790 ns       7787 ns      82966 finalized random field lookups=32.8755M/s
-benchmark_helper/lookup_finalized_random_fields/1/256                17 ns         17 ns   37896629 finalized random field lookups=60.2012M/s
-benchmark_helper/lookup_finalized_random_fields/8/256               146 ns        146 ns    4725675 finalized random field lookups=54.8849M/s
-benchmark_helper/lookup_finalized_random_fields/64/256             1671 ns       1670 ns     412155 finalized random field lookups=38.3215M/s
-benchmark_helper/lookup_finalized_random_fields/256/256           10144 ns      10137 ns      64578 finalized random field lookups=25.255M/s
-benchmark_helper/lookup_dynamic_fields                              577 ns        577 ns    1203183 dynamic field lookups=25.9929M/s
-benchmark_helper/lookup_dynamic_random_fields/1/4                    18 ns         18 ns   36184313 dynamic random field lookups=55.0258M/s
-benchmark_helper/lookup_dynamic_random_fields/8/4                   241 ns        240 ns    2856583 dynamic random field lookups=33.318M/s
-benchmark_helper/lookup_dynamic_random_fields/64/4                 3591 ns       3582 ns     194295 dynamic random field lookups=17.8687M/s
-benchmark_helper/lookup_dynamic_random_fields/256/4               18648 ns      18622 ns      36274 dynamic random field lookups=13.7474M/s
-benchmark_helper/lookup_dynamic_random_fields/1/8                    19 ns         19 ns   36752545 dynamic random field lookups=52.0239M/s
-benchmark_helper/lookup_dynamic_random_fields/8/8                   249 ns        249 ns    2661749 dynamic random field lookups=32.1194M/s
-benchmark_helper/lookup_dynamic_random_fields/64/8                 3710 ns       3691 ns     190910 dynamic random field lookups=17.3387M/s
-benchmark_helper/lookup_dynamic_random_fields/256/8               19846 ns      19804 ns      35016 dynamic random field lookups=12.9268M/s
-benchmark_helper/lookup_dynamic_random_fields/1/64                   29 ns         29 ns   24173274 dynamic random field lookups=34.4751M/s
-benchmark_helper/lookup_dynamic_random_fields/8/64                  328 ns        327 ns    2055293 dynamic random field lookups=24.44M/s
-benchmark_helper/lookup_dynamic_random_fields/64/64                4847 ns       4837 ns     139262 dynamic random field lookups=13.2325M/s
-benchmark_helper/lookup_dynamic_random_fields/256/64              26835 ns      26781 ns      25985 dynamic random field lookups=9.55914M/s
-benchmark_helper/lookup_dynamic_random_fields/1/256                  37 ns         37 ns   18322209 dynamic random field lookups=26.7142M/s
-benchmark_helper/lookup_dynamic_random_fields/8/256                 486 ns        485 ns    1493639 dynamic random field lookups=16.5026M/s
-benchmark_helper/lookup_dynamic_random_fields/64/256               5898 ns       5883 ns     117024 dynamic random field lookups=10.8791M/s
-benchmark_helper/lookup_dynamic_random_fields/256/256             30265 ns      30191 ns      24776 dynamic random field lookups=8.47941M/s
-benchmark_helper/insert_into_exclusive_dynamic_packet               157 ns        157 ns    4358438 exclusive dynamic packet field modifications=6.38728M/s
-benchmark_helper/insert_into_shared_dynamic_packet                 1208 ns       1208 ns     559499 shared dynamic packet field modifications=828.067k/s
-benchmark_helper/finalize_dynamic_packet                            871 ns        871 ns     804108 finalized packets=1.14862M/s
-benchmark_helper/serialize_finalized_packet_into_json              1751 ns       1750 ns     383976 serialized finalized packets=571.283k/s
-benchmark_helper/serialize_finalized_nested_packet_into_json       1304 ns       1304 ns     564098 serialized finalized packets=767.106k/s
-benchmark_helper/serialize_dynamic_packet_into_json                2157 ns       2157 ns     310596 serialized dynamic packets=463.703k/s
-benchmark_helper/serialize_dynamic_nested_packet_into_json         1436 ns       1435 ns     490763 serialized dynamic nested packets=696.718k/s
+  L3 Unified 6291K (x1)
+--------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                   Time           CPU Iterations UserCounters...
+--------------------------------------------------------------------------------------------------------------------------
+benchmark_helper/parse_dynamic_flat_packet                               6105 ns       6068 ns     106909 parsed flat packets=164.793k/s
+benchmark_helper/parse_dynamic_nested_packet                             4734 ns       4711 ns     138225 parsed nested packets=212.274k/s
+benchmark_helper/parse_finalized_flat_packet                             3300 ns       3284 ns     211021 parsed flat packets=304.475k/s
+benchmark_helper/parse_finalized_nested_packet                           2275 ns       2265 ns     305881 parsed nested packets=441.554k/s
+benchmark_helper/lookup_finalized_fields                                  313 ns        312 ns    2257038 finalized field lookups=48.0687M/s
+benchmark_helper/lookup_finalized_random_fields/1/4                        12 ns         12 ns   56758291 finalized random field lookups=81.5933M/s
+benchmark_helper/lookup_finalized_random_fields/8/4                       114 ns        113 ns    6029597 finalized random field lookups=70.5681M/s
+benchmark_helper/lookup_finalized_random_fields/64/4                     1225 ns       1218 ns     561010 finalized random field lookups=52.5428M/s
+benchmark_helper/lookup_finalized_random_fields/256/4                   10851 ns      10799 ns      62121 finalized random field lookups=23.7068M/s
+benchmark_helper/lookup_finalized_random_fields/1/8                        14 ns         14 ns   51050547 finalized random field lookups=73.4215M/s
+benchmark_helper/lookup_finalized_random_fields/8/8                       126 ns        125 ns    5706878 finalized random field lookups=63.8593M/s
+benchmark_helper/lookup_finalized_random_fields/64/8                     1354 ns       1347 ns     512093 finalized random field lookups=47.5002M/s
+benchmark_helper/lookup_finalized_random_fields/256/8                   12139 ns      12088 ns      58641 finalized random field lookups=21.1782M/s
+benchmark_helper/lookup_finalized_random_fields/1/64                       13 ns         13 ns   52063577 finalized random field lookups=74.529M/s
+benchmark_helper/lookup_finalized_random_fields/8/64                      122 ns        122 ns    5693881 finalized random field lookups=65.6067M/s
+benchmark_helper/lookup_finalized_random_fields/64/64                    1360 ns       1355 ns     533614 finalized random field lookups=47.2316M/s
+benchmark_helper/lookup_finalized_random_fields/256/64                  11263 ns      11212 ns      62593 finalized random field lookups=22.8335M/s
+benchmark_helper/lookup_finalized_random_fields/1/256                      28 ns         28 ns   36364959 finalized random field lookups=36.0883M/s
+benchmark_helper/lookup_finalized_random_fields/8/256                     180 ns        179 ns    3851550 finalized random field lookups=44.6335M/s
+benchmark_helper/lookup_finalized_random_fields/64/256                   2010 ns       2001 ns     347429 finalized random field lookups=31.9829M/s
+benchmark_helper/lookup_finalized_random_fields/256/256                 13853 ns      13795 ns      50028 finalized random field lookups=18.5577M/s
+benchmark_helper/lookup_finalized_colliding_fields/0/16/8                 271 ns        269 ns    2586433 field collisions=0 finalized random field lookups=59.4129M/s
+benchmark_helper/lookup_finalized_colliding_fields/8/16/8                 276 ns        274 ns    2492744 field collisions=2 finalized random field lookups=58.3096M/s
+benchmark_helper/lookup_finalized_colliding_fields/32/16/8                292 ns        291 ns    2304231 field collisions=6 finalized random field lookups=54.9586M/s
+benchmark_helper/lookup_finalized_colliding_fields/64/16/8                345 ns        343 ns    2031246 field collisions=11 finalized random field lookups=46.6107M/s
+benchmark_helper/lookup_finalized_colliding_fields/100/16/8               432 ns        429 ns    1651793 field collisions=16 finalized random field lookups=37.2761M/s
+benchmark_helper/lookup_finalized_colliding_fields/0/64/8                1352 ns       1347 ns     513223 field collisions=0 finalized random field lookups=47.5255M/s
+benchmark_helper/lookup_finalized_colliding_fields/8/64/8                1356 ns       1350 ns     510037 field collisions=6 finalized random field lookups=47.4078M/s
+benchmark_helper/lookup_finalized_colliding_fields/32/64/8               1448 ns       1442 ns     484785 field collisions=21 finalized random field lookups=44.3738M/s
+benchmark_helper/lookup_finalized_colliding_fields/64/64/8               1591 ns       1585 ns     424513 field collisions=41 finalized random field lookups=40.3765M/s
+benchmark_helper/lookup_finalized_colliding_fields/100/64/8              2523 ns       2513 ns     284134 field collisions=64 finalized random field lookups=25.4651M/s
+benchmark_helper/lookup_finalized_colliding_fields/0/256/8              11906 ns      11855 ns      59935 field collisions=0 finalized random field lookups=21.5948M/s
+benchmark_helper/lookup_finalized_colliding_fields/8/256/8              12075 ns      12021 ns      58699 field collisions=21 finalized random field lookups=21.2962M/s
+benchmark_helper/lookup_finalized_colliding_fields/32/256/8             12388 ns      12345 ns      56578 field collisions=82 finalized random field lookups=20.7377M/s
+benchmark_helper/lookup_finalized_colliding_fields/64/256/8             12264 ns      12216 ns      56022 field collisions=164 finalized random field lookups=20.9565M/s
+benchmark_helper/lookup_finalized_colliding_fields/100/256/8            18975 ns      18894 ns      36722 field collisions=256 finalized random field lookups=13.5491M/s
+benchmark_helper/lookup_dynamic_fields                                    634 ns        631 ns    1099920 dynamic field lookups=23.7654M/s
+benchmark_helper/lookup_dynamic_random_fields/1/4                          19 ns         19 ns   35500738 dynamic random field lookups=51.589M/s
+benchmark_helper/lookup_dynamic_random_fields/8/4                         252 ns        250 ns    2543133 dynamic random field lookups=31.9393M/s
+benchmark_helper/lookup_dynamic_random_fields/64/4                       3632 ns       3612 ns     193343 dynamic random field lookups=17.7166M/s
+benchmark_helper/lookup_dynamic_random_fields/256/4                     19501 ns      19412 ns      35589 dynamic random field lookups=13.1875M/s
+benchmark_helper/lookup_dynamic_random_fields/1/8                          22 ns         21 ns   32006731 dynamic random field lookups=46.5888M/s
+benchmark_helper/lookup_dynamic_random_fields/8/8                         300 ns        299 ns    2584848 dynamic random field lookups=26.7503M/s
+benchmark_helper/lookup_dynamic_random_fields/64/8                       3964 ns       3943 ns     180605 dynamic random field lookups=16.2328M/s
+benchmark_helper/lookup_dynamic_random_fields/256/8                     20766 ns      20666 ns      34049 dynamic random field lookups=12.3874M/s
+benchmark_helper/lookup_dynamic_random_fields/1/64                         32 ns         32 ns   22227373 dynamic random field lookups=31.4766M/s
+benchmark_helper/lookup_dynamic_random_fields/8/64                        393 ns        391 ns    1966358 dynamic random field lookups=20.4712M/s
+benchmark_helper/lookup_dynamic_random_fields/64/64                      5581 ns       5555 ns     125103 dynamic random field lookups=11.5222M/s
+benchmark_helper/lookup_dynamic_random_fields/256/64                    29146 ns      29001 ns      23864 dynamic random field lookups=8.82729M/s
+benchmark_helper/lookup_dynamic_random_fields/1/256                        45 ns         45 ns   15519000 dynamic random field lookups=22.2487M/s
+benchmark_helper/lookup_dynamic_random_fields/8/256                       491 ns        489 ns    1339021 dynamic random field lookups=16.3709M/s
+benchmark_helper/lookup_dynamic_random_fields/64/256                     6524 ns       6495 ns     107920 dynamic random field lookups=9.85423M/s
+benchmark_helper/lookup_dynamic_random_fields/256/256                   33718 ns      33579 ns      20743 dynamic random field lookups=7.62392M/s
+benchmark_helper/iterate_finalized_random_fields/1                          7 ns          7 ns   99265436 finalized random field iterations=144.137M/s
+benchmark_helper/iterate_finalized_random_fields/8                         30 ns         29 ns   23412311 finalized random field iterations=271.592M/s
+benchmark_helper/iterate_finalized_random_fields/64                       387 ns        385 ns    3248501 finalized random field iterations=166.118M/s
+benchmark_helper/iterate_finalized_random_fields/256                      830 ns        826 ns     830328 finalized random field iterations=309.789M/s
+benchmark_helper/iterate_finalized_random_elements/1                        7 ns          7 ns   96643702 finalized random element iterations=140.281M/s
+benchmark_helper/iterate_finalized_random_elements/8                       28 ns         28 ns   25208510 finalized random element iterations=287.553M/s
+benchmark_helper/iterate_finalized_random_elements/64                     190 ns        189 ns    3630178 finalized random element iterations=337.755M/s
+benchmark_helper/iterate_finalized_random_elements/256                    756 ns        752 ns     936517 finalized random element iterations=340.264M/s
+benchmark_helper/iterate_dynamic_random_fields/1                           15 ns         15 ns   45300406 dynamic random field iterations=65.5481M/s
+benchmark_helper/iterate_dynamic_random_fields/8                           87 ns         86 ns    8014655 dynamic random field iterations=92.7464M/s
+benchmark_helper/iterate_dynamic_random_fields/64                         708 ns        705 ns    1008340 dynamic random field iterations=90.8304M/s
+benchmark_helper/iterate_dynamic_random_fields/256                       3152 ns       3135 ns     220794 dynamic random field iterations=81.6684M/s
+benchmark_helper/iterate_dynamic_random_elements/1                         16 ns         16 ns   42796965 dynamic random element iterations=62.4425M/s
+benchmark_helper/iterate_dynamic_random_elements/8                         94 ns         93 ns    7475917 dynamic random element iterations=85.8154M/s
+benchmark_helper/iterate_dynamic_random_elements/64                       626 ns        624 ns    1106474 dynamic random element iterations=102.628M/s
+benchmark_helper/iterate_dynamic_random_elements/256                     2447 ns       2433 ns     284680 dynamic random element iterations=105.209M/s
+benchmark_helper/access_sequential_finalized_strings                      221 ns        220 ns    3172632 finalized sequential element accesses=291.409M/s
+benchmark_helper/access_sequential_dynamic_strings                        433 ns        431 ns    1620179 dynamic sequential element accesses=148.606M/s
+benchmark_helper/access_random_finalized_strings                         3369 ns       3352 ns     205073 finalized random element accesses=305.465M/s
+benchmark_helper/access_random_dynamic_strings                           7188 ns       7150 ns      97776 finalized random element accesses=143.216M/s
+benchmark_helper/insert_into_exclusive_dynamic_object                     303 ns        301 ns    2297583 exclusive dynamic object field modifications=3.31352M/s
+benchmark_helper/insert_into_exclusive_dynamic_array                       36 ns         36 ns   19456280 exclusive dynamic array element modifications=27.5286M/s
+benchmark_helper/insert_into_shared_dynamic_object                       1449 ns       1443 ns     477024 shared dynamic object field modifications=692.887k/s
+benchmark_helper/insert_into_shared_dynamic_array                         460 ns        459 ns    1529971 shared dynamic array element modifications=2.17982M/s
+benchmark_helper/finalize_dynamic_packet                                 1018 ns       1014 ns     686510 finalized packets=986.626k/s
+benchmark_helper/serialize_finalized_packet_into_json                    2081 ns       2072 ns     327429 serialized finalized packets=482.667k/s
+benchmark_helper/serialize_finalized_nested_packet_into_json             1411 ns       1405 ns     483980 serialized finalized packets=711.926k/s
+benchmark_helper/serialize_dynamic_packet_into_json                      2312 ns       2300 ns     303459 serialized dynamic packets=434.85k/s
+benchmark_helper/serialize_dynamic_nested_packet_into_json               1598 ns       1589 ns     436412 serialized dynamic nested packets=629.252k/s
+benchmark_helper/unwrap_finalized_string                                 2280 ns       2270 ns     308526 finalized string value accesses=451.046M/s
+benchmark_helper/unwrap_dynamic_string                                    857 ns        853 ns     784973 dynamic string value accesses=1.20047G/s
+benchmark_helper/unwrap_finalized_integer                                 955 ns        950 ns     747855 finalized integer value accesses=1077.55M/s
+benchmark_helper/unwrap_dynamic_integer                                   566 ns        563 ns    1184834 dynamic integer value accesses=1.81998G/s
+benchmark_helper/unwrap_finalized_decimal                                 915 ns        911 ns     744056 finalized decimal value accesses=1.12422G/s
+benchmark_helper/unwrap_dynamic_decimal                                   569 ns        566 ns    1222046 dynamic decimal value accesses=1.80852G/s
+benchmark_helper/unwrap_finalized_boolean                                 927 ns        922 ns     752001 finalized boolean value accesses=1.11007G/s
+benchmark_helper/unwrap_dynamic_boolean                                   580 ns        577 ns    1161614 dynamic boolean value accesses=1.77433G/s
 ```
 The output from the previous command is generated by running each test case a
 single time, which can produce somewhat noisy results, especially for the fastest
@@ -203,6 +248,43 @@ generated.
 Each separate _repetition_ of each test case performed operates on an
 _independently generated_ set of random keys.
 
+### Lookup Finalized Colliding Fields
+This is a family of benchmark cases that test the performance of key-lookups when
+the keyspace of the packet being tested is intentionally filled with prefix collisions
+(uses `dart::buffer`).
+
+The test cases are generated from the following parameter matrix:
+
+| Percentage of Collisions in Packet | Number of Keys in Packet | Number of Characters per Key |
+|:----------------------------------:|:------------------------:|:----------------------------:|
+|                 0                  |            16            |               8              |
+|                 8                  |            16            |               8              |
+|                32                  |            16            |               8              |
+|                64                  |            16            |               8              |
+|               100                  |            16            |               8              |
+|                 0                  |            64            |               8              |
+|                 8                  |            64            |               8              |
+|                32                  |            64            |               8              |
+|                64                  |            64            |               8              |
+|               100                  |            64            |               8              |
+|                 0                  |           256            |               8              |
+|                 8                  |           256            |               8              |
+|                32                  |           256            |               8              |
+|                64                  |           256            |               8              |
+|               100                  |           256            |               8              |
+
+This is considered to be the second most important test-case from a performance perspective,
+and serves to validate the real-world applicability of **Dart**'s prefix optimizations.
+
+It is performed by first generating a random set of keys that _do not_ have any collisions
+in their prefix bytes (best case scenario for **Dart**), and then intentionally inserting
+additional, randomly colliding, keys until the requested collision percentage is reached
+(will always generate _at least_ the percentage requested, may actually generate a higher
+percentage depending on the total number of keys requested).
+
+Each separate _repetition_ of each test case performed operates on an
+_independently generated_ set of randomly colliding keys.
+
 ### Lookup Dynamic Random Fields
 This is a family of benchmark cases that test the performance of key-lookups on
 a dynamic packet (using `dart::heap`).
@@ -211,7 +293,67 @@ This benchmark case is identical to the previous benchmark from a methodological
 perspective, the crucial difference being that this test measures the performance
 of dynamic key lookups instead of finalized key lookups.
 
-### Insertions into an Exclusive Dynamic Packet
+### Iterate over Random, Finalized, Fields
+This is a family of benchmark cases that test the peformance of finalized object
+iteration, iterating over a set of randomly generated strings.
+
+The test cases are generated from the following parameter matrix:
+
+| Number of Fields in Packet |
+|:--------------------------:|
+|             1              |
+|             8              |
+|            64              |
+|           256              |
+
+Each separate _repetition_ of each test case performed operates on an
+_independently generated_ set of random fields.
+
+### Iterate over Random, Dynamic, Fields
+This is a family of benchmark cases that test the peformance of dynamic object
+iteration, iterating over a set of randomly generated strings.
+
+The test cases are generated from the following parameter matrix:
+
+| Number of Fields in Packet |
+|:--------------------------:|
+|             1              |
+|             8              |
+|            64              |
+|           256              |
+
+Each separate _repetition_ of each test case performed operates on an
+_independently generated_ set of random fields.
+
+### Sequentially Access Finalized Strings
+This benchmark case measures the performance of sequentially pulling strings
+out of a finalized array (`dart::buffer`).
+
+This benchmark is intended to benchmark the performance of array lookup, and
+simply iterates from 0 -> [array size] and loads a value for each index.
+
+### Sequentially Access Dynamic Strings
+This benchmark case measures the performance of sequentially pulling strings
+out of a dynamic array (`dart::heap`).
+
+This benchmark is intended to benchmark the performance of array lookup, and
+simply iterates from 0 -> [array size] and loads a value for each index.
+
+### Randomly Access Finalized Strings
+This benchmark case measures the performance of randomly pulling strings
+out of a finalized array (`dart::buffer`).
+
+This benchmark is intended to benchmark the performance of randomized array lookup,
+and generates a set of random indices and loads a value for each index.
+
+### Randomly Access Dynamic Strings
+This benchmark case measures the performance of randomly pulling strings
+out of a dynamic array (`dart::heap`).
+
+This benchmark is intended to benchmark the performance of randomized array lookup,
+and generates a set of random indices and loads a value for each index.
+
+### Insertions into an Exclusive Dynamic Object
 This benchmark case measures the cost of inserting a new key-value pair into a
 dynamic object (`dart::heap`) _that is not shared_.
 
@@ -220,9 +362,28 @@ data in a multi-threaded environment, and so the relative cost of inserting
 something into a packet changes if the associated packet state is shared across
 multiple instances.
 
-### Insertions into a Shared Dynamic Packet
+### Insertions into an Exclusive Dynamic Array
+This benchmark case measures the cost of pushing a new element onto the end of a
+dynamic array (`dart::heap`) _that is not shared_.
+
+**Dart** uses a copy-on-write strategy to allow frictionless mutation of shared
+data in a multi-threaded environment, and so the relative cost of inserting
+something into a packet changes if the associated packet state is shared across
+multiple instances.
+
+### Insertions into a Shared Dynamic Object
 This benchmark case measures the cost of inserting a new key-value pair into a
 dynamic object (`dart::heap`) _that is shared_.
+
+This benchmark case is identical to the previous benchmark from a methodological
+perspective, the crucial difference being that this test measures the performance
+of dynamic key-value pair insertions into an object that shares its representation
+across multiple packet instances, and therefore must perform a shallow copy-out
+before performing the insertion.
+
+### Insertions into a Shared Dynamic Array
+This benchmark case measures the cost of pushing a new element onto the end of a
+dynamic array (`dart::heap`) _that is shared_.
 
 This benchmark case is identical to the previous benchmark from a methodological
 perspective, the crucial difference being that this test measures the performance
@@ -256,3 +417,50 @@ and output as a `std::string`.
 This benchmark is identical to the previous benchmark from a methodological
 perspective, the crucial difference being that this test measures the performance
 of serializing a _dynamic_ packet into `JSON`.
+
+### Unwrap Finalized String
+This benchmark case measurements the cost of unwrapping a finalized **Dart** string
+object (`dart::buffer::string`) to an underlying machine type.
+
+### Unwrap Dynamic String
+This benchmark case measurements the cost of unwrapping a dynamic **Dart** string
+object (`dart::heap::string`) to an underlying machine type.
+
+### Unwrap Finalized Integer
+This benchmark case measurements the cost of unwrapping a finalized **Dart** integer
+object (`dart::buffer::number`) to an underlying machine type.
+
+### Unwrap Dynamic Integer
+This benchmark case measurements the cost of unwrapping a dynamic **Dart** integer
+object (`dart::heap::number`) to an underlying machine type.
+
+### Unwrap Finalized Decimal
+This benchmark case measurements the cost of unwrapping a finalized **Dart** decimal
+object (`dart::buffer::number`) to an underlying machine type.
+
+### Unwrap Dynamic Decimal
+This benchmark case measurements the cost of unwrapping a dynamic **Dart** decimal
+object (`dart::heap::number`) to an underlying machine type.
+
+### Unwrap Finalized Boolean
+This benchmark case measurements the cost of unwrapping a finalized **Dart** boolean
+object (`dart::buffer::flag`) to an underlying machine type.
+
+### Unwrap Dynamic Boolean
+This benchmark case measurements the cost of unwrapping a dynamic **Dart** boolean
+object (`dart::heap::flag`) to an underlying machine type.
+
+## Conclusions
+The resulting curves for some of the benchmark cases are included below.
+These graphs were generated with 16 repetitions, outputting to csv, and using the
+standard deviation of each test case as its error.
+
+### Lookup Finalized Random Fields
+![Dart vs Google Flexbuffers vs SAJSON](benchmark/dart.png)
+The purpose of this graph is to plot **Dart** key lookup performance against that
+of similar libraries, to measure the benefit for its prefix optimizations.
+
+### Lookup Finalized Colliding Fields
+![Dart Field Collision Performance](benchmark/prefix_collisions.png)
+The purpose of this graph is to validate the usefulness of **Dart**'s prefix
+optimizations with less than ideal (collision heavy) data.
