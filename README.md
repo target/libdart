@@ -27,7 +27,7 @@ As **Dart** can also be useful when working with config files, it also supports 
 `YAML` via [libyaml](https://github.com/yaml/libyaml.git).
 
 ## Performance
-![Dart vs Google Flexbuffers](benchmark/dart.png)
+![Dart vs Google Flexbuffers vs SAJSON](benchmark/dart.png)
 For more in depth performance details, see our [performance](PERFORMANCE.md) document,
 for those interested in where this performance comes from, see our
 [implementation](IMPLEMENTATION.md) document.
