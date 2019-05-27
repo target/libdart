@@ -1,5 +1,10 @@
 ## Dart Performance
 
+**TL;DR**:
+Dart's performance is [excellent](#results).
+
+**Long Version**:
+
 As a library, **Dart** tries to walk a fine line between providing the
 highest possible performance, while also enabling expressive usability
 across a wide variety of domains.
@@ -182,7 +187,9 @@ test cases.
 
 Averaging this out across many independent runs gives more stable results, and
 can be performed with the following command:
-`benchmark/static_bench --benchmark_repetitions={number of repetitions} --benchmark_report_aggregates_only=true`
+```
+benchmark/static_bench --benchmark_repetitions={number of repetitions} --benchmark_report_aggregates_only=true
+```
 
 This will produce output for the mean test case performance, along with its
 standard deviation, which is what was used to produce the graph on the main page
@@ -450,7 +457,7 @@ object (`dart::buffer::flag`) to an underlying machine type.
 This benchmark case measurements the cost of unwrapping a dynamic **Dart** boolean
 object (`dart::heap::flag`) to an underlying machine type.
 
-## Conclusions
+## Results
 The resulting curves for some of the benchmark cases are included below.
 These graphs were generated with 16 repetitions, outputting to csv, and using the
 standard deviation of each test case as its error.

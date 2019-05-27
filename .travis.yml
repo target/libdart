@@ -11,10 +11,10 @@ branches:
 
 # Common external dependencies.
 before_install:
-  # Install GSL and rapidjson
+  # Install GSL, rapidjson, and Google Benchmark
   # Easy for mac, difficult for linux
   - |
-    if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+    if [ "${TRAVIS_OS_NAME}" = "linux" ] && [ -z "$ARCH" ]; then
       BUILD_DIR=$(mktemp -d)
       pushd $BUILD_DIR
       curl -sL "https://github.com/microsoft/GSL/archive/v2.0.0.tar.gz" | tar xzf -
@@ -24,11 +24,19 @@ before_install:
       curl -sL "https://github.com/Tencent/rapidjson/archive/v1.1.0.tar.gz" | tar xzf -
       cd rapidjson-1.1.0
       sudo cp -r include/rapidjson /usr/local/include/rapidjson
+      cd ..
+      curl -sL "https://github.com/google/benchmark/archive/v1.5.tar.gz" | tar xzf -
+      cd benchmark-1.5
+      mkdir build
+      cd build
+      cmake .. -DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=Release
+      make -j 2
+      sudo make install
       popd
       rm -rf $BUILD_DIR
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       brew update
-      brew install cpp-gsl rapidjson
+      brew install cpp-gsl rapidjson google-benchmark
     fi
 
 # Final environment configs.
@@ -173,6 +181,6 @@ matrix:
 script:
   - mkdir build
   - cd build
-  - cmake .. -Dextended_test=ON
+  - cmake .. -Dextended_test=ON -Dbenchmark=ON
   - make VERBOSE=1
   - ctest
