@@ -32,8 +32,10 @@ For more in depth performance details, see our [performance](PERFORMANCE.md) doc
 for those interested in where this performance comes from, see our
 [implementation](IMPLEMENTATION.md) document.
 
-## API Stability
+`JSON` parsing performance is a big enough topic to be given its own document, which
+can be found here: [parsing performance](PARSING.md).
 
+## API Stability
 **Dart** has been an ongoing development effort over the last few years, and its API has
 morphed several times during that period. All of the network-level logic is very stable
 and has not changed significantly in some time, but the user-facing API is still being

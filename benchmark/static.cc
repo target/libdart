@@ -2,7 +2,6 @@
 
 #include <random>
 #include <cassert>
-#include <algorithm>
 #include <unordered_set>
 #include <benchmark/benchmark.h>
 
@@ -29,7 +28,7 @@ struct benchmark_helper : benchmark::Fixture {
   /*---- Test Construction/Destruction Functions -----*/
 
   void SetUp(benchmark::State const&) override;
-  void TearDown(benchmark::State const&) override;
+  void TearDown(benchmark::State const&) override {}
 
   /*----- Helpers -----*/
 
@@ -83,9 +82,15 @@ template <class Container>
 typename Container::value_type rand_pick(Container const& cont) {
   static std::mt19937 engine(std::random_device {}());
 
-  typename Container::value_type chosen;
-  std::sample(std::begin(cont), std::end(cont), &chosen, 1, engine);
-  return chosen;
+  // Randomly choose an element
+  std::uniform_int_distribution<> dist(0, (cont.size()) ? cont.size() - 1 : 0);
+  auto offset = dist(engine);
+  auto it = std::begin(cont);
+  std::advance(it, offset);
+
+  // Default construct the value if we've been passed an empty container.
+  if (it != std::end(cont)) return *it;
+  else return typename Container::value_type {};
 }
 
 /*----- Benchmark Definitions -----*/
@@ -783,10 +788,6 @@ void benchmark_helper::SetUp(benchmark::State const&) {
   rate_counter = benchmark::Counter(0, benchmark::Counter::kIsRate);
 }
 
-void benchmark_helper::TearDown(benchmark::State const&) {
-
-}
-
 unsafe_packet benchmark_helper::generate_dynamic_flat_packet() const {
   std::string album = "dark side of the moon";
   auto base = unsafe_packet::make_object("speak to me", album, "breathe", album, "on the run", album, "time", album);
@@ -814,8 +815,8 @@ unsafe_packet benchmark_helper::generate_dynamic_nested_packet() const {
 
 std::tuple<std::string, unsafe_packet> benchmark_helper::generate_finalized_packet(unsafe_packet base) const {
 #if DART_HAS_RAPIDJSON
-  return {base.to_json(), base.finalize()};
+  return std::tuple<std::string, unsafe_packet> {base.to_json(), base.finalize()};
 #else
-  return {"", base.finalize()};
+  return std::tuple<std::string, unsafe_packet> {"", base.finalize()};
 #endif
 }
