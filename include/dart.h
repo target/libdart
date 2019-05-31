@@ -63,6 +63,9 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 
 namespace dart {
 
+#ifdef DART_USE_SAJSON
+  static constexpr auto default_parse_stack_size = (1U << 12U);
+#endif
 #if DART_HAS_RAPIDJSON
   static constexpr auto parse_default = rapidjson::kParseDefaultFlags;
   static constexpr auto parse_comments = rapidjson::kParseCommentsFlag;
@@ -5296,7 +5299,27 @@ namespace dart {
 
       /*----- JSON Helper Functions -----*/
 
-#if DART_HAS_RAPIDJSON
+#ifdef DART_USE_SAJSON
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size>
+      static basic_heap from_json(shim::string_view json);
+#elif DART_HAS_RAPIDJSON
       /**
        *  @brief
        *  Function constructs an optionally finalized packet to represent the given JSON string.
@@ -5316,7 +5339,9 @@ namespace dart {
        */
       template <unsigned flags = parse_default>
       static basic_heap from_json(shim::string_view json);
+#endif
 
+#if DART_HAS_RAPIDJSON
       /**
        *  @brief
        *  Function serializes any packet into a JSON string.
@@ -6262,7 +6287,7 @@ namespace dart {
       type_data data;
 
       static constexpr auto sso_bytes = sizeof(inline_string_layout::buffer);
-      static constexpr int max_aggregate_size = 1 << detail::object_entry::offset_bits;
+      static constexpr auto max_aggregate_size = detail::object_layout::max_offset;
 
       /*----- Friends -----*/
 
@@ -7080,7 +7105,27 @@ namespace dart {
 
       /*----- JSON Helper Functions -----*/
 
-#if DART_HAS_RAPIDJSON
+#ifdef DART_USE_SAJSON
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size>
+      static basic_buffer from_json(shim::string_view json);
+#elif DART_HAS_RAPIDJSON
       /**
        *  @brief
        *  Function constructs an optionally finalized packet to represent the given JSON string.
@@ -7100,7 +7145,9 @@ namespace dart {
        */
       template <unsigned flags = parse_default>
       static basic_buffer from_json(shim::string_view json);
+#endif
 
+#if DART_HAS_RAPIDJSON
       /**
        *  @brief
        *  Function serializes any packet into a JSON string.
@@ -9442,7 +9489,27 @@ namespace dart {
 
       /*----- JSON Helper Functions -----*/
 
-#if DART_HAS_RAPIDJSON
+#ifdef DART_USE_SAJSON
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size>
+      static basic_packet from_json(shim::string_view json, bool finalized = true);
+#elif DART_HAS_RAPIDJSON
       /**
        *  @brief
        *  Function constructs an optionally finalized packet to represent the given JSON string.
@@ -9462,7 +9529,9 @@ namespace dart {
        */
       template <unsigned flags = parse_default>
       static basic_packet from_json(shim::string_view json, bool finalize = true);
+#endif
 
+#if DART_HAS_RAPIDJSON
       /**
        *  @brief
        *  Function serializes any packet into a JSON string.

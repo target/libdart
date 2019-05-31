@@ -11,8 +11,8 @@ branches:
 
 # Common external dependencies.
 before_install:
-  # Install GSL, rapidjson, and Google Benchmark
-  # Easy for mac, difficult for linux
+  # Install GSL, rapidjson, sajson, and Google Benchmark
+  # Brew is so slow, but it makes it easy
   - |
     if [ "${TRAVIS_OS_NAME}" = "linux" ] && [ -z "$ARCH" ]; then
       BUILD_DIR=$(mktemp -d)
@@ -25,18 +25,29 @@ before_install:
       cd rapidjson-1.1.0
       sudo cp -r include/rapidjson /usr/local/include/rapidjson
       cd ..
-      curl -sL "https://github.com/google/benchmark/archive/v1.5.tar.gz" | tar xzf -
-      cd benchmark-1.5
+      curl -sL "https://github.com/google/benchmark/archive/v1.5.0.tar.gz" | tar xzf -
+      cd benchmark-1.5.0
       mkdir build
       cd build
       cmake .. -DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=Release
       make -j 2
       sudo make install
+      cd ../..
+      curl -sL "https://github.com/Cfretz244/sajson/archive/stable.tar.gz" | tar xzf -
+      cd sajson-stable
+      sudo cp include/sajson.h /usr/local/include
       popd
       rm -rf $BUILD_DIR
     elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       brew update
       brew install cpp-gsl rapidjson google-benchmark
+      BUILD_DIR=$(mktemp -d)
+      pushd $BUILD_DIR
+      curl -sL "https://github.com/Cfretz244/sajson/archive/stable.tar.gz" | tar xzf -
+      cd sajson-stable
+      sudo cp include/sajson.h /usr/local/include
+      popd
+      rm -rf $BUILD_DIR
     fi
 
 # Final environment configs.
@@ -182,5 +193,9 @@ script:
   - mkdir build
   - cd build
   - cmake .. -Dextended_test=ON -Dbenchmark=ON
+  - make VERBOSE=1
+  - ctest
+  - make clean
+  - cmake .. -Duse_sajson=ON
   - make VERBOSE=1
   - ctest

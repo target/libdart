@@ -51,6 +51,9 @@ endif ()
 # Explicitly disable C++17 for whatever reason.
 option(no_cxx17 "Disabling c++17" OFF)
 
+# Explicitly enable sajson for whatever reason.
+option(use_sajson "Assuming sajson is installed, and using it" OFF)
+
 # Define an option for our tests.
 option(test "Building tests..." ON)
 option(32bit "Building for a 32-bit target..." OFF)
@@ -63,6 +66,9 @@ if (using_cxx17 AND NOT no_cxx17)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 else ()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+endif ()
+if (use_sajson)
+  add_definitions("-DDART_USE_SAJSON")
 endif ()
 if (librj)
   add_definitions("-DDART_HAS_RAPIDJSON")

@@ -275,7 +275,7 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
       using flag = dart::basic_flag<typename object::value_type>;
       using null = dart::basic_null<typename object::value_type>;
 
-      object obj {"hello", "goodbye", "ruid", 138000709, "halfway", 0.5};
+      object obj {"hello", "goodbye", "ruid", 138000709, "half", 0.5};
       DYNAMIC_WHEN("machine types are inserted", idx) {
         // Run the gamut to ensure our overloads behave.
         obj.add_field("", string {"problems?"});
@@ -296,8 +296,8 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
           REQUIRE(string {"goodbye"} == obj[string {"hello"}]);
           REQUIRE(obj.get("ruid"_dart) == number {138000709});
           REQUIRE(number {138000709} == obj.get("ruid"_dart));
-          REQUIRE(obj["halfway"] == number {0.5});
-          REQUIRE(number {0.5} == obj["halfway"]);
+          REQUIRE(obj["half"] == number {0.5});
+          REQUIRE(number {0.5} == obj["half"]);
           REQUIRE(obj.get(string {""}) == string {"problems?"});
           REQUIRE(string {"problems?"} == obj.get(string {""}));
           REQUIRE(obj["int"_dart] == number {42});
@@ -325,10 +325,10 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
       DYNAMIC_WHEN("machine types are removed", idx) {
         // Remove everything.
         obj.erase(string {"hello"});
-        obj.erase(obj.erase("halfway"_dart));
+        obj.erase(obj.erase("half"_dart));
         DYNAMIC_THEN("nothing remains", idx) {
           REQUIRE(!obj[string {"hello"}]);
-          REQUIRE(!obj["halfway"_dart]);
+          REQUIRE(!obj["half"_dart]);
           REQUIRE(!obj["ruid"]);
           REQUIRE(obj.empty());
         }
@@ -355,7 +355,7 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
       using flag = dart::basic_flag<pkt>;
       using null = dart::basic_null<pkt>;
 
-      auto obj = pkt::make_object("hello", "goodbye", "ruid", 138000709, "halfway", 0.5);
+      auto obj = pkt::make_object("hello", "goodbye", "ruid", 138000709, "half", 0.5);
       DYNAMIC_WHEN("machine types are inserted", idx) {
         // Run the gamut to ensure our overloads behave.
         obj.add_field("", string {"problems?"});
@@ -376,8 +376,8 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
           REQUIRE(string {"goodbye"} == obj[string {"hello"}]);
           REQUIRE(obj.get("ruid"_dart) == number {138000709});
           REQUIRE(number {138000709} == obj.get("ruid"_dart));
-          REQUIRE(obj["halfway"] == number {0.5});
-          REQUIRE(number {0.5} == obj["halfway"]);
+          REQUIRE(obj["half"] == number {0.5});
+          REQUIRE(number {0.5} == obj["half"]);
           REQUIRE(obj.get(string {""}) == string {"problems?"});
           REQUIRE(string {"problems?"} == obj.get(string {""}));
           REQUIRE(obj["int"_dart] == number {42});
@@ -405,10 +405,10 @@ SCENARIO("objects accept a variety of different types", "[type unit]") {
       DYNAMIC_WHEN("machine types are removed", idx) {
         // Remove everything.
         obj.erase(string {"hello"});
-        obj.erase(obj.erase("halfway"_dart));
+        obj.erase(obj.erase("half"_dart));
         DYNAMIC_THEN("nothing remains", idx) {
           REQUIRE(!obj[string {"hello"}]);
-          REQUIRE(!obj["halfway"_dart]);
+          REQUIRE(!obj["half"_dart]);
           REQUIRE(!obj["ruid"]);
           REQUIRE(obj.empty());
         }
@@ -436,19 +436,19 @@ SCENARIO("objects can set individual indices", "[type unit]") {
       using flag = dart::basic_flag<typename object::value_type>;
       using null = dart::basic_null<typename object::value_type>;
 
-      object obj {"first", "wrong", "second", "fail", "third", "error"};
+      object obj {"1st", "wrong", "second", "fail", "thiiiird", "error"};
       DYNAMIC_WHEN("values are set", idx) {
-        auto set_one = obj.set(string {"first"}, "correct");
+        auto set_one = obj.set(string {"1st"}, "correct");
         auto set_two = obj.set("second", string {"pass"});
-        auto set_three = obj.set(string {"third"}, string {"ack"});
+        auto set_three = obj.set(string {"thiiiird"}, string {"ack"});
         DYNAMIC_THEN("everything is where we expect", idx) {
-          REQUIRE(obj[string {"first"}] == "correct");
-          REQUIRE("correct" == *obj.find(string {"first"}));
+          REQUIRE(obj[string {"1st"}] == "correct");
+          REQUIRE("correct" == *obj.find(string {"1st"}));
           REQUIRE(*obj.find("second") == string {"pass"});
-          REQUIRE(obj.get("third") == "ack");
-          REQUIRE(set_one == obj.find("first"));
+          REQUIRE(obj.get("thiiiird") == "ack");
+          REQUIRE(set_one == obj.find("1st"));
           REQUIRE(set_two == obj.find(string {"second"}));
-          REQUIRE(set_three == obj.find(string {"third"}.strv()));
+          REQUIRE(set_three == obj.find(string {"thiiiird"}.strv()));
         }
       }
 
@@ -457,13 +457,13 @@ SCENARIO("objects can set individual indices", "[type unit]") {
         auto set_two = obj.set(++obj.begin(), string {"pass"});
         auto set_three = obj.set(--obj.end(), string {"ack"}.strv());
         DYNAMIC_THEN("everything is where we expect", idx) {
-          REQUIRE(obj[string {"first"}] == "correct");
-          REQUIRE("correct" == *obj.find(string {"first"}));
+          REQUIRE(obj[string {"1st"}] == "correct");
+          REQUIRE("correct" == *obj.find(string {"1st"}));
           REQUIRE(*obj.find("second") == string {"pass"});
-          REQUIRE(obj.get("third") == "ack");
-          REQUIRE(set_one == obj.find("first"));
+          REQUIRE(obj.get("thiiiird") == "ack");
+          REQUIRE(set_one == obj.find("1st"));
           REQUIRE(set_two == obj.find(string {"second"}));
-          REQUIRE(set_three == obj.find(string {"third"}.strv()));
+          REQUIRE(set_three == obj.find(string {"thiiiird"}.strv()));
         }
       }
 

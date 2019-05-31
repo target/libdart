@@ -155,9 +155,18 @@ namespace dart {
   namespace detail {
 
     template <class SizeType>
+    basic_string<SizeType>::basic_string(shim::string_view strv) noexcept : len(strv.size()) {
+      // Copy the string into the buffer.
+      // Can't use constructor delegation here because our destructor is deleted.
+      std::copy_n(strv.data(), len, data());
+      data()[len] = '\0';
+    }
+
+    template <class SizeType>
     basic_string<SizeType>::basic_string(char const* str, size_t len) noexcept : len(len) {
       // Copy the string into the buffer.
-      std::copy(str, str + len + 1, data());
+      std::copy_n(str, len, data());
+      data()[len] = '\0';
     }
 
     template <class SizeType>

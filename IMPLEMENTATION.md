@@ -23,7 +23,7 @@ non-starter for obvious reasons.
 
 Of the few high performance `JSON` parsers available that generate a machine
 representation suitable for network distribution
-([SAJSON](https://github.com/chadaustin/sajson), [msgpack](https://msgpack.org),
+([sajson](https://github.com/chadaustin/sajson), [msgpack](https://msgpack.org),
 [flexbuffers](https://github.com/google/flatbuffers), not many more), all were
 discounted due to the fact that receiver-side performance degrades extremely
 quickly as packet size increases ([source](benchmark/dart.png)).

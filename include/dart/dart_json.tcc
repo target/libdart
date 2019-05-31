@@ -54,11 +54,75 @@ namespace dart {
     void json_serialize(Writer& writer, Packet const& packet);
   }
 }
+#endif
+
+#ifdef DART_USE_SAJSON
+namespace dart {
+  namespace detail {
+    template <class Stack>
+    sajson::document sajson_parse(sajson::string json, Stack& stack);
+    template <template <class> class RefCount>
+    void sajson_lower(sajson::value curr_val, heap_parser<RefCount>& parser);
+  }
+}
+#endif
 
 /*----- Function Implementations -----*/
 
 namespace dart {
 
+#ifdef DART_USE_SAJSON
+  template <template <class> class RefCount>
+  template <unsigned parse_stack_size>
+  basic_heap<RefCount> basic_heap<RefCount>::from_json(shim::string_view json) {
+    // Allocate however much stack space was requested.
+    std::array<size_t, parse_stack_size / sizeof(size_t)> stack;
+
+    // Have sajson parse our string, potentially using the stack space.
+    sajson::string view {json.data(), json.size()};
+    auto doc = detail::sajson_parse(view, stack);
+
+    // Convert into dart::heap and return.
+    detail::heap_parser<RefCount> builder;
+    detail::sajson_lower(doc.get_root(), builder);
+    return std::move(builder.curr_obj);
+  }
+
+  template <template <class> class RefCount>
+  template <unsigned parse_stack_size>
+  basic_buffer<RefCount> basic_buffer<RefCount>::from_json(shim::string_view json) {
+    // Allocate however much stack space was requested.
+    std::array<size_t, parse_stack_size / sizeof(size_t)> stack;
+
+    // Have sajson parse our string, potentially using the stack space.
+    sajson::string view {json.data(), json.size()};
+    auto doc = detail::sajson_parse(view, stack);
+
+    // Allocate space to store our finalized representation.
+    // FIXME: Make this allocation size more intelligent.
+    gsl::byte* tmp;
+    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
+        detail::alignment_of<RefCount>(detail::raw_type::object), json.size() * 8);
+    if (retval) throw std::bad_alloc();
+
+    // Forgive me this one indiscretion.
+    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+    std::unique_ptr<gsl::byte, void (*) (gsl::byte const*)> block {tmp, del};
+
+    // Lower sajson into our buffer.
+    detail::json_lower<RefCount>(tmp, doc.get_root());
+
+    // Export our buffer to the user.
+    return basic_buffer {std::move(block)};
+  }
+
+  template <template <class> class RefCount>
+  template <unsigned parse_stack_size>
+  basic_packet<RefCount> basic_packet<RefCount>::from_json(shim::string_view json, bool finalized) {
+    if (finalized) return basic_buffer<RefCount>::template from_json<parse_stack_size>(json);
+    else return basic_heap<RefCount>::template from_json<parse_stack_size>(json);
+  }
+#elif DART_HAS_RAPIDJSON
   template <template <class> class RefCount>
   template <unsigned flags>
   basic_heap<RefCount> basic_heap<RefCount>::from_json(shim::string_view json) {
@@ -116,7 +180,9 @@ namespace dart {
     if (finalized) return basic_buffer<RefCount>::template from_json<flags>(json);
     else return basic_heap<RefCount>::template from_json<flags>(json);
   }
+#endif
 
+#if DART_HAS_RAPIDJSON
   template <class Object>
   template <unsigned flags>
   std::string basic_object<Object>::to_json() const {
@@ -192,11 +258,13 @@ namespace dart {
   std::string basic_packet<RefCount>::to_json() const {
     return shim::visit([] (auto& v) { return v.template to_json<flags>(); }, impl);
   }
+#endif
 
 }
 
 namespace dart {
   namespace detail {
+#if DART_HAS_RAPIDJSON
     template <template <class> class RefCount>
     bool heap_parser<RefCount>::StartObject() {
       if (curr_key) key_stack.push_back(std::move(curr_key));
@@ -350,9 +418,86 @@ namespace dart {
           break;
       }
     }
+#endif
+
+#ifdef DART_USE_SAJSON
+    template <class Stack>
+    sajson::document sajson_parse(sajson::string json, Stack& stack) {
+      // If we'll be able to fit the sajson parse tree in our statically allocated
+      // space, do so.
+      shim::optional<sajson::document> doc;
+      if (json.length() <= stack.max_size()) {
+        doc.emplace(sajson::parse(sajson::bounded_allocation {stack.data(), stack.size()}, json));
+      } else {
+        doc.emplace(sajson::parse(sajson::single_allocation {}, json));
+      }
+
+      // If the parse failed, figure out why.
+      if (!doc->is_valid()) {
+        std::string errmsg {"dart::heap could not parse the given string: \""};
+        errmsg += doc->get_error_message_as_cstring();
+        errmsg += "\"";
+        throw std::runtime_error(errmsg);
+      }
+      return std::move(*doc);
+    }
+
+    template <template <class> class RefCount>
+    void sajson_lower(sajson::value curr_val, heap_parser<RefCount>& parser) {
+      switch (curr_val.get_type()) {
+        case sajson::TYPE_OBJECT:
+          // Begin the object.
+          parser.StartObject();
+
+          // Recurse over each key/value in the object.
+          for (auto idx = 0U; idx < curr_val.get_length(); ++idx) {
+            // Layout the key.
+            auto key = curr_val.get_object_key(idx);
+            parser.Key(key.data(), key.length(), false);
+
+            // Recurse through the value
+            sajson_lower(curr_val.get_object_value(idx), parser);
+          }
+
+          // Finish our object.
+          parser.EndAggregate();
+          break;
+        case sajson::TYPE_ARRAY:
+          // Begin the array.
+          parser.StartArray();
+
+          // Recurse over each value in the array.
+          for (auto idx = 0U; idx < curr_val.get_length(); ++idx) {
+            sajson_lower(curr_val.get_array_element(idx), parser);
+          }
+
+          // Finish the array.
+          parser.EndAggregate();
+          break;
+        case sajson::TYPE_STRING:
+          // Figure out what type of string we've been given.
+          parser.String(curr_val.as_cstring(), curr_val.get_string_length(), false);
+          break;
+        case sajson::TYPE_INTEGER:
+          parser.Int64(curr_val.get_integer_value());
+          break;
+        case sajson::TYPE_DOUBLE:
+          parser.Double(curr_val.get_double_value());
+          break;
+        case sajson::TYPE_FALSE:
+          parser.Bool(false);
+          break;
+        case sajson::TYPE_TRUE:
+          parser.Bool(true);
+          break;
+        default:
+          DART_ASSERT(curr_val.get_type() == sajson::TYPE_NULL);
+          parser.Null();
+      }
+    }
+#endif
 
   }
 }
-#endif
 
 #endif

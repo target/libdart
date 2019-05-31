@@ -19,15 +19,16 @@ allocations/parsing/unpacking for read-only interactions, and is header-only, al
 for trivially easy installation.
 
 Although not a `JSON` parser itself, **Dart** leverages the fastest general purpose
-`JSON` parser available ([source](https://github.com/miloyip/nativejson-benchmark)),
-[RapidJSON](https://github.com/Tencent/rapidjson), for format conversion both into,
+`JSON` parsers available ([source](https://github.com/miloyip/nativejson-benchmark)),
+[RapidJSON](https://github.com/Tencent/rapidjson)
+and [sajson](https://github.com/chadaustin/sajson), for format conversion both into,
 and out of, `JSON`.
 
 As **Dart** can also be useful when working with config files, it also supports parsing
 `YAML` via [libyaml](https://github.com/yaml/libyaml.git).
 
 ## Performance
-![Dart vs Google Flexbuffers vs SAJSON](benchmark/dart.png)
+![Dart vs Google Flexbuffers vs sajson](benchmark/dart.png)
 For more in depth performance details, see our [performance](PERFORMANCE.md) document,
 for those interested in where this performance comes from, see our
 [implementation](IMPLEMENTATION.md) document.
@@ -78,9 +79,10 @@ cd ..
 doxygen
 ```
 **Dart** can optionally leverage [RapidJSON](https://github.com/Tencent/rapidjson),
+[sajson](https://github.com/chadaustin/sajson), 
 and [libyaml](https://github.com/yaml/libyaml.git), and will attempt to detect installations
 automatically while building, but can be independently specified with `-DDART_HAS_RAPIDJSON`,
-and `-DDART_HAS_YAML`.
+`-DDART_USE_SAJSON`, and `-DDART_HAS_YAML` preprocessor flags.
 
 ## Basic Usage
 Overly detailed usage examples can be obtained from the `test/` directory, or by building the

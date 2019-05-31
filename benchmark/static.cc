@@ -156,7 +156,7 @@ BENCHMARK_DEFINE_F(benchmark_helper, lookup_finalized_random_fields) (benchmark:
   state.counters["finalized random field lookups"] = rate_counter;
 }
 
-BENCHMARK_REGISTER_F(benchmark_helper, lookup_finalized_random_fields)->Ranges({{1 << 0, 1 << 8}, {1 << 2, 1 << 8}});
+BENCHMARK_REGISTER_F(benchmark_helper, lookup_finalized_random_fields)->Ranges({{1, 255}, {4, 255}});
 
 BENCHMARK_DEFINE_F(benchmark_helper, lookup_finalized_colliding_fields) (benchmark::State& state) {
   struct hasher {
@@ -209,11 +209,11 @@ BENCHMARK_REGISTER_F(benchmark_helper, lookup_finalized_colliding_fields)
   ->Args({32, 64, 8})
   ->Args({64, 64, 8})
   ->Args({100, 64, 8})
-  ->Args({0, 256, 8})
-  ->Args({8, 256, 8})
-  ->Args({32, 256, 8})
-  ->Args({64, 256, 8})
-  ->Args({100, 256, 8});
+  ->Args({0, 255, 8})
+  ->Args({8, 255, 8})
+  ->Args({32, 255, 8})
+  ->Args({64, 255, 8})
+  ->Args({100, 255, 8});
 
 #ifdef DART_HAS_FLEXBUFFERS
 BENCHMARK_DEFINE_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields) (benchmark::State& state) {
@@ -240,7 +240,7 @@ BENCHMARK_DEFINE_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields) 
   state.counters["finalized random field lookups"] = rate_counter;
 }
 
-BENCHMARK_REGISTER_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields)->Ranges({{1 << 0, 1 << 8}, {1 << 2, 1 << 8}});
+BENCHMARK_REGISTER_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields)->Ranges({{1, 255}, {4, 255}});
 #endif
 
 #ifdef DART_HAS_SAJSON
@@ -267,7 +267,7 @@ BENCHMARK_DEFINE_F(benchmark_helper, sajson_lookup_finalized_random_fields) (ben
   state.counters["finalized random field lookups"] = rate_counter;
 }
 
-BENCHMARK_REGISTER_F(benchmark_helper, sajson_lookup_finalized_random_fields)->Ranges({{1 << 0, 1 << 8}, {1 << 2, 1 << 8}});
+BENCHMARK_REGISTER_F(benchmark_helper, sajson_lookup_finalized_random_fields)->Ranges({{1, 255}, {4, 255}});
 #endif
 
 BENCHMARK_F(benchmark_helper, lookup_dynamic_fields) (benchmark::State& state) {
