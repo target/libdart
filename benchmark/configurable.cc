@@ -9,6 +9,7 @@
 #endif
 
 #ifdef DART_HAS_YAJL
+#include <yajl/yajl_gen.h>
 #include <yajl/yajl_tree.h>
 #endif
 
@@ -67,6 +68,64 @@ constexpr void for_multi(Func&& cb, Containers&&... cs) {
     }
   }(std::make_tuple(begin(cs), end(cs))...);
 }
+
+// This benchmark is getting out of hand.
+#ifdef DART_HAS_YAJL
+void yajl_serialize(yajl_val curr, yajl_gen handle) {
+  yajl_gen_status ret;
+  switch (curr->type) {
+    case yajl_t_object:
+      {
+        ret = yajl_gen_map_open(handle);
+        assert(ret == yajl_gen_status_ok);
+        auto* obj = YAJL_GET_OBJECT(curr);
+        for (auto i = 0U; i < obj->len; ++i) {
+          auto* key = obj->keys[i];
+          ret = yajl_gen_string(handle, reinterpret_cast<unsigned char const*>(key), strlen(key));
+          assert(ret == yajl_gen_status_ok);
+          yajl_serialize(obj->values[i], handle);
+        }
+        ret = yajl_gen_map_close(handle);
+        assert(ret == yajl_gen_status_ok);
+      }
+      break;
+    case yajl_t_array:
+      {
+        ret = yajl_gen_array_open(handle);
+        assert(ret == yajl_gen_status_ok);
+        auto* arr = YAJL_GET_ARRAY(curr);
+        for (auto i = 0U; i < arr->len; ++i) yajl_serialize(arr->values[i], handle);
+        ret = yajl_gen_array_close(handle);
+        assert(ret == yajl_gen_status_ok);
+      }
+      break;
+    case yajl_t_string:
+      {
+        auto* str = YAJL_GET_STRING(curr);
+        ret = yajl_gen_string(handle, reinterpret_cast<unsigned char const*>(str), strlen(str));
+      }
+      break;
+    case yajl_t_number:
+      if (YAJL_IS_INTEGER(curr)) {
+        ret = yajl_gen_integer(handle, YAJL_GET_INTEGER(curr));
+      } else {
+        ret = yajl_gen_double(handle, YAJL_GET_DOUBLE(curr));
+      }
+      break;
+    case yajl_t_true:
+      ret = yajl_gen_bool(handle, false);
+      break;
+    case yajl_t_false:
+      ret = yajl_gen_bool(handle, false);
+      break;
+    default:
+      assert(curr->type == yajl_t_null);
+      ret = yajl_gen_null(handle);
+      break;
+  }
+  assert(ret == yajl_gen_status_ok);
+}
+#endif
 
 /*----- Globals -----*/
 
@@ -211,6 +270,31 @@ BENCHMARK_F(benchmark_helper, dart_nontrivial_dynamic_json_test) (benchmark::Sta
   state.counters["parsed packets"] = rate_counter;
 }
 
+BENCHMARK_F(benchmark_helper, dart_nontrivial_finalized_json_generation_test) (benchmark::State& state) {
+  auto chunk = input.size();
+  for (auto _ : state) {
+    for (auto const& pkt : parsed_dart) benchmark::DoNotOptimize(pkt.to_json());
+    rate_counter += chunk;
+  }
+  state.counters["serialized packets"] = rate_counter;
+}
+
+BENCHMARK_F(benchmark_helper, dart_nontrivial_dynamic_json_generation_test) (benchmark::State& state) {
+  // Convert our finalized packets into dynamic ones for serialization.
+  auto chunk = input.size();
+  std::vector<unsafe_heap> dynamic(parsed_dart.size());
+  std::transform(parsed_dart.begin(), parsed_dart.end(), dynamic.begin(), [&] (auto& pkt) {
+    return unsafe_heap {pkt};
+  });
+
+  // Run the benchmark.
+  for (auto _ : state) {
+    for (auto const& pkt : dynamic) benchmark::DoNotOptimize(pkt.to_json());
+    rate_counter += chunk;
+  }
+  state.counters["serialized packets"] = rate_counter;
+}
+
 BENCHMARK_F(benchmark_helper, dart_nontrivial_json_key_lookups) (benchmark::State& state) {
   auto chunk = input.size();
   for (auto _ : state) {
@@ -264,6 +348,20 @@ BENCHMARK_F(benchmark_helper, rapidjson_nontrivial_json_key_lookups) (benchmark:
   state.counters["parsed key lookups"] = rate_counter;
 }
 
+BENCHMARK_F(benchmark_helper, rapidjson_nontrivial_json_generation_test) (benchmark::State& state) {
+  auto chunk = input.size();
+  for (auto _ : state) {
+    for (auto const& pkt : parsed_rj) {
+      rj::StringBuffer buf;
+      rj::Writer<rj::StringBuffer> writer(buf);
+      pkt.Accept(writer);
+      benchmark::DoNotOptimize(buf.GetString());
+    }
+    rate_counter += chunk;
+  }
+  state.counters["serialized packets"] = rate_counter;
+}
+
 #ifdef DART_HAS_SAJSON
 BENCHMARK_F(benchmark_helper, sajson_nontrivial_json_test) (benchmark::State& state) {
   auto chunk = input.size();
@@ -315,6 +413,15 @@ BENCHMARK_F(benchmark_helper, nlohmann_json_nontrivial_json_key_lookups) (benchm
   }
   state.counters["parsed key lookups"] = rate_counter;
 }
+
+BENCHMARK_F(benchmark_helper, nlohmann_json_nontrivial_json_generation_test) (benchmark::State& state) {
+  auto chunk = input.size();
+  for (auto _ : state) {
+    for (auto const& pkt : parsed_nljson) benchmark::DoNotOptimize(pkt.dump());
+    rate_counter += chunk;
+  }
+  state.counters["serialized packets"] = rate_counter;
+}
 #endif
 
 #ifdef DART_HAS_YAJL
@@ -344,6 +451,28 @@ BENCHMARK_F(benchmark_helper, yajl_nontrivial_json_key_lookups) (benchmark::Stat
   }
   state.counters["parsed key lookups"] = rate_counter;
 }
+
+BENCHMARK_F(benchmark_helper, yajl_nontrivial_json_generation_test) (benchmark::State& state) {
+  auto chunk = input.size();
+  for (auto _ : state) {
+    for (auto const& pkt : parsed_yajl) {
+      // Have Yajl recursively generate json for this packet.
+      auto* gen = yajl_gen_alloc(nullptr);
+      yajl_serialize(pkt.val, gen);
+
+      // Get the json.
+      size_t len;
+      unsigned char const* ptr;
+      yajl_gen_get_buf(gen, &ptr, &len);
+      benchmark::DoNotOptimize(ptr);
+
+      // Free the generator.
+      yajl_gen_free(gen);
+    }
+    rate_counter += chunk;
+  }
+  state.counters["serialized packets"] = rate_counter;
+}
 #endif
 
 #ifdef DART_HAS_JANSSON
@@ -371,6 +500,19 @@ BENCHMARK_F(benchmark_helper, jansson_nontrivial_json_key_lookups) (benchmark::S
     }, parsed_jansson, keys);
   }
   state.counters["parsed key lookups"] = rate_counter;
+}
+
+BENCHMARK_F(benchmark_helper, jansson_nontrivial_json_generation_test) (benchmark::State& state) {
+  auto chunk = input.size();
+  for (auto _ : state) {
+    for (auto const& pkt : parsed_jansson) {
+      auto* owner = json_dumps(pkt.val, 0);
+      benchmark::DoNotOptimize(owner);
+      free(owner);
+    }
+    rate_counter += chunk;
+  }
+  state.counters["serialized packets"] = rate_counter;
 }
 #endif
 
@@ -401,7 +543,7 @@ void benchmark_helper::SetUp(benchmark::State const&) {
 std::vector<std::string> benchmark_helper::load_input(dart::shim::string_view path) const {
   // Read our file in.
   std::string line;
-  std::ifstream input(json_input);
+  std::ifstream input(std::string {path});
   std::vector<std::string> packets;
   while (std::getline(input, line)) packets.push_back(std::move(line));
   return packets;
