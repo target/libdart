@@ -3,7 +3,7 @@
 
 // Automatically detect libraries if possible.
 #if defined(__has_include)
-# ifndef DART_HAS_RAPIDJSON
+# if !defined(DART_HAS_RAPIDJSON)
 #   define DART_HAS_RAPIDJSON __has_include(<rapidjson/reader.h>) && __has_include(<rapidjson/writer.h>)
 # endif
 # ifndef DART_HAS_YAML
@@ -34,6 +34,22 @@
 #include "dart_shim.h"
 #include "dart_meta.h"
 #include "ordered.h"
+
+/*----- System Includes with Compiler Flags -----*/
+
+// Current version of sajson emits unused parameter
+// warnings on Clang.
+#ifdef DART_USE_SAJSON
+#if DART_USING_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#endif
+#include <sajson.h>
+#if DART_USING_CLANG
+#pragma clang diagnostic pop
+#endif
+#endif
 
 /*----- Macro Definitions -----*/
 
@@ -122,7 +138,7 @@ namespace dart {
      *  contained in dart::packet::type, and all public API functions conceptually interact with objects
      *  of these types.
      */
-    enum class type {
+    enum class type : uint8_t {
       object,
       array,
       string,
@@ -137,7 +153,7 @@ namespace dart {
      *  Low-level type information that encodes information about the underlying machine-type,
      *  like precision, signedness, etc.
      */
-    enum class raw_type {
+    enum class raw_type : uint8_t {
       object,
       array,
       string,
@@ -173,18 +189,25 @@ namespace dart {
       bool operator ()(Lhs&& lhs, Rhs&& rhs) const noexcept;
     };
 
-    template <class>
     class prefix_entry;
     template <class>
     struct table_layout {
-      alignas(4) little_order<uint32_t> meta;
+      using offset_type = uint32_t;
+      static constexpr auto max_offset = std::numeric_limits<offset_type>::max();
+
+      alignas(4) little_order<offset_type> offset;
+      alignas(4) little_order<uint8_t> type;
     };
-    template <class Prefix>
-    struct table_layout<prefix_entry<Prefix>> {
-      static_assert(sizeof(Prefix) <= 4,
-          "vtable prefix caching can use at most 4 bytes");
-      alignas(4) little_order<uint32_t> meta;
-      alignas(4) Prefix prefix;
+    template <>
+    struct table_layout<prefix_entry> {
+      using offset_type = uint32_t;
+      using prefix_type = uint16_t;
+      static constexpr auto max_offset = std::numeric_limits<offset_type>::max();
+
+      alignas(4) little_order<uint32_t> offset;
+      alignas(1) little_order<uint8_t> type;
+      alignas(1) little_order<uint8_t> len;
+      alignas(2) prefix_type prefix;
     };
 
     /**
@@ -217,11 +240,6 @@ namespace dart {
         detail::raw_type get_type() const noexcept;
         uint32_t get_offset() const noexcept;
 
-        /*----- Public Members -----*/
-
-        static constexpr int offset_bits = 24;
-        static constexpr uint32_t offset_mask = (1 << offset_bits) - 1;
-
       protected:
 
         /*----- Protected Members -----*/
@@ -229,7 +247,6 @@ namespace dart {
         table_layout<T> layout;
 
     };
-
 
     /**
      *  @brief
@@ -245,19 +262,18 @@ namespace dart {
      *  be used as such, it remains a standard layout type due to some
      *  hackery with its internals.
      */
-    template <class Prefix>
-    class prefix_entry : public vtable_entry<prefix_entry<Prefix>> {
+    class prefix_entry : public vtable_entry<prefix_entry> {
 
       public:
 
         /*----- Public Types -----*/
 
-        using prefix_type = Prefix;
+        using prefix_type = table_layout<prefix_entry>::prefix_type;
 
         /*----- Lifecycle Functions -----*/
 
         prefix_entry() noexcept = default;
-        prefix_entry(detail::raw_type type, uint32_t offset, shim::string_view prefix) noexcept;
+        inline prefix_entry(detail::raw_type type, uint32_t offset, shim::string_view prefix) noexcept;
         prefix_entry(prefix_entry const&) = default;
 
         /*----- Operators -----*/
@@ -266,9 +282,13 @@ namespace dart {
 
         /*----- Public API -----*/
 
-        int prefix_compare(shim::string_view str) const noexcept;
+        inline int prefix_compare(shim::string_view str) const noexcept;
 
       private:
+
+        /*----- Private Helpers -----*/
+
+        inline int compare_impl(char const* const str, size_t const len) const noexcept;
 
         /*----- Private Types -----*/
 
@@ -276,8 +296,10 @@ namespace dart {
 
     };
 
+    using object_entry = prefix_entry;
     using array_entry = vtable_entry<void>;
-    using object_entry = prefix_entry<uint16_t>;
+    using object_layout = table_layout<prefix_entry>;
+    using array_layout = table_layout<void>;
     static_assert(std::is_standard_layout<array_entry>::value, "dart library is misconfigured");
     static_assert(std::is_standard_layout<object_entry>::value, "dart library is misconfigured");
 
@@ -440,8 +462,11 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         object() = delete;
+#ifdef DART_USE_SAJSON
+        explicit object(sajson::value fields) noexcept;
+#endif
 #if DART_HAS_RAPIDJSON
-        object(rapidjson::Value const& fields) noexcept;
+        explicit object(rapidjson::Value const& fields) noexcept;
 #endif
         object(packet_fields<RefCount> const* fields) noexcept;
         object(object const&) = delete;
@@ -511,8 +536,11 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         array() = delete;
+#ifdef DART_USE_SAJSON
+        explicit array(sajson::value elems) noexcept;
+#endif
 #if DART_HAS_RAPIDJSON
-        array(rapidjson::Value const& elems) noexcept;
+        explicit array(rapidjson::Value const& elems) noexcept;
 #endif
         array(packet_elements<RefCount> const* elems) noexcept;
         array(array const&) = delete;
@@ -578,7 +606,8 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         basic_string() = delete;
-        basic_string(char const* str, size_t len) noexcept;
+        explicit basic_string(shim::string_view strv) noexcept;
+        explicit basic_string(char const* str, size_t len) noexcept;
         basic_string(basic_string const&) = delete;
         ~basic_string() = delete;
 
@@ -634,7 +663,7 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         primitive() = delete;
-        primitive(T data) noexcept : data(data) {}
+        explicit primitive(T data) noexcept : data(data) {}
         primitive(primitive const&) = delete;
         ~primitive() = delete;
 
@@ -1061,6 +1090,8 @@ namespace dart {
       else return raw_type::decimal;
     }
 
+// Dart is header-only, so I think the scenarios where the ABI stability of
+// symbol mangling will be relevant are relatively few.
 #if DART_USING_GCC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"

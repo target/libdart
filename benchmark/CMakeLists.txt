@@ -65,7 +65,7 @@ if (libjansson)
   endif ()
 endif ()
 
-# Handle SAJSON
+# Handle sajson
 if (libsajson)
   target_compile_options(static_bench PUBLIC -DDART_HAS_SAJSON -Wno-unused-parameter)
   if (librj)

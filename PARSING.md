@@ -1,4 +1,4 @@
-## Dart Parsing Performance
+## Dart Parsing/Writing Performance
 **TL;DR**:
 
 **Dart** makes some parsing performance concessions to meet other design goals,
@@ -31,7 +31,7 @@ Despite these restrictions, **Dart**'s parsing performance is quite good, runnin
 about 50% of [RapidJSON](https://github.com/Tencent/rapidjson), and will likely still
 exceed that of `[insert library name here]`.
 
-## Building Dart Head-to-Head Parsing Tests
+## Building Dart Head-to-Head Parsing/Writing Tests
 **Dart** comes included with a parsing benchmark driver that depends on
 [Google Benchmark](https://github.com/google/benchmark), which must be installed prior
 to attempting to build the benchmark driver.
@@ -56,7 +56,7 @@ benchmark/configurable_bench
 On my middle-end 2018 MacBook Pro, this outputs something like the following:
 ```
 Christophers-MacBook-Pro-2:build christopherfretz$ benchmark/configurable_bench
-2019-05-27 22:10:18
+2019-05-31 21:27:12
 Running benchmark/configurable_bench
 Run on (8 X 2300 MHz CPU s)
 CPU Caches:
@@ -64,23 +64,29 @@ CPU Caches:
   L1 Instruction 32K (x4)
   L2 Unified 262K (x4)
   L3 Unified 6291K (x1)
-------------------------------------------------------------------------------------------------------------------
-Benchmark                                                           Time           CPU Iterations UserCounters...
-------------------------------------------------------------------------------------------------------------------
-benchmark_helper/dart_nontrivial_finalized_json_test            66174 ns      65695 ns      10191 parsed packets=152.219k/s
-benchmark_helper/dart_nontrivial_dynamic_json_test             193853 ns     188846 ns       3968 parsed packets=52.9532k/s
-benchmark_helper/dart_nontrivial_json_key_lookups                3744 ns       3727 ns     178209 parsed key lookups=26.8291M/s
-benchmark_helper/rapidjson_nontrivial_insitu_json_test          37761 ns      37210 ns      19833 parsed packets=268.743k/s
-benchmark_helper/rapidjson_nontrivial_json_test                 46986 ns      46631 ns      15345 parsed packets=214.449k/s
-benchmark_helper/rapidjson_nontrivial_json_key_lookups           6750 ns       6556 ns     114471 parsed key lookups=15.2529M/s
-benchmark_helper/sajson_nontrivial_json_test                    13362 ns      13272 ns      50082 parsed packets=753.442k/s
-benchmark_helper/sajson_nontrivial_json_key_lookups              5413 ns       5291 ns     128480 parsed key lookups=18.8987M/s
-benchmark_helper/nlohmann_json_nontrivial_json_test            267938 ns     262928 ns       2711 parsed packets=38.0333k/s
-benchmark_helper/nlohmann_json_nontrivial_json_key_lookups       8518 ns       8428 ns      80203 parsed key lookups=11.8659M/s
-benchmark_helper/yajl_nontrivial_json_test                     304592 ns     301546 ns       2353 parsed packets=33.1624k/s
-benchmark_helper/yajl_nontrivial_json_key_lookups                8588 ns       8492 ns      81722 parsed key lookups=11.7763M/s
-benchmark_helper/jansson_nontrivial_json_test                  381031 ns     378135 ns       1843 parsed packets=26.4456k/s
-benchmark_helper/jansson_nontrivial_json_key_lookups             4595 ns       4549 ns     160465 parsed key lookups=21.9828M/s
+-----------------------------------------------------------------------------------------------------------------------
+Benchmark                                                                Time           CPU Iterations UserCounters...
+-----------------------------------------------------------------------------------------------------------------------
+benchmark_helper/dart_nontrivial_finalized_json_test                 27682 ns      27541 ns      24751 parsed packets=363.091k/s
+benchmark_helper/dart_nontrivial_dynamic_json_test                  158967 ns     158222 ns       4301 parsed packets=63.2023k/s
+benchmark_helper/dart_nontrivial_finalized_json_generation_test      36241 ns      36035 ns      18856 serialized packets=277.512k/s
+benchmark_helper/dart_nontrivial_dynamic_json_generation_test        43105 ns      42901 ns      16268 serialized packets=233.092k/s
+benchmark_helper/dart_nontrivial_json_key_lookups                     3803 ns       3785 ns     181578 parsed key lookups=26.4189M/s
+benchmark_helper/rapidjson_nontrivial_insitu_json_test               34035 ns      33853 ns      20248 parsed packets=295.393k/s
+benchmark_helper/rapidjson_nontrivial_json_test                      45588 ns      45391 ns      15351 parsed packets=220.309k/s
+benchmark_helper/rapidjson_nontrivial_json_key_lookups                6180 ns       6147 ns     109022 parsed key lookups=16.2692M/s
+benchmark_helper/rapidjson_nontrivial_json_generation_test           29602 ns      29463 ns      22819 serialized packets=339.413k/s
+benchmark_helper/sajson_nontrivial_json_test                         14360 ns      14077 ns      51069 parsed packets=710.4k/s
+benchmark_helper/sajson_nontrivial_json_key_lookups                   5122 ns       5086 ns     134450 parsed key lookups=19.6603M/s
+benchmark_helper/nlohmann_json_nontrivial_json_test                 254695 ns     252819 ns       2802 parsed packets=39.5539k/s
+benchmark_helper/nlohmann_json_nontrivial_json_key_lookups            8471 ns       8430 ns      78012 parsed key lookups=11.8618M/s
+benchmark_helper/nlohmann_json_nontrivial_json_generation_test       68175 ns      67903 ns       9813 serialized packets=147.269k/s
+benchmark_helper/yajl_nontrivial_json_test                          284750 ns     282558 ns       2480 parsed packets=35.391k/s
+benchmark_helper/yajl_nontrivial_json_key_lookups                     7998 ns       7963 ns      83284 parsed key lookups=12.558M/s
+benchmark_helper/yajl_nontrivial_json_generation_test                63868 ns      63497 ns      10480 serialized packets=157.488k/s
+benchmark_helper/jansson_nontrivial_json_test                       359954 ns     358272 ns       1929 parsed packets=27.9118k/s
+benchmark_helper/jansson_nontrivial_json_key_lookups                  4395 ns       4373 ns     159607 parsed key lookups=22.8688M/s
+benchmark_helper/jansson_nontrivial_json_generation_test            110410 ns     109951 ns       6015 serialized packets=90.9496k/s
 ```
 The output from the previous command is generated by running each test case a
 single time, which can produce somewhat noisy results, especially for the fastest
@@ -97,13 +103,13 @@ Using the file found at `benchmark/input.json` (which can be replaced with any
 newline-separated json file to test your own data), averaged across 16 repetitions,
 this produces the following results:
 ![Head-to-Head Parsing Performance](benchmark/parsing.png)
+![Head-to-Head Writing Performance](benchmark/serializing.png)
 An initial takeaway from this is that [Chad Austin](https://github.com/chadaustin)
 is a crazy wizard man who deserves another
 [shoutout](https://chadaustin.me/2017/05/writing-a-really-really-fast-json-parser/).
-If raw parsing performance, without regard for much else, is what you're looking for,
-[SAJSON](https://github.com/chadaustin/sajson) will get you there.
+If raw parsing performance, above anything else, is what you're looking for,
+[sajson](https://github.com/chadaustin/sajson) will get you there.
 
 If, however, you're looking for something a bit safer/easier to use, you need to
-work with large objects, or you need network integration, it makes the graph a bit
-easier to reason about:
-![Head-to-Head Parsing Performance, sans SAJSON](benchmark/simplified_parsing.png)
+work with large objects, or you need network integration, **Dart** can provide all
+of this, while also providing best, or second-best, performance for all JSON needs.

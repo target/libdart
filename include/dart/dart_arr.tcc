@@ -690,6 +690,34 @@ namespace dart {
 
   namespace detail {
 
+#ifdef DART_USE_SAJSON
+    template <template <class> class RefCount>
+    array<RefCount>::array(sajson::value vals) noexcept : elems(vals.get_length()) {
+      // Iterate over our elements and write each one into the buffer.
+      array_entry* entry = vtable();
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
+      for (auto idx = 0U; idx < elems; ++idx) {
+        // Identify the internal type of the current element.
+        auto curr_val = vals.get_array_element(idx);
+        auto val_type = json_identify<RefCount>(curr_val);
+
+        // Using the current offset, align a pointer for the next element type.
+        auto* unaligned = DART_FROM_THIS_MUT + offset;
+        auto* aligned = detail::align_pointer<RefCount>(unaligned, val_type);
+        offset += aligned - unaligned;
+
+        // Add an entry to the vtable.
+        new(entry++) array_entry(val_type, offset);
+
+        // Recurse.
+        offset += json_lower<RefCount>(aligned, curr_val);
+      }
+
+      // array is laid out, write in our final size.
+      bytes = offset;
+    }
+#endif
+
 #if DART_HAS_RAPIDJSON
     template <template <class> class RefCount>
     array<RefCount>::array(rapidjson::Value const& vals) noexcept : elems(vals.Size()) {
