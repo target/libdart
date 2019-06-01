@@ -122,8 +122,8 @@ namespace dart {
     state_error(char const* msg) : runtime_error(msg) {}
   };
 
-  struct fatal_error : std::runtime_error {
-    fatal_error(char const* msg) : runtime_error(msg) {}
+  struct parse_error : std::runtime_error {
+    parse_error(char const* msg) : runtime_error(msg) {}
   };
 
   namespace detail {
