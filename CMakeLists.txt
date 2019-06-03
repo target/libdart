@@ -53,6 +53,7 @@ option(no_cxx17 "Disabling c++17" OFF)
 
 # Explicitly enable sajson for whatever reason.
 option(use_sajson "Assuming sajson is installed, and using it" OFF)
+option(build_abi "Building libdart C interface")
 
 # Define an option for our tests.
 option(test "Building tests..." ON)
@@ -80,6 +81,12 @@ endif ()
 # Define our source files.
 include_directories(include)
 
+# Build the ABI if we were asked to.
+if (build_abi)
+  add_library(dart_abi STATIC src/abi.cc)
+  target_compile_options(dart_abi PUBLIC "-O3")
+endif ()
+
 # Conditionally setup our tests.
 if (test)
   enable_testing()
@@ -91,8 +98,11 @@ if (benchmark)
   add_subdirectory(benchmark)
 endif ()
 
-# Find and install our headers.
+# Find our headers.
 file(GLOB global_header include/dart.h)
 file(GLOB headers include/dart/*.h include/dart/*.tcc include/extern/variant.h)
+
+# Install our headers/abi
 install(FILES ${global_header} DESTINATION include)
 install(FILES ${headers} DESTINATION include/dart)
+install(TARGETS dart_abi ARCHIVE DESTINATION lib)
