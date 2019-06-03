@@ -25,6 +25,11 @@ namespace dart {
     template <class...>
     using void_t = void;
 
+    template <class T>
+    struct identity {
+      using type = T;
+    };
+
     // Create type traits to check for each type of comparison.
     DART_COMPARE_HELPER(are_comparable, ==);
     DART_COMPARE_HELPER(are_negated_comparable, !=);
