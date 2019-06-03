@@ -101,6 +101,52 @@ namespace {
     return dart::shim::compose_together(std::forward<Funcs>(fs)...);
   }
 
+  template <class TargetPacket, class SourcePacket>
+  void safe_construct_impl(TargetPacket*, SourcePacket const&, std::false_type) {
+    throw dart::type_error("Unsupported packet type conversion requested. Did you mix rc types?");
+  }
+
+  template <class TargetPacket, class SourcePacket>
+  void safe_construct_impl(TargetPacket* dst, SourcePacket&& src, std::true_type) {
+    new(dst) TargetPacket(dart::convert::cast<TargetPacket>(std::forward<SourcePacket>(src)));
+  }
+
+  template <class TargetPacket, class SourcePacket>
+  void safe_construct(TargetPacket* dst, SourcePacket&& src) {
+    safe_construct_impl(dst,
+        std::forward<SourcePacket>(src), dart::convert::is_castable<SourcePacket, TargetPacket> {});
+  }
+
+  template <class Packet, class Key, class Value>
+  void safe_insert_impl(Packet&, Key&&, Value&&, std::false_type) {
+    throw dart::type_error("Unsupported packet type insertion requested");
+  }
+
+  template <class Packet, class Key, class Value>
+  void safe_insert_impl(Packet& pkt, Key&& key, Value&& val, std::true_type) {
+    pkt.insert(std::forward<Key>(key), std::forward<Value>(val));
+  }
+
+  template <class Packet, class Key, class Value>
+  void safe_insert(Packet& pkt, Key&& key, Value&& val) {
+    safe_insert_impl(pkt, std::forward<Key>(key), std::forward<Value>(val),
+      dart::meta::conjunction<
+        dart::convert::is_castable<Key, std::decay_t<Packet>>,
+        dart::convert::is_castable<Value, std::decay_t<Packet>>
+      > {}
+    );
+  }
+
+  template <class Func>
+  auto mutable_visitor(Func&& cb) {
+    return compose(
+      [=] (dart::heap& pkt) { cb(pkt); },
+      [=] (dart::unsafe_heap& pkt) { cb(pkt); },
+      [=] (dart::packet& pkt) { cb(pkt); },
+      [=] (dart::unsafe_packet& pkt) { cb(pkt); }
+    );
+  }
+
   template <class Func, class... Args>
   dart_err_t call_indirection(std::true_type, Func&& cb, Args&&... the_args) {
     return std::forward<Func>(cb)(std::forward<Args>(the_args)...);
@@ -187,32 +233,6 @@ namespace {
         errmsg = "Unknown reference counter passed for dart_packet";
         return DART_CLIENT_ERROR;
     }
-  }
-
-  template <bool is_const, class Func>
-  dart_err_t generic_unwrap_impl(Func&& cb, void* pkt) {
-    auto* rtti = reinterpret_cast<dart_type_id_t*>(pkt);
-    switch (rtti->p_id) {
-      case DART_HEAP:
-        return heap_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_heap_t*>(pkt));
-      case DART_BUFFER:
-        return buffer_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_buffer_t*>(pkt));
-      case DART_PACKET:
-        return packet_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_packet_t*>(pkt));
-      default:
-        errmsg = "Corrupted dart object encountered in generic function call.";
-        return DART_CLIENT_ERROR;
-    }
-  }
-
-  template <class Func>
-  dart_err_t generic_unwrap(Func&& cb, void* pkt) {
-    return generic_unwrap_impl<false>(std::forward<Func>(cb), pkt);
-  }
-
-  template <class Func>
-  dart_err_t generic_unwrap(Func&& cb, void const* pkt) {
-    return generic_unwrap_impl<true>(std::forward<Func>(cb), const_cast<void*>(pkt));
   }
 
   template <class Func>
@@ -308,6 +328,60 @@ namespace {
     }
   }
 
+  template <bool is_const, class Func>
+  dart_err_t generic_unwrap_impl(Func&& cb, void* pkt) {
+    auto* rtti = reinterpret_cast<dart_type_id_t*>(pkt);
+    switch (rtti->p_id) {
+      case DART_HEAP:
+        return heap_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_heap_t*>(pkt));
+      case DART_BUFFER:
+        return buffer_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_buffer_t*>(pkt));
+      case DART_PACKET:
+        return packet_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_packet_t*>(pkt));
+      default:
+        errmsg = "Corrupted dart object encountered in generic function call.";
+        return DART_CLIENT_ERROR;
+    }
+  }
+
+  template <class Func>
+  dart_err_t generic_unwrap(Func&& cb, void* pkt) {
+    return generic_unwrap_impl<false>(std::forward<Func>(cb), pkt);
+  }
+
+  template <class Func>
+  dart_err_t generic_unwrap(Func&& cb, void const* pkt) {
+    return generic_unwrap_impl<true>(std::forward<Func>(cb), const_cast<void*>(pkt));
+  }
+
+  template <class Func>
+  dart_err_t generic_construct(Func&& cb, void* pkt) {
+    auto* rtti = reinterpret_cast<dart_type_id_t*>(pkt);
+    switch (rtti->p_id) {
+      case DART_HEAP:
+        return heap_construct(std::forward<Func>(cb), reinterpret_cast<dart_heap_t*>(pkt));
+      case DART_BUFFER:
+        return buffer_construct(std::forward<Func>(cb), reinterpret_cast<dart_buffer_t*>(pkt));
+      case DART_PACKET:
+        return packet_construct(std::forward<Func>(cb), reinterpret_cast<dart_packet_t*>(pkt));
+      default:
+        errmsg = "Corrupted dart object encountered in generic function call.";
+        return DART_CLIENT_ERROR;
+    }
+  }
+
+  void dart_rtti_propagate(void* dst, void const* src) {
+    auto* punned_dst = reinterpret_cast<dart_type_id_t*>(dst);
+    auto* punned_src = reinterpret_cast<dart_type_id_t const*>(src);
+    *punned_dst = *punned_src;
+  }
+
+  void dart_rc_propagate(void* dst, void const* src) {
+    auto* punned_dst = reinterpret_cast<dart_type_id_t*>(dst);
+    auto* punned_src = reinterpret_cast<dart_type_id_t const*>(src);
+    punned_dst->rc_id = punned_src->rc_id;
+  }
+
   template <class Func>
   dart_err_t err_handler(Func&& cb) noexcept try {
     return std::forward<Func>(cb)();
@@ -359,7 +433,7 @@ namespace {
   template <class Func>
   dart_err_t packet_typed_constructor_access(Func&& cb, dart_packet_t* pkt, dart_rc_type_t rc) noexcept {
     // Default construct our packet.
-    auto ret = dart_packet_init_rc(pkt, rc);
+    auto ret = dart_init_rc_err(pkt, rc);
     if (ret) return ret;
 
     // Assign to it.
@@ -384,6 +458,11 @@ namespace {
   template <class Func>
   dart_err_t packet_constructor_access(Func&& cb, dart_packet_t* pkt) noexcept {
     return err_handler([&cb, pkt] { return packet_construct(std::forward<Func>(cb), pkt); });
+  }
+
+  template <class Func>
+  dart_err_t generic_constructor_access(Func&& cb, void* pkt) noexcept {
+    return err_handler([&cb, pkt] { return generic_construct(std::forward<Func>(cb), pkt); });
   }
 
   // Forgive me
@@ -519,39 +598,39 @@ extern "C" {
 
   dart_heap_t dart_heap_init() {
     // Cannot meaningfully fail.
-    dart_heap_t pkt;
-    dart_heap_init_rc_err(&pkt, DART_RC_SAFE);
-    return pkt;
+    dart_heap_t dst;
+    dart_heap_init_rc_err(&dst, DART_RC_SAFE);
+    return dst;
   }
 
-  dart_err_t dart_heap_init_err(dart_heap_t* pkt) {
-    return dart_heap_init_rc_err(pkt, DART_RC_SAFE);
+  dart_err_t dart_heap_init_err(dart_heap_t* dst) {
+    return dart_heap_init_rc_err(dst, DART_RC_SAFE);
   }
 
   dart_heap_t dart_heap_init_rc(dart_rc_type_t rc) {
     // Cannot meaningfully fail.
-    dart_heap_t pkt;
-    dart_heap_init_rc_err(&pkt, rc);
-    return pkt;
+    dart_heap_t dst;
+    dart_heap_init_rc_err(&dst, rc);
+    return dst;
   }
 
-  dart_err_t dart_heap_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc) {
+  dart_err_t dart_heap_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc) {
     // Initialize.
-    pkt->rtti = {DART_HEAP, rc};
+    dst->rtti = {DART_HEAP, rc};
     return heap_constructor_access(
       compose(
         [] (dart::heap* ptr) { new(ptr) dart::heap(); },
         [] (dart::unsafe_heap* ptr) { new(ptr) dart::unsafe_heap(); }
       ),
-      pkt
+      dst
     );
   }
 
   dart_heap_t dart_heap_copy(dart_heap_t const* src) {
-    dart_heap_t pkt;
-    auto err = dart_heap_copy_err(&pkt, src);
+    dart_heap_t dst;
+    auto err = dart_heap_copy_err(&dst, src);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
   dart_err_t dart_heap_copy_err(dart_heap_t* dst, dart_heap_t const* src) {
@@ -571,10 +650,10 @@ extern "C" {
   }
 
   dart_heap_t dart_heap_move(dart_heap_t* src) {
-    dart_heap_t pkt;
-    auto err = dart_heap_move_err(&pkt, src);
+    dart_heap_t dst;
+    auto err = dart_heap_move_err(&dst, src);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
   dart_err_t dart_heap_move_err(dart_heap_t* dst, dart_heap_t* src) {
@@ -593,579 +672,579 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_heap_destroy(dart_heap_t* pkt) {
+  dart_err_t dart_heap_destroy(dart_heap_t* dst) {
     // Destroy.
     return heap_access(
       compose(
-        [] (dart::heap& pkt) { pkt.~basic_heap(); },
-        [] (dart::unsafe_heap& pkt) { pkt.~basic_heap(); }
+        [] (dart::heap& dst) { dst.~basic_heap(); },
+        [] (dart::unsafe_heap& dst) { dst.~basic_heap(); }
       ),
-      pkt
+      dst
     );
   }
 
   dart_heap_t dart_heap_obj_init() {
-    dart_heap_t pkt;
-    auto err = dart_heap_obj_init_err(&pkt);
+    dart_heap_t dst;
+    auto err = dart_heap_obj_init_err(&dst);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_obj_init_err(dart_heap_t* pkt) {
-    return dart_heap_obj_init_rc_err(pkt, DART_RC_SAFE);
+  dart_err_t dart_heap_obj_init_err(dart_heap_t* dst) {
+    return dart_heap_obj_init_rc_err(dst, DART_RC_SAFE);
   }
 
   dart_heap_t dart_heap_obj_init_rc(dart_rc_type_t rc) {
-    dart_heap_t pkt;
-    auto err = dart_heap_obj_init_rc_err(&pkt, rc);
+    dart_heap_t dst;
+    auto err = dart_heap_obj_init_rc_err(&dst, rc);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_obj_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc) {
+  dart_err_t dart_heap_obj_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc) {
     // Default initialize, then assign.
     return heap_typed_constructor_access(
       compose(
-        [] (dart::heap& pkt) { pkt = dart::heap::make_object(); },
-        [] (dart::unsafe_heap& pkt) { pkt = dart::unsafe_heap::make_object(); }
+        [] (dart::heap& dst) { dst = dart::heap::make_object(); },
+        [] (dart::unsafe_heap& dst) { dst = dart::unsafe_heap::make_object(); }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
-  static dart_err_t dart_heap_obj_init_va_impl(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, va_list args) {
+  static dart_err_t dart_heap_obj_init_va_impl(dart_heap_t* dst, dart_rc_type_t rc, char const* format, va_list args) {
     return heap_typed_constructor_access(
       compose(
-        [format, args] (dart::heap& pkt) mutable {
-          pkt = dart::heap::make_object();
-          parse_pairs(pkt, format, args);
+        [format, args] (dart::heap& dst) mutable {
+          dst = dart::heap::make_object();
+          parse_pairs(dst, format, args);
         },
-        [format, args] (dart::unsafe_heap& pkt) mutable {
-          pkt = dart::unsafe_heap::make_object();
-          parse_pairs(pkt, format, args);
+        [format, args] (dart::unsafe_heap& dst) mutable {
+          dst = dart::unsafe_heap::make_object();
+          parse_pairs(dst, format, args);
         }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
   dart_heap_t dart_heap_obj_init_va(char const* format, ...) {
     va_list args;
-    dart_heap_t pkt;
+    dart_heap_t dst;
     va_start(args, format);
-    auto ret = dart_heap_obj_init_va_impl(&pkt, DART_RC_SAFE, format, args);
+    auto ret = dart_heap_obj_init_va_impl(&dst, DART_RC_SAFE, format, args);
     va_end(args);
     if (ret) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_obj_init_va_err(dart_heap_t* pkt, char const* format, ...) {
+  dart_err_t dart_heap_obj_init_va_err(dart_heap_t* dst, char const* format, ...) {
     va_list args;
     va_start(args, format);
-    auto ret = dart_heap_obj_init_va_impl(pkt, DART_RC_SAFE, format, args);
+    auto ret = dart_heap_obj_init_va_impl(dst, DART_RC_SAFE, format, args);
     va_end(args);
     return ret;
   }
 
   dart_heap_t dart_heap_obj_init_va_rc(dart_rc_type_t rc, char const* format, ...) {
     va_list args;
-    dart_heap_t pkt;
+    dart_heap_t dst;
     va_start(args, format);
-    auto ret = dart_heap_obj_init_va_impl(&pkt, rc, format, args);
+    auto ret = dart_heap_obj_init_va_impl(&dst, rc, format, args);
     va_end(args);
     if (ret) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_obj_init_va_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, ...) {
+  dart_err_t dart_heap_obj_init_va_rc_err(dart_heap_t* dst, dart_rc_type_t rc, char const* format, ...) {
     va_list args;
     va_start(args, format);
-    auto ret = dart_heap_obj_init_va_impl(pkt, rc, format, args);
+    auto ret = dart_heap_obj_init_va_impl(dst, rc, format, args);
     va_end(args);
     return ret;
   }
 
   dart_heap_t dart_heap_arr_init() {
-    dart_heap_t pkt;
-    auto err = dart_heap_arr_init_err(&pkt);
+    dart_heap_t dst;
+    auto err = dart_heap_arr_init_err(&dst);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_arr_init_err(dart_heap_t* pkt) {
-    return dart_heap_arr_init_rc_err(pkt, DART_RC_SAFE);
+  dart_err_t dart_heap_arr_init_err(dart_heap_t* dst) {
+    return dart_heap_arr_init_rc_err(dst, DART_RC_SAFE);
   }
 
   dart_heap_t dart_heap_arr_init_rc(dart_rc_type_t rc) {
-    dart_heap_t pkt;
-    auto err = dart_heap_arr_init_rc_err(&pkt, rc);
+    dart_heap_t dst;
+    auto err = dart_heap_arr_init_rc_err(&dst, rc);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_arr_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc) {
+  dart_err_t dart_heap_arr_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc) {
     // Default initialize, then assign.
     return heap_typed_constructor_access(
       compose(
-        [] (dart::heap& pkt) { pkt = dart::heap::make_array(); },
-        [] (dart::unsafe_heap& pkt) { pkt = dart::unsafe_heap::make_array(); }
+        [] (dart::heap& dst) { dst = dart::heap::make_array(); },
+        [] (dart::unsafe_heap& dst) { dst = dart::unsafe_heap::make_array(); }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
-  static dart_err_t dart_heap_arr_init_va_impl(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, va_list args) {
+  static dart_err_t dart_heap_arr_init_va_impl(dart_heap_t* dst, dart_rc_type_t rc, char const* format, va_list args) {
     return heap_typed_constructor_access(
       compose(
-        [format, args] (dart::heap& pkt) mutable {
-          pkt = dart::heap::make_array();
-          parse_vals(pkt, format, args);
+        [format, args] (dart::heap& dst) mutable {
+          dst = dart::heap::make_array();
+          parse_vals(dst, format, args);
         },
-        [format, args] (dart::unsafe_heap& pkt) mutable {
-          pkt = dart::unsafe_heap::make_array();
-          parse_vals(pkt, format, args);
+        [format, args] (dart::unsafe_heap& dst) mutable {
+          dst = dart::unsafe_heap::make_array();
+          parse_vals(dst, format, args);
         }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
   dart_heap_t dart_heap_arr_init_va(char const* format, ...) {
     va_list args;
-    dart_heap_t pkt;
+    dart_heap_t dst;
     va_start(args, format);
-    auto ret = dart_heap_arr_init_va_impl(&pkt, DART_RC_SAFE, format, args);
+    auto ret = dart_heap_arr_init_va_impl(&dst, DART_RC_SAFE, format, args);
     if (ret) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_arr_init_va_err(dart_heap_t* pkt, char const* format, ...) {
+  dart_err_t dart_heap_arr_init_va_err(dart_heap_t* dst, char const* format, ...) {
     va_list args;
     va_start(args, format);
-    auto ret = dart_heap_arr_init_va_impl(pkt, DART_RC_SAFE, format, args);
+    auto ret = dart_heap_arr_init_va_impl(dst, DART_RC_SAFE, format, args);
     va_end(args);
     return ret;
   }
 
   dart_heap_t dart_heap_arr_init_va_rc(dart_rc_type_t rc, char const* format, ...) {
     va_list args;
-    dart_heap_t pkt;
+    dart_heap_t dst;
     va_start(args, format);
-    auto ret = dart_heap_arr_init_va_impl(&pkt, rc, format, args);
+    auto ret = dart_heap_arr_init_va_impl(&dst, rc, format, args);
     if (ret) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_arr_init_va_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, ...) {
+  dart_err_t dart_heap_arr_init_va_rc_err(dart_heap_t* dst, dart_rc_type_t rc, char const* format, ...) {
     va_list args;
     va_start(args, format);
-    auto ret = dart_heap_arr_init_va_impl(pkt, rc, format, args);
+    auto ret = dart_heap_arr_init_va_impl(dst, rc, format, args);
     va_end(args);
     return ret;
   }
 
   dart_heap_t dart_heap_str_init(char const* str) {
-    dart_heap_t pkt;
-    auto err = dart_heap_str_init_err(&pkt, str);
+    dart_heap_t dst;
+    auto err = dart_heap_str_init_err(&dst, str);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_str_init_err(dart_heap_t* pkt, char const* str) {
-    return dart_heap_str_init_rc_len_err(pkt, DART_RC_SAFE, str, strlen(str));
+  dart_err_t dart_heap_str_init_err(dart_heap_t* dst, char const* str) {
+    return dart_heap_str_init_rc_len_err(dst, DART_RC_SAFE, str, strlen(str));
   }
 
   dart_heap_t dart_heap_str_init_len(char const* str, size_t len) {
-    dart_heap_t pkt;
-    auto err = dart_heap_str_init_len_err(&pkt, str, len);
+    dart_heap_t dst;
+    auto err = dart_heap_str_init_len_err(&dst, str, len);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_str_init_err_len(dart_heap_t* pkt, char const* str, size_t len) {
-    return dart_heap_str_init_rc_len_err(pkt, DART_RC_SAFE, str, len);
+  dart_err_t dart_heap_str_init_len_err(dart_heap_t* dst, char const* str, size_t len) {
+    return dart_heap_str_init_rc_len_err(dst, DART_RC_SAFE, str, len);
   }
 
   dart_heap_t dart_heap_str_init_rc(dart_rc_type_t rc, char const* str) {
-    dart_heap_t pkt;
-    auto err = dart_heap_str_init_rc_err(&pkt, rc, str);
+    dart_heap_t dst;
+    auto err = dart_heap_str_init_rc_err(&dst, rc, str);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_str_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str) {
-    return dart_heap_str_init_rc_len_err(pkt, rc, str, strlen(str));
+  dart_err_t dart_heap_str_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc, char const* str) {
+    return dart_heap_str_init_rc_len_err(dst, rc, str, strlen(str));
   }
 
   dart_heap_t dart_heap_str_init_rc_len(dart_rc_type_t rc, char const* str, size_t len) {
-    dart_heap_t pkt;
-    auto err = dart_heap_str_init_rc_len_err(&pkt, rc, str, len);
+    dart_heap_t dst;
+    auto err = dart_heap_str_init_rc_len_err(&dst, rc, str, len);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_str_init_rc_len_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
+  dart_err_t dart_heap_str_init_rc_len_err(dart_heap_t* dst, dart_rc_type_t rc, char const* str, size_t len) {
     // Default initialize, then assign
     return heap_typed_constructor_access(
       compose(
-        [str, len] (dart::heap& pkt) { pkt = dart::heap::make_string({str, len}); },
-        [str, len] (dart::unsafe_heap& pkt) { pkt = dart::unsafe_heap::make_string({str, len}); }
+        [str, len] (dart::heap& dst) { dst = dart::heap::make_string({str, len}); },
+        [str, len] (dart::unsafe_heap& dst) { dst = dart::unsafe_heap::make_string({str, len}); }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
   dart_heap_t dart_heap_int_init(int64_t val) {
-    dart_heap_t pkt;
-    auto err = dart_heap_int_init_err(&pkt, val);
+    dart_heap_t dst;
+    auto err = dart_heap_int_init_err(&dst, val);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_int_init_err(dart_heap_t* pkt, int64_t val) {
-    return dart_heap_int_init_rc_err(pkt, DART_RC_SAFE, val);
+  dart_err_t dart_heap_int_init_err(dart_heap_t* dst, int64_t val) {
+    return dart_heap_int_init_rc_err(dst, DART_RC_SAFE, val);
   }
 
   dart_heap_t dart_heap_int_init_rc(dart_rc_type_t rc, int64_t val) {
-    dart_heap_t pkt;
-    auto err = dart_heap_int_init_rc_err(&pkt, rc, val);
+    dart_heap_t dst;
+    auto err = dart_heap_int_init_rc_err(&dst, rc, val);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_int_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, int64_t val) {
+  dart_err_t dart_heap_int_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc, int64_t val) {
     // Default initialize, then assign
     return heap_typed_constructor_access(
       compose(
-        [val] (dart::heap& pkt) { pkt = dart::heap::make_integer(val); },
-        [val] (dart::unsafe_heap& pkt) { pkt = dart::unsafe_heap::make_integer(val); }
+        [val] (dart::heap& dst) { dst = dart::heap::make_integer(val); },
+        [val] (dart::unsafe_heap& dst) { dst = dart::unsafe_heap::make_integer(val); }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
   dart_heap_t dart_heap_dcm_init(double val) {
-    dart_heap_t pkt;
-    auto err = dart_heap_dcm_init_err(&pkt, val);
+    dart_heap_t dst;
+    auto err = dart_heap_dcm_init_err(&dst, val);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_dcm_init_err(dart_heap_t* pkt, double val) {
-    return dart_heap_dcm_init_rc_err(pkt, DART_RC_SAFE, val);
+  dart_err_t dart_heap_dcm_init_err(dart_heap_t* dst, double val) {
+    return dart_heap_dcm_init_rc_err(dst, DART_RC_SAFE, val);
   }
 
   dart_heap_t dart_heap_dcm_init_rc(dart_rc_type_t rc, double val) {
-    dart_heap_t pkt;
-    auto err = dart_heap_dcm_init_rc_err(&pkt, rc, val);
+    dart_heap_t dst;
+    auto err = dart_heap_dcm_init_rc_err(&dst, rc, val);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_dcm_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, double val) {
+  dart_err_t dart_heap_dcm_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc, double val) {
     // Default initialize, then assign
     return heap_typed_constructor_access(
       compose(
-        [val] (dart::heap& pkt) { pkt = dart::heap::make_decimal(val); },
-        [val] (dart::unsafe_heap& pkt) { pkt = dart::unsafe_heap::make_decimal(val); }
+        [val] (dart::heap& dst) { dst = dart::heap::make_decimal(val); },
+        [val] (dart::unsafe_heap& dst) { dst = dart::unsafe_heap::make_decimal(val); }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
   dart_heap_t dart_heap_bool_init(int val) {
-    dart_heap_t pkt;
-    auto err = dart_heap_bool_init_err(&pkt, val);
+    dart_heap_t dst;
+    auto err = dart_heap_bool_init_err(&dst, val);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_bool_init_err(dart_heap_t* pkt, int val) {
-    return dart_heap_bool_init_rc_err(pkt, DART_RC_SAFE, val);
+  dart_err_t dart_heap_bool_init_err(dart_heap_t* dst, int val) {
+    return dart_heap_bool_init_rc_err(dst, DART_RC_SAFE, val);
   }
 
   dart_heap_t dart_heap_bool_init_rc(dart_rc_type_t rc, int val) {
-    dart_heap_t pkt;
-    auto err = dart_heap_bool_init_rc_err(&pkt, rc, val);
+    dart_heap_t dst;
+    auto err = dart_heap_bool_init_rc_err(&dst, rc, val);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_bool_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, int val) {
+  dart_err_t dart_heap_bool_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc, int val) {
     // Default initialize, then assign
     return heap_typed_constructor_access(
       compose(
-        [val] (dart::heap& pkt) { pkt = dart::heap::make_boolean(val); },
-        [val] (dart::unsafe_heap& pkt) { pkt = dart::unsafe_heap::make_boolean(val); }
+        [val] (dart::heap& dst) { dst = dart::heap::make_boolean(val); },
+        [val] (dart::unsafe_heap& dst) { dst = dart::unsafe_heap::make_boolean(val); }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
   dart_heap_t dart_heap_null_init() {
-    dart_heap_t pkt;
-    auto err = dart_heap_null_init_err(&pkt);
+    dart_heap_t dst;
+    auto err = dart_heap_null_init_err(&dst);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_null_init_err(dart_heap_t* pkt) {
-    return dart_heap_null_init_rc_err(pkt, DART_RC_SAFE);
+  dart_err_t dart_heap_null_init_err(dart_heap_t* dst) {
+    return dart_heap_null_init_rc_err(dst, DART_RC_SAFE);
   }
 
   dart_heap_t dart_heap_null_init_rc(dart_rc_type_t rc) {
-    dart_heap_t pkt;
-    auto err = dart_heap_null_init_rc_err(&pkt, rc);
+    dart_heap_t dst;
+    auto err = dart_heap_null_init_rc_err(&dst, rc);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_init_null_rc_err(dart_heap_t* pkt, dart_rc_type_t rc) {
+  dart_err_t dart_heap_null_init_rc_err(dart_heap_t* dst, dart_rc_type_t rc) {
     // Default initialize, then assign.
     // Unnecessary, but done for consistency of code formatting.
     return heap_typed_constructor_access(
       compose(
-        [] (dart::heap& pkt) { pkt = dart::heap::make_null(); },
-        [] (dart::unsafe_heap& pkt) { pkt = dart::unsafe_heap::make_null(); }
+        [] (dart::heap& dst) { dst = dart::heap::make_null(); },
+        [] (dart::unsafe_heap& dst) { dst = dart::unsafe_heap::make_null(); }
       ),
-      pkt,
+      dst,
       rc
     );
   }
 
-  dart_err_t dart_heap_obj_insert_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val) {
-    return dart_heap_obj_insert_heap_len(pkt, key, strlen(key), val);
+  dart_err_t dart_heap_obj_insert_heap(dart_heap_t* dst, char const* key, dart_heap_t const* val) {
+    return dart_heap_obj_insert_heap_len(dst, key, strlen(key), val);
   }
 
-  dart_err_t dart_heap_obj_insert_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val) {
-    auto insert = [=] (auto& pkt, auto& val) { pkt.insert(string_view {key, len}, val); };
+  dart_err_t dart_heap_obj_insert_heap_len(dart_heap_t* dst, char const* key, size_t len, dart_heap_t const* val) {
+    auto insert = [=] (auto& dst, auto& val) { dst.insert(string_view {key, len}, val); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) {
-          return heap_access([=, &pkt] (dart::heap const& val) { insert(pkt, val); }, val);
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap const& val) { insert(dst, val); }, val);
         },
-        [=] (dart::unsafe_heap& pkt) {
-          return heap_access([=, &pkt] (dart::unsafe_heap const& val) { insert(pkt, val); }, val);
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap const& val) { insert(dst, val); }, val);
         }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_obj_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val) {
-    return dart_heap_obj_take_heap_len(pkt, key, strlen(key), val);
+  dart_err_t dart_heap_obj_take_heap(dart_heap_t* dst, char const* key, dart_heap_t* val) {
+    return dart_heap_obj_take_heap_len(dst, key, strlen(key), val);
   }
 
-  dart_err_t dart_heap_obj_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val) {
-    auto insert = [=] (auto& pkt, auto& val) { pkt.insert(string_view {key, len}, std::move(val)); };
+  dart_err_t dart_heap_obj_take_heap_len(dart_heap_t* dst, char const* key, size_t len, dart_heap_t* val) {
+    auto insert = [=] (auto& dst, auto& val) { dst.insert(string_view {key, len}, std::move(val)); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) {
-          return heap_access([=, &pkt] (dart::heap& val) { insert(pkt, val); }, val);
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap& val) { insert(dst, val); }, val);
         },
-        [=] (dart::unsafe_heap& pkt) {
-          return heap_access([=, &pkt] (dart::unsafe_heap& val) { insert(pkt, val); }, val);
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap& val) { insert(dst, val); }, val);
         }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_obj_insert_str(dart_heap_t* pkt, char const* key, char const* val) {
-    return dart_heap_obj_insert_str_len(pkt, key, strlen(key), val, strlen(val));
+  dart_err_t dart_heap_obj_insert_str(dart_heap_t* dst, char const* key, char const* val) {
+    return dart_heap_obj_insert_str_len(dst, key, strlen(key), val, strlen(val));
   }
 
-  dart_err_t dart_heap_obj_insert_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len) {
-    auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, string_view {val, val_len}); };
+  dart_err_t dart_heap_obj_insert_str_len(dart_heap_t* dst, char const* key, size_t len, char const* val, size_t val_len) {
+    auto insert = [=] (auto& dst) { dst.insert(string_view {key, len}, string_view {val, val_len}); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_obj_insert_int(dart_heap_t* pkt, char const* key, int64_t val) {
-    return dart_heap_obj_insert_int_len(pkt, key, strlen(key), val);
+  dart_err_t dart_heap_obj_insert_int(dart_heap_t* dst, char const* key, int64_t val) {
+    return dart_heap_obj_insert_int_len(dst, key, strlen(key), val);
   }
 
-  dart_err_t dart_heap_obj_insert_int_len(dart_heap_t* pkt, char const* key, size_t len, int64_t val) {
-    auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, val); };
+  dart_err_t dart_heap_obj_insert_int_len(dart_heap_t* dst, char const* key, size_t len, int64_t val) {
+    auto insert = [=] (auto& dst) { dst.insert(string_view {key, len}, val); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_obj_insert_dcm(dart_heap_t* pkt, char const* key, double val) {
-    return dart_heap_obj_insert_dcm_len(pkt, key, strlen(key), val);
+  dart_err_t dart_heap_obj_insert_dcm(dart_heap_t* dst, char const* key, double val) {
+    return dart_heap_obj_insert_dcm_len(dst, key, strlen(key), val);
   }
 
-  dart_err_t dart_heap_obj_insert_dcm_len(dart_heap_t* pkt, char const* key, size_t len, double val) {
-    auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, val); };
+  dart_err_t dart_heap_obj_insert_dcm_len(dart_heap_t* dst, char const* key, size_t len, double val) {
+    auto insert = [=] (auto& dst) { dst.insert(string_view {key, len}, val); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_obj_insert_bool(dart_heap_t* pkt, char const* key, int val) {
-    return dart_heap_obj_insert_bool_len(pkt, key, strlen(key), val);
+  dart_err_t dart_heap_obj_insert_bool(dart_heap_t* dst, char const* key, int val) {
+    return dart_heap_obj_insert_bool_len(dst, key, strlen(key), val);
   }
 
-  dart_err_t dart_heap_obj_insert_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val) {
-    auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, static_cast<bool>(val)); };
+  dart_err_t dart_heap_obj_insert_bool_len(dart_heap_t* dst, char const* key, size_t len, int val) {
+    auto insert = [=] (auto& dst) { dst.insert(string_view {key, len}, static_cast<bool>(val)); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_obj_insert_null(dart_heap_t* pkt, char const* key) {
-    return dart_heap_obj_insert_null_len(pkt, key, strlen(key));
+  dart_err_t dart_heap_obj_insert_null(dart_heap_t* dst, char const* key) {
+    return dart_heap_obj_insert_null_len(dst, key, strlen(key));
   }
 
-  dart_err_t dart_heap_obj_insert_null_len(dart_heap_t* pkt, char const* key, size_t len) {
-    auto insert = [=] (auto& pkt) { pkt.insert(string_view {key, len}, nullptr); };
+  dart_err_t dart_heap_obj_insert_null_len(dart_heap_t* dst, char const* key, size_t len) {
+    auto insert = [=] (auto& dst) { dst.insert(string_view {key, len}, nullptr); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key) {
-    return dart_heap_obj_erase_len(pkt, key, strlen(key));
+  dart_err_t dart_heap_obj_erase(dart_heap_t* dst, char const* key) {
+    return dart_heap_obj_erase_len(dst, key, strlen(key));
   }
 
-  dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len) {
-    auto erase = [=] (auto& pkt) { pkt.erase(string_view {key, len}); };
+  dart_err_t dart_heap_obj_erase_len(dart_heap_t* dst, char const* key, size_t len) {
+    auto erase = [=] (auto& dst) { dst.erase(string_view {key, len}); };
     return heap_access(
       compose(
-        [erase] (dart::heap& pkt) { erase(pkt); },
-        [erase] (dart::unsafe_heap& pkt) { erase(pkt); }
+        [erase] (dart::heap& dst) { erase(dst); },
+        [erase] (dart::unsafe_heap& dst) { erase(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_insert_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val) {
-    auto insert = [=] (auto& pkt, auto& val) { pkt.insert(idx, val); };
+  dart_err_t dart_heap_arr_insert_heap(dart_heap_t* dst, size_t idx, dart_heap_t const* val) {
+    auto insert = [=] (auto& dst, auto& val) { dst.insert(idx, val); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) {
-          return heap_access([=, &pkt] (dart::heap const& val) { insert(pkt, val); }, val);
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap const& val) { insert(dst, val); }, val);
         },
-        [=] (dart::unsafe_heap& pkt) {
-          return heap_access([=, &pkt] (dart::unsafe_heap const& val) { insert(pkt, val); }, val);
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap const& val) { insert(dst, val); }, val);
         }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val) {
-    auto insert = [=] (auto& pkt, auto& val) { pkt.insert(idx, std::move(val)); };
+  dart_err_t dart_heap_arr_take_heap(dart_heap_t* dst, size_t idx, dart_heap_t* val) {
+    auto insert = [=] (auto& dst, auto& val) { dst.insert(idx, std::move(val)); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) {
-          return heap_access([=, &pkt] (dart::heap& val) { insert(pkt, val); }, val);
+        [=] (dart::heap& dst) {
+          return heap_access([=, &dst] (dart::heap& val) { insert(dst, val); }, val);
         },
-        [=] (dart::unsafe_heap& pkt) {
-          return heap_access([=, &pkt] (dart::unsafe_heap& val) { insert(pkt, val); }, val);
+        [=] (dart::unsafe_heap& dst) {
+          return heap_access([=, &dst] (dart::unsafe_heap& val) { insert(dst, val); }, val);
         }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_insert_str(dart_heap_t* pkt, size_t idx, char const* val) {
-    return dart_heap_arr_insert_str_len(pkt, idx, val, strlen(val));
+  dart_err_t dart_heap_arr_insert_str(dart_heap_t* dst, size_t idx, char const* val) {
+    return dart_heap_arr_insert_str_len(dst, idx, val, strlen(val));
   }
 
-  dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len) {
-    auto insert = [=] (auto& pkt) { pkt.insert(idx, string_view {val, val_len}); };
+  dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* dst, size_t idx, char const* val, size_t val_len) {
+    auto insert = [=] (auto& dst) { dst.insert(idx, string_view {val, val_len}); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_insert_int(dart_heap_t* pkt, size_t idx, int64_t val) {
-    auto insert = [=] (auto& pkt) { pkt.insert(idx, val); };
+  dart_err_t dart_heap_arr_insert_int(dart_heap_t* dst, size_t idx, int64_t val) {
+    auto insert = [=] (auto& dst) { dst.insert(idx, val); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* pkt, size_t idx, double val) {
-    auto insert = [=] (auto& pkt) { pkt.insert(idx, val); };
+  dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* dst, size_t idx, double val) {
+    auto insert = [=] (auto& dst) { dst.insert(idx, val); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_insert_bool(dart_heap_t* pkt, size_t idx, int val) {
-    auto insert = [=] (auto& pkt) { pkt.insert(idx, static_cast<bool>(val)); };
+  dart_err_t dart_heap_arr_insert_bool(dart_heap_t* dst, size_t idx, int val) {
+    auto insert = [=] (auto& dst) { dst.insert(idx, static_cast<bool>(val)); };
     return heap_access(
       compose(
-        [insert] (dart::heap& pkt) { insert(pkt); },
-        [insert] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [insert] (dart::heap& dst) { insert(dst); },
+        [insert] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_insert_null(dart_heap_t* pkt, size_t idx) {
-    auto insert = [=] (auto& pkt) { pkt.insert(idx, nullptr); };
+  dart_err_t dart_heap_arr_insert_null(dart_heap_t* dst, size_t idx) {
+    auto insert = [=] (auto& dst) { dst.insert(idx, nullptr); };
     return heap_access(
       compose(
-        [=] (dart::heap& pkt) { insert(pkt); },
-        [=] (dart::unsafe_heap& pkt) { insert(pkt); }
+        [=] (dart::heap& dst) { insert(dst); },
+        [=] (dart::unsafe_heap& dst) { insert(dst); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx) {
-    auto erase = [=] (auto& pkt) { pkt.erase(idx); };
+  dart_err_t dart_heap_arr_erase(dart_heap_t* dst, size_t idx) {
+    auto erase = [=] (auto& dst) { dst.erase(idx); };
     return heap_access(
       compose(
-        [erase] (dart::heap& pkt) { erase(pkt); },
-        [erase] (dart::unsafe_heap& pkt) { erase(pkt); }
+        [erase] (dart::heap& dst) { erase(dst); },
+        [erase] (dart::unsafe_heap& dst) { erase(dst); }
       ),
-      pkt
+      dst
     );
   }
 
@@ -1194,12 +1273,12 @@ extern "C" {
       compose(
         [=] (dart::heap const& src) {
           return heap_construct([&] (dart::heap* dst) {
-            new(dst) dart::heap(src[{key, len}]);
+            new(dst) dart::heap(src[string_view {key, len}]);
           }, dst);
         },
         [=] (dart::unsafe_heap const& src) {
           return heap_construct([&] (dart::unsafe_heap* dst) {
-            new(dst) dart::unsafe_heap(src[{key, len}]);
+            new(dst) dart::unsafe_heap(src[string_view {key, len}]);
           }, dst);
         }
       ),
@@ -1296,7 +1375,7 @@ extern "C" {
   int dart_heap_bool_get(dart_heap_t const* src) {
     // No way unique way to signal failure here,
     // the user needs to know this will succeed.
-    int val = 1;
+    int val = 0;
     dart_heap_bool_get_err(src, &val);
     return val;
   }
@@ -1310,6 +1389,13 @@ extern "C" {
       ),
       src
     );
+  }
+
+  size_t dart_heap_size(dart_heap_t const* src) {
+    size_t val = 0;
+    auto err = heap_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
   }
 
   bool dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs) {
@@ -1373,56 +1459,56 @@ extern "C" {
   }
 
   dart_heap_t dart_heap_from_json(char const* str) {
-    dart_heap_t pkt;
-    auto err = dart_heap_from_json_err(&pkt, str);
+    dart_heap_t dst;
+    auto err = dart_heap_from_json_err(&dst, str);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_from_json_err(dart_heap_t* pkt, char const* str) {
-    return dart_heap_from_json_len_rc_err(pkt, DART_RC_SAFE, str, strlen(str));
+  dart_err_t dart_heap_from_json_err(dart_heap_t* dst, char const* str) {
+    return dart_heap_from_json_len_rc_err(dst, DART_RC_SAFE, str, strlen(str));
   }
 
   dart_heap_t dart_heap_from_json_rc(dart_rc_type_t rc, char const* str) {
-    dart_heap_t pkt;
-    auto err = dart_heap_from_json_rc_err(&pkt, rc, str);
+    dart_heap_t dst;
+    auto err = dart_heap_from_json_rc_err(&dst, rc, str);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_from_json_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str) {
-    return dart_heap_from_json_len_rc_err(pkt, rc, str, strlen(str));
+  dart_err_t dart_heap_from_json_rc_err(dart_heap_t* dst, dart_rc_type_t rc, char const* str) {
+    return dart_heap_from_json_len_rc_err(dst, rc, str, strlen(str));
   }
 
   dart_heap_t dart_heap_from_json_len(char const* str, size_t len) {
-    dart_heap_t pkt;
-    auto err = dart_heap_from_json_len_err(&pkt, str, len);
+    dart_heap_t dst;
+    auto err = dart_heap_from_json_len_err(&dst, str, len);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_from_json_len_err(dart_heap_t* pkt, char const* str, size_t len) {
-    return dart_heap_from_json_len_rc_err(pkt, DART_RC_SAFE, str, len);
+  dart_err_t dart_heap_from_json_len_err(dart_heap_t* dst, char const* str, size_t len) {
+    return dart_heap_from_json_len_rc_err(dst, DART_RC_SAFE, str, len);
   }
 
   dart_heap_t dart_heap_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len) {
-    dart_heap_t pkt;
-    auto err = dart_heap_from_json_len_rc_err(&pkt, rc, str, len);
+    dart_heap_t dst;
+    auto err = dart_heap_from_json_len_rc_err(&dst, rc, str, len);
     if (err) return dart_heap_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_heap_from_json_len_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
+  dart_err_t dart_heap_from_json_len_rc_err(dart_heap_t* dst, dart_rc_type_t rc, char const* str, size_t len) {
     return heap_typed_constructor_access(
       compose(
-        [=] (dart::heap& pkt) {
-          pkt = dart::heap::from_json({str, len});
+        [=] (dart::heap& dst) {
+          dst = dart::heap::from_json({str, len});
         },
-        [=] (dart::unsafe_heap& pkt) {
-          pkt = dart::unsafe_heap::from_json({str, len});
+        [=] (dart::unsafe_heap& dst) {
+          dst = dart::unsafe_heap::from_json({str, len});
         }
       ),
-      pkt,
+      dst,
       rc
     );
   }
@@ -1485,39 +1571,39 @@ extern "C" {
 
   dart_buffer_t dart_buffer_init() {
     // Cannot meaningfully fail.
-    dart_buffer_t pkt;
-    dart_buffer_init_rc_err(&pkt, DART_RC_SAFE);
-    return pkt;
+    dart_buffer_t dst;
+    dart_buffer_init_rc_err(&dst, DART_RC_SAFE);
+    return dst;
   }
 
-  dart_err_t dart_buffer_init_err(dart_buffer_t* pkt) {
-    return dart_buffer_init_rc_err(pkt, DART_RC_SAFE);
+  dart_err_t dart_buffer_init_err(dart_buffer_t* dst) {
+    return dart_buffer_init_rc_err(dst, DART_RC_SAFE);
   }
 
   dart_buffer_t dart_buffer_init_rc(dart_rc_type_t rc) {
     // Cannot meaningfully fail.
-    dart_buffer_t pkt;
-    dart_buffer_init_rc_err(&pkt, rc);
-    return pkt;
+    dart_buffer_t dst;
+    dart_buffer_init_rc_err(&dst, rc);
+    return dst;
   }
 
-  dart_err_t dart_buffer_init_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc) {
+  dart_err_t dart_buffer_init_rc_err(dart_buffer_t* dst, dart_rc_type_t rc) {
     // Initialize.
-    pkt->rtti = {DART_HEAP, rc};
+    dst->rtti = {DART_HEAP, rc};
     return buffer_constructor_access(
       compose(
         [] (dart::buffer* ptr) { new(ptr) dart::buffer(); },
         [] (dart::unsafe_buffer* ptr) { new(ptr) dart::unsafe_buffer(); }
       ),
-      pkt
+      dst
     );
   }
 
   dart_buffer_t dart_buffer_copy(dart_buffer_t const* src) {
-    dart_buffer_t pkt;
-    auto err = dart_buffer_copy_err(&pkt, src);
+    dart_buffer_t dst;
+    auto err = dart_buffer_copy_err(&dst, src);
     if (err) return dart_buffer_init();
-    else return pkt;
+    else return dst;
   }
 
   dart_err_t dart_buffer_copy_err(dart_buffer_t* dst, dart_buffer_t const* src) {
@@ -1537,10 +1623,10 @@ extern "C" {
   }
 
   dart_buffer_t dart_buffer_move(dart_buffer_t* src) {
-    dart_buffer_t pkt;
-    auto err = dart_buffer_move_err(&pkt, src);
+    dart_buffer_t dst;
+    auto err = dart_buffer_move_err(&dst, src);
     if (err) return dart_buffer_init();
-    else return pkt;
+    else return dst;
   }
 
   dart_err_t dart_buffer_move_err(dart_buffer_t* dst, dart_buffer_t* src) {
@@ -1559,14 +1645,14 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_buffer_destroy(dart_buffer_t* pkt) {
+  dart_err_t dart_buffer_destroy(dart_buffer_t* dst) {
     // Destroy.
     return buffer_access(
       compose(
-        [] (dart::buffer& pkt) { pkt.~basic_buffer(); },
-        [] (dart::unsafe_buffer& pkt) { pkt.~basic_buffer(); }
+        [] (dart::buffer& dst) { dst.~basic_buffer(); },
+        [] (dart::unsafe_buffer& dst) { dst.~basic_buffer(); }
       ),
-      pkt
+      dst
     );
   }
 
@@ -1697,7 +1783,7 @@ extern "C" {
   int dart_buffer_bool_get(dart_buffer_t const* src) {
     // No way unique way to signal failure here,
     // the user needs to know this will succeed.
-    int val = 1;
+    int val = 0;
     dart_buffer_bool_get_err(src, &val);
     return val;
   }
@@ -1711,6 +1797,13 @@ extern "C" {
       ),
       src
     );
+  }
+
+  size_t dart_buffer_size(dart_buffer_t const* src) {
+    size_t val = 0;
+    auto err = buffer_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
   }
 
   bool dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs) {
@@ -1774,57 +1867,57 @@ extern "C" {
   }
 
   dart_buffer_t dart_buffer_from_json(char const* str) {
-    dart_buffer_t pkt;
-    auto err = dart_buffer_from_json_err(&pkt, str);
+    dart_buffer_t dst;
+    auto err = dart_buffer_from_json_err(&dst, str);
     if (err) return dart_buffer_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_buffer_from_json_err(dart_buffer_t* pkt, char const* str) {
-    return dart_buffer_from_json_len_rc_err(pkt, DART_RC_SAFE, str, strlen(str));
+  dart_err_t dart_buffer_from_json_err(dart_buffer_t* dst, char const* str) {
+    return dart_buffer_from_json_len_rc_err(dst, DART_RC_SAFE, str, strlen(str));
   }
 
   dart_buffer_t dart_buffer_from_json_rc(dart_rc_type_t rc, char const* str) {
-    dart_buffer_t pkt;
-    auto err = dart_buffer_from_json_rc_err(&pkt, rc, str);
+    dart_buffer_t dst;
+    auto err = dart_buffer_from_json_rc_err(&dst, rc, str);
     if (err) return dart_buffer_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_buffer_from_json_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str) {
-    return dart_buffer_from_json_len_rc_err(pkt, rc, str, strlen(str));
+  dart_err_t dart_buffer_from_json_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, char const* str) {
+    return dart_buffer_from_json_len_rc_err(dst, rc, str, strlen(str));
   }
 
   dart_buffer_t dart_buffer_from_json_len(char const* str, size_t len) {
-    dart_buffer_t pkt;
-    auto err = dart_buffer_from_json_len_err(&pkt, str, len);
+    dart_buffer_t dst;
+    auto err = dart_buffer_from_json_len_err(&dst, str, len);
     if (err) return dart_buffer_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_buffer_from_json_len_err(dart_buffer_t* pkt, char const* str, size_t len) {
-    return dart_buffer_from_json_len_rc_err(pkt, DART_RC_SAFE, str, len);
+  dart_err_t dart_buffer_from_json_len_err(dart_buffer_t* dst, char const* str, size_t len) {
+    return dart_buffer_from_json_len_rc_err(dst, DART_RC_SAFE, str, len);
   }
 
   dart_buffer_t dart_buffer_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len) {
-    dart_buffer_t pkt;
-    auto err = dart_buffer_from_json_len_rc_err(&pkt, rc, str, len);
+    dart_buffer_t dst;
+    auto err = dart_buffer_from_json_len_rc_err(&dst, rc, str, len);
     if (err) return dart_buffer_init();
-    else return pkt;
+    else return dst;
   }
 
-  dart_err_t dart_buffer_from_json_len_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
-    auto err = dart_buffer_init_rc_err(pkt, rc);
+  dart_err_t dart_buffer_from_json_len_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, char const* str, size_t len) {
+    auto err = dart_buffer_init_rc_err(dst, rc);
     if (err) return err;
 
     // Assign to it.
     return err_handler([=] {
       return buffer_unwrap(
         compose(
-          [=] (dart::buffer& pkt) { pkt = dart::buffer::from_json({str, len}); },
-          [=] (dart::unsafe_buffer& pkt) { pkt = dart::unsafe_buffer::from_json({str, len}); }
+          [=] (dart::buffer& dst) { dst = dart::buffer::from_json({str, len}); },
+          [=] (dart::unsafe_buffer& dst) { dst = dart::unsafe_buffer::from_json({str, len}); }
         ),
-        pkt
+        dst
       );
     });
   }
@@ -1885,397 +1978,71 @@ extern "C" {
     return dart_buffer_lift_err(dst, src);
   }
 
-  dart_err_t dart_packet_init(dart_packet_t* pkt) {
-    return dart_packet_init_rc(pkt, DART_RC_SAFE);
+  dart_packet_t dart_init() {
+    // Cannot meaningfully fail.
+    dart_packet_t dst;
+    dart_init_rc_err(&dst, DART_RC_SAFE);
+    return dst;
   }
 
-  dart_err_t dart_packet_init_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
+  dart_err_t dart_init_err(dart_packet_t* dst) {
+    return dart_init_rc_err(dst, DART_RC_SAFE);
+  }
+
+  dart_packet_t dart_init_rc(dart_rc_type_t rc) {
+    // Cannot meaningfully fail.
+    dart_packet_t dst;
+    dart_init_rc_err(&dst, rc);
+    return dst;
+  }
+
+  dart_err_t dart_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc) {
     // Initialize.
-    pkt->rtti = {DART_PACKET, rc};
+    dst->rtti = {DART_PACKET, rc};
     return packet_constructor_access(
       compose(
         [] (dart::packet* ptr) { new(ptr) dart::packet(); },
         [] (dart::unsafe_packet* ptr) { new(ptr) dart::unsafe_packet(); }
       ),
-      pkt
+      dst
     );
   }
 
-  dart_err_t dart_packet_copy(dart_packet_t* dst, dart_packet_t const* src) {
+  dart_packet_t dart_copy(void const* src) {
+    dart_packet_t dst;
+    auto err = dart_copy_err(&dst, src);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_copy_err(void* dst, void const* src) {
     // Initialize.
-    dst->rtti = src->rtti;
-    return packet_access(
-      compose(
-        [dst] (dart::packet const& src) {
-          return packet_construct([&src] (dart::packet* dst) { new(dst) dart::packet(src); }, dst);
-        },
-        [dst] (dart::unsafe_packet const& src) {
-          return packet_construct([&src] (dart::unsafe_packet* dst) { new(dst) dart::unsafe_packet(src); }, dst);
-        }
-      ),
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [=] (auto& src) { return generic_construct([&src] (auto* dst) { safe_construct(dst, src); }, dst); },
       src
     );
   }
 
-  dart_err_t dart_packet_move(dart_packet_t* dst, dart_packet_t* src) {
+  dart_packet_t dart_move(void* src) {
+    dart_packet_t dst;
+    auto err = dart_move_err(&dst, src);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_move_err(void* dst, void* src) {
     // Initialize.
-    dst->rtti = src->rtti;
-    return packet_access(
-      compose(
-        [dst] (dart::packet& src) {
-          return packet_construct([&src] (dart::packet* dst) { new(dst) dart::packet(std::move(src)); }, dst);
-        },
-        [dst] (dart::unsafe_packet& src) {
-          return packet_construct([&src] (dart::unsafe_packet* dst) { new(dst) dart::unsafe_packet(std::move(src)); }, dst);
-        }
-      ),
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [=] (auto& src) { return generic_construct([&src] (auto* dst) { safe_construct(dst, std::move(src)); }, dst); },
       src
     );
-  }
-
-  dart_err_t dart_packet_destroy(dart_packet_t* pkt) {
-    return packet_access(
-      compose(
-        [] (dart::packet& pkt) { pkt.~basic_packet(); },
-        [] (dart::unsafe_packet& pkt) { pkt.~basic_packet(); }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_init_obj(dart_packet_t* pkt) {
-    return dart_packet_init_obj_rc(pkt, DART_RC_SAFE);
-  }
-
-  dart_err_t dart_packet_init_obj_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
-    // Default initialize, then assign.
-    return packet_typed_constructor_access(
-      compose(
-        [] (dart::packet& pkt) { pkt = dart::packet::make_object(); },
-        [] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_object(); }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  static dart_err_t dart_packet_init_obj_va_impl(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, va_list args) {
-    return packet_typed_constructor_access(
-      compose(
-        [format, args] (dart::packet& pkt) mutable {
-          pkt = dart::packet::make_object();
-          parse_pairs(pkt, format, args);
-        },
-        [format, args] (dart::unsafe_packet& pkt) mutable {
-          pkt = dart::unsafe_packet::make_object();
-          parse_pairs(pkt, format, args);
-        }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  dart_err_t dart_packet_init_obj_va(dart_packet_t* pkt, char const* format, ...) {
-    va_list args;
-    va_start(args, format);
-    auto ret = dart_packet_init_obj_va_impl(pkt, DART_RC_SAFE, format, args);
-    va_end(args);
-    return ret;
-  }
-
-  dart_err_t dart_packet_init_obj_va_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, ...) {
-    va_list args;
-    va_start(args, format);
-    auto ret = dart_packet_init_obj_va_impl(pkt, rc, format, args);
-    va_end(args);
-    return ret;
-  }
-
-  dart_err_t dart_packet_init_arr(dart_packet_t* pkt) {
-    return dart_packet_init_arr_rc(pkt, DART_RC_SAFE);
-  }
-
-  dart_err_t dart_packet_init_arr_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
-    // Default initialize, then assign.
-    return packet_typed_constructor_access(
-      compose(
-        [] (dart::packet& pkt) { pkt = dart::packet::make_array(); },
-        [] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_array(); }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  static dart_err_t dart_packet_init_arr_va_impl(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, va_list args) {
-    return packet_typed_constructor_access(
-      compose(
-        [format, args] (dart::packet& pkt) mutable {
-          pkt = dart::packet::make_array();
-          parse_vals(pkt, format, args);
-        },
-        [format, args] (dart::unsafe_packet& pkt) mutable {
-          pkt = dart::unsafe_packet::make_array();
-          parse_vals(pkt, format, args);
-        }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  dart_err_t dart_packet_init_arr_va(dart_packet_t* pkt, char const* format, ...) {
-    va_list args;
-    va_start(args, format);
-    auto ret = dart_packet_init_arr_va_impl(pkt, DART_RC_SAFE, format, args);
-    va_end(args);
-    return ret;
-  }
-
-  dart_err_t dart_packet_init_arr_va_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, ...) {
-    va_list args;
-    va_start(args, format);
-    auto ret = dart_packet_init_arr_va_impl(pkt, rc, format, args);
-    va_end(args);
-    return ret;
-  }
-
-  dart_err_t dart_packet_init_str(dart_packet_t* pkt, char const* str, size_t len) {
-    return dart_packet_init_str_rc(pkt, DART_RC_SAFE, str, len);
-  }
-
-  dart_err_t dart_packet_init_str_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
-    // Default initialize, then assign
-    return packet_typed_constructor_access(
-      compose(
-        [str, len] (dart::packet& pkt) { pkt = dart::packet::make_string({str, len}); },
-        [str, len] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_string({str, len}); }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  dart_err_t dart_packet_init_int(dart_packet_t* pkt, int64_t val) {
-    return dart_packet_init_int_rc(pkt, DART_RC_SAFE, val);
-  }
-
-  dart_err_t dart_packet_init_int_rc(dart_packet_t* pkt, dart_rc_type_t rc, int64_t val) {
-    // Default initialize, then assign
-    return packet_typed_constructor_access(
-      compose(
-        [val] (dart::packet& pkt) { pkt = dart::packet::make_integer(val); },
-        [val] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_integer(val); }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  dart_err_t dart_packet_init_dcm(dart_packet_t* pkt, double val) {
-    return dart_packet_init_dcm_rc(pkt, DART_RC_SAFE, val);
-  }
-
-  dart_err_t dart_packet_init_dcm_rc(dart_packet_t* pkt, dart_rc_type_t rc, double val) {
-    // Default initialize, then assign
-    return packet_typed_constructor_access(
-      compose(
-        [val] (dart::packet& pkt) { pkt = dart::packet::make_decimal(val); },
-        [val] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_decimal(val); }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  dart_err_t dart_packet_init_bool(dart_packet_t* pkt, int val) {
-    return dart_packet_init_bool_rc(pkt, DART_RC_SAFE, val);
-  }
-
-  dart_err_t dart_packet_init_bool_rc(dart_packet_t* pkt, dart_rc_type_t rc, int val) {
-    // Default initialize, then assign
-    return packet_typed_constructor_access(
-      compose(
-        [val] (dart::packet& pkt) { pkt = dart::packet::make_boolean(val); },
-        [val] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_boolean(val); }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  dart_err_t dart_packet_init_null(dart_packet_t* pkt) {
-    return dart_packet_init_null_rc(pkt, DART_RC_SAFE);
-  }
-
-  dart_err_t dart_packet_init_null_rc(dart_packet_t* pkt, dart_rc_type_t rc) {
-    // Default initialize, then assign.
-    // Unnecessary, but done for consistency of code formatting.
-    return packet_typed_constructor_access(
-      compose(
-        [] (dart::packet& pkt) { pkt = dart::packet::make_null(); },
-        [] (dart::unsafe_packet& pkt) { pkt = dart::unsafe_packet::make_null(); }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  dart_err_t dart_packet_obj_add_packet(dart_packet_t* pkt, char const* key, size_t len, dart_packet_t const* val) {
-    auto insert = [=] (auto& pkt, auto& val) { pkt.add_field(string_view {key, len}, val); };
-    return packet_access(
-      compose(
-        [=] (dart::packet& pkt) {
-          return packet_access([=, &pkt] (dart::packet const& val) { insert(pkt, val); }, val);
-        },
-        [=] (dart::unsafe_packet& pkt) {
-          return packet_access([=, &pkt] (dart::unsafe_packet const& val) { insert(pkt, val); }, val);
-        }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_obj_take_packet(dart_packet_t* pkt, char const* key, size_t len, dart_packet_t* val) {
-    auto insert = [=] (auto& pkt, auto& val) { pkt.add_field(string_view {key, len}, std::move(val)); };
-    return packet_access(
-      compose(
-        [=] (dart::packet& pkt) {
-          return packet_access([=, &pkt] (dart::packet& val) { insert(pkt, val); }, val);
-        },
-        [=] (dart::unsafe_packet& pkt) {
-          return packet_access([=, &pkt] (dart::unsafe_packet& val) { insert(pkt, val); }, val);
-        }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_obj_add_str(dart_packet_t* pkt, char const* key, size_t len, char const* val, size_t val_len) {
-    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, string_view {val, val_len}); };
-    return packet_access(
-      compose(
-        [=] (dart::packet& pkt) { insert(pkt); },
-        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_obj_add_int(dart_packet_t* pkt, char const* key, size_t len, int64_t val) {
-    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, val); };
-    return packet_access(
-      compose(
-        [=] (dart::packet& pkt) { insert(pkt); },
-        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_obj_add_dcm(dart_packet_t* pkt, char const* key, size_t len, double val) {
-    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, val); };
-    return packet_access(
-      compose(
-        [=] (dart::packet& pkt) { insert(pkt); },
-        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_obj_add_bool(dart_packet_t* pkt, char const* key, size_t len, int val) {
-    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, static_cast<bool>(val)); };
-    return packet_access(
-      compose(
-        [=] (dart::packet& pkt) { insert(pkt); },
-        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_obj_add_null(dart_packet_t* pkt, char const* key, size_t len) {
-    auto insert = [=] (auto& pkt) { pkt.add_field(string_view {key, len}, nullptr); };
-    return packet_access(
-      compose(
-        [=] (dart::packet& pkt) { insert(pkt); },
-        [=] (dart::unsafe_packet& pkt) { insert(pkt); }
-      ),
-      pkt
-    );
-  }
-
-  dart_err_t dart_packet_from_json(dart_packet_t* pkt, char const* str) {
-    return dart_packet_from_json_len_rc(pkt, DART_RC_SAFE, str, strlen(str));
-  }
-
-  dart_err_t dart_packet_from_json_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* str) {
-    return dart_packet_from_json_len_rc(pkt, rc, str, strlen(str));
-  }
-
-  dart_err_t dart_packet_from_json_len(dart_packet_t* pkt, char const* str, size_t len) {
-    return dart_packet_from_json_len_rc(pkt, DART_RC_SAFE, str, len);
-  }
-
-  dart_err_t dart_packet_from_json_len_rc(dart_packet_t* pkt, dart_rc_type_t rc, char const* str, size_t len) {
-    return packet_typed_constructor_access(
-      compose(
-        [=] (dart::packet& pkt) {
-          pkt = dart::packet::from_json({str, len});
-        },
-        [=] (dart::unsafe_packet& pkt) {
-          pkt = dart::unsafe_packet::from_json({str, len});
-        }
-      ),
-      pkt,
-      rc
-    );
-  }
-
-  char* dart_packet_to_json(dart_packet_t const* pkt, size_t* len) {
-    // How long has it been since I've called a raw malloc like this...
-    char* outstr;
-    auto print = [&] (auto& pkt) {
-      // Call these first so they throw before allocation.
-      auto instr = pkt.to_json();
-      auto inlen = instr.size() + 1;
-      if (len) *len = inlen;
-      outstr = reinterpret_cast<char*>(malloc(inlen));
-      memcpy(outstr, instr.data(), inlen);
-    };
-    auto ret = packet_access(
-      compose(
-        [=] (dart::packet const& pkt) { print(pkt); },
-        [=] (dart::unsafe_packet const& pkt) { print(pkt); }
-      ),
-      pkt
-    );
-    if (ret) return nullptr;
-    return outstr;
-  }
-
-  char* dart_to_json(void* pkt, size_t* len) {
-    char* outstr;
-    auto ret = generic_access(
-      [&] (auto& pkt) {
-        // Call these first so they throw before allocation.
-        auto instr = pkt.to_json();
-        auto inlen = instr.size() + 1;
-        if (len) *len = inlen;
-        outstr = reinterpret_cast<char*>(malloc(inlen));
-        memcpy(outstr, instr.data(), inlen);
-      },
-      pkt
-    );
-    if (ret) return nullptr;
-    return outstr;
   }
 
   dart_err_t dart_destroy(void* pkt) {
     // Generic destroy function.
-    // Get rid of it whatever it is.
+    // Get rid of it, whatever it is.
     return generic_access(
       compose(
         [] (dart::heap& pkt) { pkt.~basic_heap(); },
@@ -2287,6 +2054,739 @@ extern "C" {
       ),
       pkt
     );
+  }
+
+  dart_packet_t dart_obj_init() {
+    dart_packet_t dst;
+    auto err = dart_obj_init_err(&dst);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_obj_init_err(dart_packet_t* dst) {
+    return dart_obj_init_rc_err(dst, DART_RC_SAFE);
+  }
+
+  dart_packet_t dart_obj_init_rc(dart_rc_type_t rc) {
+    dart_packet_t dst;
+    auto err = dart_obj_init_rc_err(&dst, rc);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_obj_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc) {
+    // Default initialize, then assign.
+    return packet_typed_constructor_access(
+      compose(
+        [] (dart::packet& dst) { dst = dart::packet::make_object(); },
+        [] (dart::unsafe_packet& dst) { dst = dart::unsafe_packet::make_object(); }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  static dart_err_t dart_obj_init_va_impl(dart_packet_t* dst, dart_rc_type_t rc, char const* format, va_list args) {
+    return packet_typed_constructor_access(
+      compose(
+        [format, args] (dart::packet& dst) mutable {
+          dst = dart::packet::make_object();
+          parse_pairs(dst, format, args);
+        },
+        [format, args] (dart::unsafe_packet& dst) mutable {
+          dst = dart::unsafe_packet::make_object();
+          parse_pairs(dst, format, args);
+        }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  dart_packet_t dart_obj_init_va(char const* format, ...) {
+    va_list args;
+    dart_packet_t dst;
+    va_start(args, format);
+    auto ret = dart_obj_init_va_impl(&dst, DART_RC_SAFE, format, args);
+    va_end(args);
+    if (ret) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_obj_init_va_err(dart_packet_t* dst, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_obj_init_va_impl(dst, DART_RC_SAFE, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_packet_t dart_obj_init_va_rc(dart_rc_type_t rc, char const* format, ...) {
+    va_list args;
+    dart_packet_t dst;
+    va_start(args, format);
+    auto ret = dart_obj_init_va_impl(&dst, rc, format, args);
+    va_end(args);
+    if (ret) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_obj_init_va_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_obj_init_va_impl(dst, rc, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_packet_t dart_arr_init() {
+    dart_packet_t dst;
+    auto err = dart_arr_init_err(&dst);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_arr_init_err(dart_packet_t* dst) {
+    return dart_arr_init_rc_err(dst, DART_RC_SAFE);
+  }
+
+  dart_packet_t dart_arr_init_rc(dart_rc_type_t rc) {
+    dart_packet_t dst;
+    auto err = dart_arr_init_rc_err(&dst, rc);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_arr_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc) {
+    // Default initialize, then assign.
+    return packet_typed_constructor_access(
+      compose(
+        [] (dart::packet& dst) { dst = dart::packet::make_array(); },
+        [] (dart::unsafe_packet& dst) { dst = dart::unsafe_packet::make_array(); }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  static dart_err_t dart_arr_init_va_impl(dart_packet_t* dst, dart_rc_type_t rc, char const* format, va_list args) {
+    return packet_typed_constructor_access(
+      compose(
+        [format, args] (dart::packet& dst) mutable {
+          dst = dart::packet::make_array();
+          parse_vals(dst, format, args);
+        },
+        [format, args] (dart::unsafe_packet& dst) mutable {
+          dst = dart::unsafe_packet::make_array();
+          parse_vals(dst, format, args);
+        }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  dart_packet_t dart_arr_init_va(char const* format, ...) {
+    va_list args;
+    dart_packet_t dst;
+    va_start(args, format);
+    auto ret = dart_arr_init_va_impl(&dst, DART_RC_SAFE, format, args);
+    if (ret) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_arr_init_va_err(dart_packet_t* dst, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_arr_init_va_impl(dst, DART_RC_SAFE, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_packet_t dart_arr_init_va_rc(dart_rc_type_t rc, char const* format, ...) {
+    va_list args;
+    dart_packet_t dst;
+    va_start(args, format);
+    auto ret = dart_arr_init_va_impl(&dst, rc, format, args);
+    if (ret) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_arr_init_va_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* format, ...) {
+    va_list args;
+    va_start(args, format);
+    auto ret = dart_arr_init_va_impl(dst, rc, format, args);
+    va_end(args);
+    return ret;
+  }
+
+  dart_packet_t dart_str_init(char const* str) {
+    dart_packet_t dst;
+    auto err = dart_str_init_err(&dst, str);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_str_init_err(dart_packet_t* dst, char const* str) {
+    return dart_str_init_rc_len_err(dst, DART_RC_SAFE, str, strlen(str));
+  }
+
+  dart_packet_t dart_str_init_len(char const* str, size_t len) {
+    dart_packet_t dst;
+    auto err = dart_str_init_len_err(&dst, str, len);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_str_init_len_err(dart_packet_t* dst, char const* str, size_t len) {
+    return dart_str_init_rc_len_err(dst, DART_RC_SAFE, str, len);
+  }
+
+  dart_packet_t dart_str_init_rc(dart_rc_type_t rc, char const* str) {
+    dart_packet_t dst;
+    auto err = dart_str_init_rc_err(&dst, rc, str);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_str_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str) {
+    return dart_str_init_rc_len_err(dst, rc, str, strlen(str));
+  }
+
+  dart_packet_t dart_str_init_rc_len(dart_rc_type_t rc, char const* str, size_t len) {
+    dart_packet_t dst;
+    auto err = dart_str_init_rc_len_err(&dst, rc, str, len);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_str_init_rc_len_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str, size_t len) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [str, len] (dart::packet& dst) { dst = dart::packet::make_string({str, len}); },
+        [str, len] (dart::unsafe_packet& dst) { dst = dart::unsafe_packet::make_string({str, len}); }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  dart_packet_t dart_int_init(int64_t val) {
+    dart_packet_t dst;
+    auto err = dart_int_init_err(&dst, val);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_int_init_err(dart_packet_t* dst, int64_t val) {
+    return dart_int_init_rc_err(dst, DART_RC_SAFE, val);
+  }
+
+  dart_packet_t dart_int_init_rc(dart_rc_type_t rc, int64_t val) {
+    dart_packet_t dst;
+    auto err = dart_int_init_rc_err(&dst, rc, val);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_int_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc, int64_t val) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [val] (dart::packet& dst) { dst = dart::packet::make_integer(val); },
+        [val] (dart::unsafe_packet& dst) { dst = dart::unsafe_packet::make_integer(val); }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  dart_packet_t dart_dcm_init(double val) {
+    dart_packet_t dst;
+    auto err = dart_dcm_init_err(&dst, val);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_dcm_init_err(dart_packet_t* dst, double val) {
+    return dart_dcm_init_rc_err(dst, DART_RC_SAFE, val);
+  }
+
+  dart_packet_t dart_dcm_init_rc(dart_rc_type_t rc, double val) {
+    dart_packet_t dst;
+    auto err = dart_dcm_init_rc_err(&dst, rc, val);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_dcm_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc, double val) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [val] (dart::packet& dst) { dst = dart::packet::make_decimal(val); },
+        [val] (dart::unsafe_packet& dst) { dst = dart::unsafe_packet::make_decimal(val); }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  dart_packet_t dart_bool_init(int val) {
+    dart_packet_t dst;
+    auto err = dart_bool_init_err(&dst, val);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_bool_init_err(dart_packet_t* dst, int val) {
+    return dart_bool_init_rc_err(dst, DART_RC_SAFE, val);
+  }
+
+  dart_packet_t dart_bool_init_rc(dart_rc_type_t rc, int val) {
+    dart_packet_t dst;
+    auto err = dart_bool_init_rc_err(&dst, rc, val);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_bool_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc, int val) {
+    // Default initialize, then assign
+    return packet_typed_constructor_access(
+      compose(
+        [val] (dart::packet& dst) { dst = dart::packet::make_boolean(val); },
+        [val] (dart::unsafe_packet& dst) { dst = dart::unsafe_packet::make_boolean(val); }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  dart_packet_t dart_null_init() {
+    dart_packet_t dst;
+    auto err = dart_null_init_err(&dst);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_null_init_err(dart_packet_t* dst) {
+    return dart_null_init_rc_err(dst, DART_RC_SAFE);
+  }
+
+  dart_packet_t dart_null_init_rc(dart_rc_type_t rc) {
+    dart_packet_t dst;
+    auto err = dart_null_init_rc_err(&dst, rc);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_null_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc) {
+    // Default initialize, then assign.
+    // Unnecessary, but done for consistency of code formatting.
+    return packet_typed_constructor_access(
+      compose(
+        [] (dart::packet& dst) { dst = dart::packet::make_null(); },
+        [] (dart::unsafe_packet& dst) { dst = dart::unsafe_packet::make_null(); }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  dart_err_t dart_obj_insert_dart(void* dst, char const* key, void const* val) {
+    return dart_obj_insert_dart_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_insert_dart_len(void* dst, char const* key, size_t len, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_insert(dst, string_view {key, len}, val);
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_take_dart(void* dst, char const* key, void* val) {
+    return dart_obj_take_dart_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_take_dart_len(void* dst, char const* key, size_t len, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_insert(dst, string_view {key, len}, std::move(val));
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_str(void* dst, char const* key, char const* val) {
+    return dart_obj_insert_str_len(dst, key, strlen(key), val, strlen(val));
+  }
+
+  dart_err_t dart_obj_insert_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, string_view {val, val_len}); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_int(void* dst, char const* key, int64_t val) {
+    return dart_obj_insert_int_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_insert_int_len(void* dst, char const* key, size_t len, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_dcm(void* dst, char const* key, double val) {
+    return dart_obj_insert_dcm_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_insert_dcm_len(void* dst, char const* key, size_t len, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_bool(void* dst, char const* key, int val) {
+    return dart_obj_insert_bool_len(dst, key, strlen(key), val);
+  }
+
+  dart_err_t dart_obj_insert_bool_len(void* dst, char const* key, size_t len, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, static_cast<bool>(val)); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_null(void* dst, char const* key) {
+    return dart_obj_insert_null_len(dst, key, strlen(key));
+  }
+
+  dart_err_t dart_obj_insert_null_len(void* dst, char const* key, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, nullptr); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_erase(void* dst, char const* key) {
+    return dart_obj_erase_len(dst, key, strlen(key));
+  }
+
+  dart_err_t dart_obj_erase_len(void* dst, char const* key, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.erase(string_view {key, len}); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_dart(void* dst, size_t idx, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_take_dart(void* dst, size_t idx, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, std::move(val)); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_str(void* dst, size_t idx, char const* val) {
+    return dart_arr_insert_str_len(dst, idx, val, strlen(val));
+  }
+
+  dart_err_t dart_arr_insert_str_len(void* dst, size_t idx, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, string_view {val, val_len}); }),
+      dst
+    );
+  }
+  
+  dart_err_t dart_arr_insert_int(void* dst, size_t idx, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_dcm(void* dst, size_t idx, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_bool(void* dst, size_t idx, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_null(void* dst, size_t idx) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, nullptr); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_erase(void* dst, size_t idx) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.erase(idx); }),
+      dst
+    );
+  }
+
+  dart_packet_t dart_obj_get(void const* src, char const* key) {
+    dart_packet_t dst;
+    auto err = dart_obj_get_err(&dst, src, key);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_obj_get_err(dart_packet_t* dst, void const* src, char const* key) {
+    return dart_obj_get_len_err(dst, src, key, strlen(key));
+  }
+
+  dart_packet_t dart_obj_get_len(void const* src, char const* key, size_t len) {
+    dart_packet_t dst;
+    auto err = dart_obj_get_len_err(&dst, src, key, len);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_obj_get_len_err(dart_packet_t* dst, void const* src, char const* key, size_t len) {
+    // Initialize.
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        return packet_construct([=, &src] (auto* dst) {
+          safe_construct(dst, src.get({key, len}));
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_packet_t dart_arr_get(void const* src, int64_t idx) {
+    dart_packet_t dst;
+    auto err = dart_arr_get_err(&dst, src, idx);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, int64_t idx) {
+    // Initialize.
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        return packet_construct([=, &src] (auto* dst) {
+          safe_construct(dst, src.get(idx));
+        }, dst);
+      },
+      src
+    );
+  }
+
+  char const* dart_str_get(void const* src) {
+    size_t dummy;
+    return dart_str_get_len(src, &dummy);
+  }
+
+  char const* dart_str_get_len(void const* src, size_t* len) {
+    char const* ptr;
+    auto ret = generic_access([&] (auto& src) {
+      auto strv = src.strv();
+      ptr = strv.data();
+      *len = strv.size();
+    }, src);
+    if (ret) return nullptr;
+    else return ptr;
+  }
+
+  int64_t dart_int_get(void const* src) {
+    // No way unique way to signal failure here,
+    // the user needs to know this will succeed.
+    int64_t val = 0;
+    dart_int_get_err(src, &val);
+    return val;
+  }
+
+  dart_err_t dart_int_get_err(void const* src, int64_t* val) {
+    return generic_access([=] (auto& str) { *val = str.integer(); }, src);
+  }
+
+  double dart_dcm_get(void const* src) {
+    double val = std::numeric_limits<double>::quiet_NaN();
+    dart_dcm_get_err(src, &val);
+    return val;
+  }
+
+  dart_err_t dart_dcm_get_err(void const* src, double* val) {
+    return generic_access([=] (auto& str) { *val = str.decimal(); }, src);
+  }
+
+  int dart_bool_get(void const* src) {
+    // No way unique way to signal failure here,
+    // the user needs to know this will succeed.
+    int val = 0;
+    dart_bool_get_err(src, &val);
+    return val;
+  }
+
+  dart_err_t dart_bool_get_err(void const* src, int* val) {
+    return generic_access([=] (auto& src) { *val = src.boolean(); }, src);
+  }
+
+  size_t dart_size(void const* src) {
+    size_t val = 0;
+    auto err = generic_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
+  }
+
+  bool dart_equal(void const* lhs, void const* rhs) {
+    bool equal = false;
+    dart::detail::typeless_comparator comp {};
+    auto err = generic_access(
+      [&] (auto& lhs) { generic_access([&] (auto& rhs) { equal = comp(lhs, rhs); }, rhs); },
+      lhs
+    );
+    if (err) return false;
+    else return equal;
+  }
+
+  bool dart_is_obj(void const* src) {
+    return dart_get_type(src) == DART_OBJECT;
+  }
+
+  bool dart_is_arr(void const* src) {
+    return dart_get_type(src) == DART_ARRAY;
+  }
+
+  bool dart_is_str(void const* src) {
+    return dart_get_type(src) == DART_STRING;
+  }
+
+  bool dart_is_int(void const* src) {
+    return dart_get_type(src) == DART_INTEGER;
+  }
+
+  bool dart_is_dcm(void const* src) {
+    return dart_get_type(src) == DART_DECIMAL;
+  }
+
+  bool dart_is_bool(void const* src) {
+    return dart_get_type(src) == DART_BOOLEAN;
+  }
+
+  bool dart_is_null(void const* src) {
+    return dart_get_type(src) == DART_NULL;
+  }
+
+  dart_type_t dart_get_type(void const* src) {
+    dart_type_t type;
+    auto err = generic_access([&] (auto& str) { type = abi_type(str.get_type()); }, src);
+    if (err) return DART_INVALID;
+    else return type;
+  }
+
+  dart_packet_t dart_from_json(char const* str) {
+    dart_packet_t dst;
+    auto err = dart_from_json_err(&dst, str);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_from_json_err(dart_packet_t* dst, char const* str) {
+    return dart_from_json_len_rc_err(dst, DART_RC_SAFE, str, strlen(str));
+  }
+
+  dart_packet_t dart_from_json_rc(dart_rc_type_t rc, char const* str) {
+    dart_packet_t dst;
+    auto err = dart_from_json_rc_err(&dst, rc, str);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_from_json_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str) {
+    return dart_from_json_len_rc_err(dst, rc, str, strlen(str));
+  }
+
+  dart_packet_t dart_from_json_len(char const* str, size_t len) {
+    dart_packet_t dst;
+    auto err = dart_from_json_len_err(&dst, str, len);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_from_json_len_err(dart_packet_t* dst, char const* str, size_t len) {
+    return dart_from_json_len_rc_err(dst, DART_RC_SAFE, str, len);
+  }
+
+  dart_packet_t dart_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len) {
+    dart_packet_t dst;
+    auto err = dart_from_json_len_rc_err(&dst, rc, str, len);
+    if (err) return dart_init();
+    else return dst;
+  }
+
+  dart_err_t dart_from_json_len_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str, size_t len) {
+    return packet_typed_constructor_access(
+      compose(
+        [=] (dart::packet& dst) {
+          dst = dart::packet::from_json({str, len});
+        },
+        [=] (dart::unsafe_packet& dst) {
+          dst = dart::unsafe_packet::from_json({str, len});
+        }
+      ),
+      dst,
+      rc
+    );
+  }
+
+  char* dart_to_json(void const* src, size_t* len) {
+    char* outstr;
+    auto ret = generic_access(
+      [&] (auto& pkt) {
+        // Call these first so they throw before allocation.
+        auto instr = pkt.to_json();
+        auto inlen = instr.size() + 1;
+        if (len) *len = inlen;
+        outstr = reinterpret_cast<char*>(malloc(inlen));
+        memcpy(outstr, instr.data(), inlen);
+      },
+      src
+    );
+    if (ret) return nullptr;
+    return outstr;
   }
 
   char const* dart_get_error() {
