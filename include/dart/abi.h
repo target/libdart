@@ -8,11 +8,44 @@
 
 /*----- Macros ------*/
 
-#define DART_BUFFER_MAX_SIZE  (1U << 5U)
-#define DART_HEAP_MAX_SIZE    (1U << 6U)
-#define DART_PACKET_MAX_SIZE  DART_HEAP_MAX_SIZE
+#define DART_BUFFER_MAX_SIZE      (1U << 5U)
+#define DART_HEAP_MAX_SIZE        (1U << 6U)
+#define DART_PACKET_MAX_SIZE      DART_HEAP_MAX_SIZE
 
-#define DART_FAILURE          (-1)
+// This is embarrassing.
+// Dart iterators have big
+// jobs, and I need two of them.
+#define DART_ITERATOR_MAX_SIZE    (1U << 8U)
+
+#define DART_FAILURE              (-1)
+
+#define DART_CONCAT_IMPL(a, b) a##b
+#define DART_CONCAT(a, b) DART_CONCAT_IMPL(a, b)
+
+#ifdef __COUNTER__
+#define DART_GEN_UNIQUE_NAME(base)                                                          \
+  DART_CONCAT(base, __COUNTER__)
+
+#define DART_FOR_EACH_IMPL(aggr, value, it_func, it_name, err_name)                         \
+  dart_iterator_t it_name;                                                                  \
+  dart_err_t err_name = it_func(&it_name, aggr);                                            \
+  err_name = (err_name) ? err_name : dart_iterator_get_err(value, &it_name);                \
+  for (; err_name == DART_NO_ERROR && !dart_iterator_done_destroy(&it_name, value);         \
+          err_name = (dart_iterator_next(&it_name),                                         \
+                      dart_destroy(value),                                                  \
+                      dart_iterator_get_err(value, &it_name)))
+
+#define DART_FOR_EACH(aggr, value, it_func, it_name, err_name)                              \
+  DART_FOR_EACH_IMPL(aggr, value, it_func, it_name, err_name)
+
+#define dart_for_each(aggr, value)                                                          \
+  DART_FOR_EACH(aggr, value, dart_iterator_init_err,                                        \
+      DART_GEN_UNIQUE_NAME(__dart_iterator__), DART_GEN_UNIQUE_NAME(__dart_err__))
+
+#define dart_for_each_key(aggr, value)                                                      \
+  DART_FOR_EACH(aggr, value, dart_iterator_init_key_err,                                    \
+      DART_GEN_UNIQUE_NAME(__dart_iterator__), DART_GEN_UNIQUE_NAME(__dart_err__))
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +95,12 @@ extern "C" {
     dart_rc_type_t rc_id;
   };
   typedef struct dart_type_id dart_type_id_t;
+
+  struct dart_iterator {
+    dart_type_id_t rtti;
+    char bytes[DART_ITERATOR_MAX_SIZE];
+  };
+  typedef struct dart_iterator dart_iterator_t;
 
   struct dart_heap {
     dart_type_id_t rtti;
@@ -159,8 +198,8 @@ extern "C" {
   // dart::heap object insert operations.
   dart_err_t dart_heap_obj_insert_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
   dart_err_t dart_heap_obj_insert_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
-  dart_err_t dart_heap_obj_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
-  dart_err_t dart_heap_obj_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
+  dart_err_t dart_heap_obj_insert_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
+  dart_err_t dart_heap_obj_insert_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
   dart_err_t dart_heap_obj_insert_str(dart_heap_t* pkt, char const* key, char const* val);
   dart_err_t dart_heap_obj_insert_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
   dart_err_t dart_heap_obj_insert_int(dart_heap_t* pkt, char const* key, int64_t val);
@@ -172,19 +211,45 @@ extern "C" {
   dart_err_t dart_heap_obj_insert_null(dart_heap_t* pkt, char const* key);
   dart_err_t dart_heap_obj_insert_null_len(dart_heap_t* pkt, char const* key, size_t len);
 
+  // dart::heap object set operations.
+  dart_err_t dart_heap_obj_set_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
+  dart_err_t dart_heap_obj_set_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
+  dart_err_t dart_heap_obj_set_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
+  dart_err_t dart_heap_obj_set_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
+  dart_err_t dart_heap_obj_set_str(dart_heap_t* pkt, char const* key, char const* val);
+  dart_err_t dart_heap_obj_set_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
+  dart_err_t dart_heap_obj_set_int(dart_heap_t* pkt, char const* key, int64_t val);
+  dart_err_t dart_heap_obj_set_int_len(dart_heap_t* pkt, char const* key, size_t len, int64_t val);
+  dart_err_t dart_heap_obj_set_dcm(dart_heap_t* pkt, char const* key, double val);
+  dart_err_t dart_heap_obj_set_dcm_len(dart_heap_t* pkt, char const* key, size_t len, double val);
+  dart_err_t dart_heap_obj_set_bool(dart_heap_t* pkt, char const* key, int val);
+  dart_err_t dart_heap_obj_set_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val);
+  dart_err_t dart_heap_obj_set_null(dart_heap_t* pkt, char const* key);
+  dart_err_t dart_heap_obj_set_null_len(dart_heap_t* pkt, char const* key, size_t len);
+
   // dart::heap object erase operations.
   dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key);
   dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len);
 
   // dart::heap array insert operations.
   dart_err_t dart_heap_arr_insert_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
-  dart_err_t dart_heap_arr_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
+  dart_err_t dart_heap_arr_insert_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
   dart_err_t dart_heap_arr_insert_str(dart_heap_t* pkt, size_t idx, char const* val);
   dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
   dart_err_t dart_heap_arr_insert_int(dart_heap_t* pkt, size_t idx, int64_t val);
   dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* pkt, size_t idx, double val);
   dart_err_t dart_heap_arr_insert_bool(dart_heap_t* pkt, size_t idx, int val);
   dart_err_t dart_heap_arr_insert_null(dart_heap_t* pkt, size_t idx);
+
+  // dart::heap array set operations.
+  dart_err_t dart_heap_arr_set_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
+  dart_err_t dart_heap_arr_set_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
+  dart_err_t dart_heap_arr_set_str(dart_heap_t* pkt, size_t idx, char const* val);
+  dart_err_t dart_heap_arr_set_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
+  dart_err_t dart_heap_arr_set_int(dart_heap_t* pkt, size_t idx, int64_t val);
+  dart_err_t dart_heap_arr_set_dcm(dart_heap_t* pkt, size_t idx, double val);
+  dart_err_t dart_heap_arr_set_bool(dart_heap_t* pkt, size_t idx, int val);
+  dart_err_t dart_heap_arr_set_null(dart_heap_t* pkt, size_t idx);
 
   // dart::heap array erase operations.
   dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
@@ -378,8 +443,8 @@ extern "C" {
   // generic object insert operations.
   dart_err_t dart_obj_insert_dart(void* dst, char const* key, void const* val);
   dart_err_t dart_obj_insert_dart_len(void* dst, char const* key, size_t len, void const* val);
-  dart_err_t dart_obj_take_dart(void* dst, char const* key, void* val);
-  dart_err_t dart_obj_take_dart_len(void* dst, char const* key, size_t len, void* val);
+  dart_err_t dart_obj_insert_take_dart(void* dst, char const* key, void* val);
+  dart_err_t dart_obj_insert_take_dart_len(void* dst, char const* key, size_t len, void* val);
   dart_err_t dart_obj_insert_str(void* dst, char const* key, char const* val);
   dart_err_t dart_obj_insert_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
   dart_err_t dart_obj_insert_int(void* dst, char const* key, int64_t val);
@@ -391,19 +456,45 @@ extern "C" {
   dart_err_t dart_obj_insert_null(void* dst, char const* key);
   dart_err_t dart_obj_insert_null_len(void* dst, char const* key, size_t len);
 
+  // generic object set operations.
+  dart_err_t dart_obj_set_dart(void* dst, char const* key, void const* val);
+  dart_err_t dart_obj_set_dart_len(void* dst, char const* key, size_t len, void const* val);
+  dart_err_t dart_obj_set_take_dart(void* dst, char const* key, void* val);
+  dart_err_t dart_obj_set_take_dart_len(void* dst, char const* key, size_t len, void* val);
+  dart_err_t dart_obj_set_str(void* dst, char const* key, char const* val);
+  dart_err_t dart_obj_set_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
+  dart_err_t dart_obj_set_int(void* dst, char const* key, int64_t val);
+  dart_err_t dart_obj_set_int_len(void* dst, char const* key, size_t len, int64_t val);
+  dart_err_t dart_obj_set_dcm(void* dst, char const* key, double val);
+  dart_err_t dart_obj_set_dcm_len(void* dst, char const* key, size_t len, double val);
+  dart_err_t dart_obj_set_bool(void* dst, char const* key, int val);
+  dart_err_t dart_obj_set_bool_len(void* dst, char const* key, size_t len, int val);
+  dart_err_t dart_obj_set_null(void* dst, char const* key);
+  dart_err_t dart_obj_set_null_len(void* dst, char const* key, size_t len);
+
   // generic object erase operations.
   dart_err_t dart_obj_erase(void* dst, char const* key);
   dart_err_t dart_obj_erase_len(void* dst, char const* key, size_t len);
 
   // generic array insert operations.
   dart_err_t dart_arr_insert_dart(void* dst, size_t idx, void const* val);
-  dart_err_t dart_arr_take_dart(void* dst, size_t idx, void* val);
+  dart_err_t dart_arr_insert_take_dart(void* dst, size_t idx, void* val);
   dart_err_t dart_arr_insert_str(void* dst, size_t idx, char const* val);
   dart_err_t dart_arr_insert_str_len(void* dst, size_t idx, char const* val, size_t val_len);
   dart_err_t dart_arr_insert_int(void* dst, size_t idx, int64_t val);
   dart_err_t dart_arr_insert_dcm(void* dst, size_t idx, double val);
   dart_err_t dart_arr_insert_bool(void* dst, size_t idx, int val);
   dart_err_t dart_arr_insert_null(void* dst, size_t idx);
+
+  // generic array set operations.
+  dart_err_t dart_arr_set_dart(void* dst, size_t idx, void const* val);
+  dart_err_t dart_arr_set_take_dart(void* dst, size_t idx, void* val);
+  dart_err_t dart_arr_set_str(void* dst, size_t idx, char const* val);
+  dart_err_t dart_arr_set_str_len(void* dst, size_t idx, char const* val, size_t val_len);
+  dart_err_t dart_arr_set_int(void* dst, size_t idx, int64_t val);
+  dart_err_t dart_arr_set_dcm(void* dst, size_t idx, double val);
+  dart_err_t dart_arr_set_bool(void* dst, size_t idx, int val);
+  dart_err_t dart_arr_set_null(void* dst, size_t idx);
 
   // generic array erase operations.
   dart_err_t dart_arr_erase(void* pkt, size_t idx);
@@ -458,6 +549,18 @@ extern "C" {
 
   // generic json functions.
   char* dart_to_json(void const* src, size_t* len);
+
+  // Iterator operations.
+  dart_err_t dart_iterator_init_err(dart_iterator_t* dst, void const* src);
+  dart_err_t dart_iterator_init_key_err(dart_iterator_t* dst, void const* src);
+  dart_err_t dart_iterator_copy_err(dart_iterator_t* dst, dart_iterator_t const* src);
+  dart_err_t dart_iterator_move_err(dart_iterator_t* dst, dart_iterator_t* src);
+  dart_err_t dart_iterator_destroy(dart_iterator_t* dst);
+  dart_packet_t dart_iterator_get(dart_iterator_t const* src);
+  dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src);
+  dart_err_t dart_iterator_next(dart_iterator_t* dst);
+  bool dart_iterator_done(dart_iterator_t const* src);
+  bool dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt);
 
   // error handling functions.
   char const* dart_get_error();
