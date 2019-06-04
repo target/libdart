@@ -1,6 +1,6 @@
 /*----- Local Includes -----*/
 
-#include <iostream>
+#include <string.h>
 #include "../include/dart/abi.h"
 #include "../include/extern/catch.h"
 
@@ -8,6 +8,11 @@
 
 template <class Func>
 struct scope_guard : Func {
+  scope_guard(scope_guard const&) = default;
+  scope_guard(scope_guard&&) = default;
+  scope_guard(Func const& cb) : Func(cb) {}
+  scope_guard(Func&& cb) : Func(std::move(cb)) {}
+
   ~scope_guard() noexcept {
     try {
       (*this)();
@@ -95,6 +100,39 @@ SCENARIO("objects are regular types", "[abi unit]") {
         REQUIRE(dart_equal(&nested_copy, &nested));
       }
     }
+
+    WHEN("objects are copied") {
+      auto copy = dart_copy(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&copy); });
+
+      THEN("it is indistinguishable from the original") {
+        REQUIRE(dart_equal(&copy, &pkt));
+        REQUIRE(dart_size(&copy) == dart_size(&pkt));
+        REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+      }
+
+      WHEN("modifications are made") {
+        dart_obj_insert_str(&copy, "hello", "world");
+        THEN("the two are distinguishable") {
+          REQUIRE(!dart_equal(&copy, &pkt));
+          REQUIRE(dart_size(&copy) != dart_size(&pkt));
+          REQUIRE(dart_get_type(&copy) == dart_get_type(&pkt));
+        }
+      }
+    }
+
+    WHEN("objects are moved") {
+      auto moved = dart_move(&pkt);
+      auto guard = make_scope_guard([&] { dart_destroy(&moved); });
+      THEN("the new object steals the contents of the old") {
+        REQUIRE(dart_size(&moved) == 0);
+        REQUIRE(dart_is_obj(&moved));
+        REQUIRE(dart_get_type(&moved) == DART_OBJECT);
+        REQUIRE(!dart_is_obj(&pkt));
+        REQUIRE(dart_is_null(&pkt));
+        REQUIRE(dart_get_type(&pkt) == DART_NULL);
+      }
+    }
   }
 }
 
@@ -165,6 +203,74 @@ SCENARIO("objects can be constructed with many values", "[abi unit]") {
   }
 }
 
+SCENARIO("objects can be iterated over", "[abi unit]") {
+  GIVEN("an object with contents") {
+    auto* dyn = "dynamic";
+    auto obj = dart_obj_init_va("idbsS", "int", 1,
+        "decimal", 3.14159, "bool", 0, "str", "fixed", "Str", dyn, strlen(dyn));
+    auto guard = make_scope_guard([&] { dart_destroy(&obj); });
+
+    WHEN("we create an iterator") {
+      // Initialize an iterator for our array.
+      dart_iterator_t it;
+      dart_iterator_init_err(&it, &obj);
+
+      THEN("it visits all values") {
+        REQUIRE(!dart_iterator_done(&it));
+        auto one = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto two = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto three = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto four = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto five = dart_iterator_get(&it);
+        dart_iterator_next(&it);
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&one);
+          dart_destroy(&two);
+          dart_destroy(&three);
+          dart_destroy(&four);
+          dart_destroy(&five);
+        });
+        REQUIRE(dart_iterator_done(&it));
+        dart_iterator_destroy(&it);
+
+        REQUIRE(dart_is_str(&one));
+        REQUIRE(dart_str_get(&one) == "dynamic"s);
+        REQUIRE(dart_is_int(&two));
+        REQUIRE(dart_int_get(&two) == 1);
+        REQUIRE(dart_is_str(&three));
+        REQUIRE(dart_str_get(&three) == "fixed"s);
+        REQUIRE(dart_is_bool(&four));
+        REQUIRE(dart_bool_get(&four) == false);
+        REQUIRE(dart_is_dcm(&five));
+        REQUIRE(dart_dcm_get(&five) == 3.14159);
+      }
+    }
+
+    WHEN("we use automatic iteration") {
+      int idx = 0;
+      dart_packet_t val;
+      auto arr = dart_arr_init_va("Sisbd", dyn, strlen(dyn), 1, "fixed", 0, 3.14159);
+      auto guard = make_scope_guard([&] { dart_destroy(&arr); });
+      THEN("it visits all values in the expected order") {
+        dart_for_each(&obj, &val) {
+          // Get the value manually.
+          auto verify = dart_arr_get(&arr, idx++);
+          auto guard = make_scope_guard([&] { dart_destroy(&verify); });
+
+          // Check it
+          REQUIRE(!dart_is_null(&val));
+          REQUIRE(!dart_is_null(&verify));
+          REQUIRE(dart_get_type(&val) == dart_get_type(&verify));
+          REQUIRE(dart_equal(&val, &verify));
+        }
+      }
+    }
+  }
+}
 SCENARIO("arrays can be iterated over", "[abi unit]") {
   GIVEN("an array with contents") {
     auto* dyn = "dynamic";

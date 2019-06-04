@@ -255,6 +255,8 @@ extern "C" {
   dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
 
   // dart::heap object retrieval operations.
+  bool dart_heap_obj_has_key(dart_heap_t const* src, char const* key);
+  bool dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len);
   dart_heap_t dart_heap_obj_get(dart_heap_t const* src, char const* key);
   dart_err_t dart_heap_obj_get_err(dart_heap_t* dst, dart_heap_t const* src, char const* key);
   dart_heap_t dart_heap_obj_get_len(dart_heap_t const* src, char const* key, size_t len);
@@ -321,6 +323,8 @@ extern "C" {
   dart_err_t dart_buffer_destroy(dart_buffer_t* pkt);
 
   // dart::buffer object retrieval operations.
+  bool dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key);
+  bool dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len);
   dart_buffer_t dart_buffer_obj_get(dart_buffer_t const* src, char const* key);
   dart_err_t dart_buffer_obj_get_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key);
   dart_buffer_t dart_buffer_obj_get_len(dart_buffer_t const* src, char const* key, size_t len);
@@ -371,9 +375,21 @@ extern "C" {
 
   // dart::buffer transition functions.
   dart_heap_t dart_buffer_lift(dart_buffer_t const* src);
-  dart_heap_t dart_buffer_definalize(dart_buffer_t const* src);
   dart_err_t dart_buffer_lift_err(dart_heap_t* dst, dart_buffer_t const* src);
+  dart_heap_t dart_buffer_definalize(dart_buffer_t const* src);
   dart_err_t dart_buffer_definalize_err(dart_heap_t* dst, dart_buffer_t const* src);
+
+  // dart::buffer network functions.
+  void const* dart_buffer_get_bytes(dart_buffer_t const* src, size_t* len);
+  void* dart_buffer_dup_bytes(dart_buffer_t const* src, size_t* len);
+  dart_buffer_t dart_buffer_from_bytes(void const* bytes, size_t len);
+  dart_err_t dart_buffer_from_bytes_err(dart_buffer_t* dst, void const* bytes, size_t len);
+  dart_buffer_t dart_buffer_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len);
+  dart_err_t dart_buffer_from_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void const* bytes, size_t len);
+  dart_buffer_t dart_buffer_take_bytes(void* bytes);
+  dart_err_t dart_buffer_take_bytes_err(dart_buffer_t* dst, void* bytes);
+  dart_buffer_t dart_buffer_take_bytes_rc(void* bytes, dart_rc_type_t rc);
+  dart_err_t dart_buffer_take_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void* bytes);
 
   // generic lifecycle functions.
   dart_packet_t dart_init();
@@ -500,6 +516,8 @@ extern "C" {
   dart_err_t dart_arr_erase(void* pkt, size_t idx);
 
   // generic object retrieval operations.
+  bool dart_obj_has_key(void const* src, char const* key);
+  bool dart_obj_has_key_len(void const* src, char const* key, size_t len);
   dart_packet_t dart_obj_get(void const* src, char const* key);
   dart_err_t dart_obj_get_err(dart_packet_t* dst, void const* src, char const* key);
   dart_packet_t dart_obj_get_len(void const* src, char const* key, size_t len);
@@ -546,9 +564,29 @@ extern "C" {
   dart_err_t dart_from_json_len_err(dart_packet_t* dst, char const* str, size_t len);
   dart_packet_t dart_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
   dart_err_t dart_from_json_len_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str, size_t len);
-
-  // generic json functions.
   char* dart_to_json(void const* src, size_t* len);
+
+  // generic transition functions.
+  dart_packet_t dart_lower(void const* src);
+  dart_err_t dart_lower_err(dart_packet_t* dst, void const* src);
+  dart_packet_t dart_lift(void const* src);
+  dart_err_t dart_lift_err(dart_packet_t* dst, void const* src);
+  dart_packet_t dart_finalize(void const* src);
+  dart_err_t dart_finalize_err(dart_packet_t* dst, void const* src);
+  dart_packet_t dart_definalize(void const* src);
+  dart_err_t dart_definalize_err(dart_packet_t* dst, void const* src);
+
+  // generic network functions.
+  void const* dart_get_bytes(void const* src, size_t* len);
+  void* dart_dup_bytes(void const* src, size_t* len);
+  dart_packet_t dart_from_bytes(void const* bytes, size_t len);
+  dart_err_t dart_from_bytes_err(dart_packet_t* dst, void const* bytes, size_t len);
+  dart_packet_t dart_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len);
+  dart_err_t dart_from_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void const* bytes, size_t len);
+  dart_packet_t dart_take_bytes(void* bytes);
+  dart_err_t dart_take_bytes_err(dart_packet_t* dst, void* bytes);
+  dart_packet_t dart_take_bytes_rc(void* bytes, dart_rc_type_t rc);
+  dart_err_t dart_take_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void* bytes);
 
   // Iterator operations.
   dart_err_t dart_iterator_init_err(dart_iterator_t* dst, void const* src);
