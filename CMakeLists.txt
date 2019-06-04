@@ -83,7 +83,7 @@ include_directories(include)
 
 # Build the ABI if we were asked to.
 if (build_abi)
-  add_library(dart_abi STATIC src/abi.cc)
+  add_library(dart_abi STATIC src/heap.cc src/buffer.cc src/generic.cc)
   target_compile_options(dart_abi PUBLIC "-O3")
 endif ()
 
@@ -105,4 +105,6 @@ file(GLOB headers include/dart/*.h include/dart/*.tcc include/extern/variant.h)
 # Install our headers/abi
 install(FILES ${global_header} DESTINATION include)
 install(FILES ${headers} DESTINATION include/dart)
-install(TARGETS dart_abi ARCHIVE DESTINATION lib)
+if (build_abi)
+  install(TARGETS dart_abi ARCHIVE DESTINATION lib)
+endif (build_abi)
