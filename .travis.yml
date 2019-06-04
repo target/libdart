@@ -192,10 +192,10 @@ matrix:
 script:
   - mkdir build
   - cd build
-  - cmake .. -Dextended_test=ON -Dbenchmark=ON
+  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON
   - make VERBOSE=1
   - ctest
   - make clean
-  - cmake .. -Duse_sajson=ON
+  - cmake .. -Duse_sajson=ON -Dextended_test=OFF
   - make VERBOSE=1
   - ctest
