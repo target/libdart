@@ -134,10 +134,18 @@ namespace dart {
 
     // Parse!
     rapidjson::StringStream ss(json.data());
-    reader.Parse<flags>(ss, context);
-
-    // Convert.
-    return context.curr_obj;
+    if (reader.Parse<flags>(ss, context)) {
+      return context.curr_obj;
+    } else {
+      auto err = reader.GetParseErrorCode();
+      auto off = reader.GetErrorOffset();
+      std::string errmsg = "dart::heap could not parse the given string due to: \"";
+      errmsg += rapidjson::GetParseError_En(err);
+      errmsg += "\" near  \"";
+      errmsg += std::string {json.substr(off ? off - 1 : off, 10)};
+      errmsg += "\"";
+      throw parse_error(errmsg.data());
+    }
   }
 
   template <template <class> class RefCount>
@@ -151,7 +159,14 @@ namespace dart {
     // Fire up RapidJSON.
     rapidjson::Document doc;
     if (doc.ParseInsitu<flags>(buf.get()).HasParseError()) {
-      throw std::runtime_error("dart::buffer could not parse given JSON string.");
+      auto err = doc.GetParseError();
+      auto off = doc.GetErrorOffset();
+      std::string errmsg = "dart::buffer could not parse the given string due to: \"";
+      errmsg += rapidjson::GetParseError_En(err);
+      errmsg += "\" near \"";
+      errmsg += std::string {json.substr(off ? off - 1 : off, 10)};
+      errmsg += "...\"";
+      throw parse_error(errmsg.data());
     } else if (!doc.IsObject()) {
       throw type_error("dart::buffer root must be an object.");
     }
@@ -434,10 +449,10 @@ namespace dart {
 
       // If the parse failed, figure out why.
       if (!doc->is_valid()) {
-        std::string errmsg {"dart::heap could not parse the given string: \""};
+        std::string errmsg {"dart::heap could not parse the given string due to: \""};
         errmsg += doc->get_error_message_as_cstring();
         errmsg += "\"";
-        throw std::runtime_error(errmsg);
+        throw parse_error(errmsg.data());
       }
       return std::move(*doc);
     }

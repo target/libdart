@@ -4,7 +4,7 @@
 
 /*----- Globals -----*/
 
-thread_local char const* errmsg = nullptr;
+thread_local std::string errmsg {};
 
 /*----- Helpers -----*/
 
@@ -761,11 +761,11 @@ extern "C" {
     );
   }
 
-  bool dart_obj_has_key(void const* src, char const* key) {
+  int dart_obj_has_key(void const* src, char const* key) {
     return dart_obj_has_key_len(src, key, strlen(key));
   }
 
-  bool dart_obj_has_key_len(void const* src, char const* key, size_t len) {
+  int dart_obj_has_key_len(void const* src, char const* key, size_t len) {
     bool val = false;
     auto err = generic_access(
       [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
@@ -807,14 +807,14 @@ extern "C" {
     );
   }
 
-  dart_packet_t dart_arr_get(void const* src, int64_t idx) {
+  dart_packet_t dart_arr_get(void const* src, size_t idx) {
     dart_packet_t dst;
     auto err = dart_arr_get_err(&dst, src, idx);
     if (err) return dart_init();
     else return dst;
   }
 
-  dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, int64_t idx) {
+  dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, size_t idx) {
     // Initialize.
     dart_rc_propagate(dst, src);
     dst->rtti.p_id = DART_PACKET;
@@ -885,7 +885,7 @@ extern "C" {
     else return val;
   }
 
-  bool dart_equal(void const* lhs, void const* rhs) {
+  int dart_equal(void const* lhs, void const* rhs) {
     bool equal = false;
     dart::detail::typeless_comparator comp {};
     auto err = generic_access(
@@ -896,35 +896,35 @@ extern "C" {
     else return equal;
   }
 
-  bool dart_is_obj(void const* src) {
+  int dart_is_obj(void const* src) {
     return dart_get_type(src) == DART_OBJECT;
   }
 
-  bool dart_is_arr(void const* src) {
+  int dart_is_arr(void const* src) {
     return dart_get_type(src) == DART_ARRAY;
   }
 
-  bool dart_is_str(void const* src) {
+  int dart_is_str(void const* src) {
     return dart_get_type(src) == DART_STRING;
   }
 
-  bool dart_is_int(void const* src) {
+  int dart_is_int(void const* src) {
     return dart_get_type(src) == DART_INTEGER;
   }
 
-  bool dart_is_dcm(void const* src) {
+  int dart_is_dcm(void const* src) {
     return dart_get_type(src) == DART_DECIMAL;
   }
 
-  bool dart_is_bool(void const* src) {
+  int dart_is_bool(void const* src) {
     return dart_get_type(src) == DART_BOOLEAN;
   }
 
-  bool dart_is_null(void const* src) {
+  int dart_is_null(void const* src) {
     return dart_get_type(src) == DART_NULL;
   }
 
-  bool dart_is_finalized(void const* src) {
+  int dart_is_finalized(void const* src) {
     bool finalized = false;
     auto err = generic_access(
       [&] (auto& src) { finalized = src.is_finalized(); },
@@ -1305,14 +1305,14 @@ extern "C" {
     return iterator_access([] (auto& curr, auto& end) { if (curr != end) curr++; }, dst);
   }
 
-  bool dart_iterator_done(dart_iterator_t const* src) {
+  int dart_iterator_done(dart_iterator_t const* src) {
     bool ended = false;
     auto err = iterator_access([&] (auto& curr, auto& end) { ended = (curr == end); }, src);
     if (err) return true;
     else return ended;
   }
 
-  bool dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt) {
+  int dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt) {
     if (!dart_iterator_done(dst)) return false;
     dart_iterator_destroy(dst);
     if (pkt) dart_destroy(pkt);
@@ -1320,7 +1320,7 @@ extern "C" {
   }
 
   char const* dart_get_error() {
-    return errmsg;
+    return errmsg.data();
   }
 
 }

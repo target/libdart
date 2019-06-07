@@ -93,11 +93,11 @@ extern "C" {
     );
   }
 
-  bool dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key) {
+  int dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key) {
     return dart_buffer_obj_has_key_len(src, key, strlen(key));
   }
 
-  bool dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len) {
+  int dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len) {
     bool val = false;
     auto err = buffer_access(
       [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
@@ -145,14 +145,14 @@ extern "C" {
     );
   }
 
-  dart_buffer_t dart_buffer_arr_get(dart_buffer_t const* src, int64_t idx) {
+  dart_buffer_t dart_buffer_arr_get(dart_buffer_t const* src, size_t idx) {
     dart_buffer_t dst;
     auto err = dart_buffer_arr_get_err(&dst, src, idx);
     if (err) return dart_buffer_init();
     else return dst;
   }
 
-  dart_err_t dart_buffer_arr_get_err(dart_buffer_t* dst, dart_buffer_t const* src, int64_t idx) {
+  dart_err_t dart_buffer_arr_get_err(dart_buffer_t* dst, dart_buffer_t const* src, size_t idx) {
     // Initialize.
     dst->rtti = src->rtti;
     return buffer_access(
@@ -257,7 +257,7 @@ extern "C" {
     else return val;
   }
 
-  bool dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs) {
+  int dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs) {
     bool equal = false;
     auto check = [&] (auto& lhs, auto& rhs) { equal = (lhs == rhs); };
     auto err = buffer_access(
@@ -275,31 +275,31 @@ extern "C" {
     else return equal;
   }
 
-  bool dart_buffer_is_obj(dart_buffer_t const* src) {
+  int dart_buffer_is_obj(dart_buffer_t const* src) {
     return dart_buffer_get_type(src) == DART_OBJECT;
   }
 
-  bool dart_buffer_is_arr(dart_buffer_t const* src) {
+  int dart_buffer_is_arr(dart_buffer_t const* src) {
     return dart_buffer_get_type(src) == DART_ARRAY;
   }
 
-  bool dart_buffer_is_str(dart_buffer_t const* src) {
+  int dart_buffer_is_str(dart_buffer_t const* src) {
     return dart_buffer_get_type(src) == DART_STRING;
   }
 
-  bool dart_buffer_is_int(dart_buffer_t const* src) {
+  int dart_buffer_is_int(dart_buffer_t const* src) {
     return dart_buffer_get_type(src) == DART_INTEGER;
   }
 
-  bool dart_buffer_is_dcm(dart_buffer_t const* src) {
+  int dart_buffer_is_dcm(dart_buffer_t const* src) {
     return dart_buffer_get_type(src) == DART_DECIMAL;
   }
 
-  bool dart_buffer_is_bool(dart_buffer_t const* src) {
+  int dart_buffer_is_bool(dart_buffer_t const* src) {
     return dart_buffer_get_type(src) == DART_BOOLEAN;
   }
 
-  bool dart_buffer_is_null(dart_buffer_t const* src) {
+  int dart_buffer_is_null(dart_buffer_t const* src) {
     return dart_buffer_get_type(src) == DART_NULL;
   }
 
