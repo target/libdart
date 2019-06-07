@@ -861,11 +861,11 @@ extern "C" {
     );
   }
 
-  bool dart_heap_obj_has_key(dart_heap_t const* src, char const* key) {
+  int dart_heap_obj_has_key(dart_heap_t const* src, char const* key) {
     return dart_heap_obj_has_key_len(src, key, strlen(key));
   }
 
-  bool dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len) {
+  int dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len) {
     bool val = false;
     auto err = heap_access(
       [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
@@ -913,14 +913,14 @@ extern "C" {
     );
   }
 
-  dart_heap_t dart_heap_arr_get(dart_heap_t const* src, int64_t idx) {
+  dart_heap_t dart_heap_arr_get(dart_heap_t const* src, size_t idx) {
     dart_heap_t dst;
     auto err = dart_heap_arr_get_err(&dst, src, idx);
     if (err) return dart_heap_init();
     else return dst;
   }
 
-  dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, int64_t idx) {
+  dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, size_t idx) {
     // Initialize.
     dst->rtti = src->rtti;
     return heap_access(
@@ -1025,7 +1025,7 @@ extern "C" {
     else return val;
   }
 
-  bool dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs) {
+  int dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs) {
     bool equal = false;
     auto check = [&] (auto& lhs, auto& rhs) { equal = (lhs == rhs); };
     auto err = heap_access(
@@ -1043,31 +1043,31 @@ extern "C" {
     else return equal;
   }
 
-  bool dart_heap_is_obj(dart_heap_t const* src) {
+  int dart_heap_is_obj(dart_heap_t const* src) {
     return dart_heap_get_type(src) == DART_OBJECT;
   }
 
-  bool dart_heap_is_arr(dart_heap_t const* src) {
+  int dart_heap_is_arr(dart_heap_t const* src) {
     return dart_heap_get_type(src) == DART_ARRAY;
   }
 
-  bool dart_heap_is_str(dart_heap_t const* src) {
+  int dart_heap_is_str(dart_heap_t const* src) {
     return dart_heap_get_type(src) == DART_STRING;
   }
 
-  bool dart_heap_is_int(dart_heap_t const* src) {
+  int dart_heap_is_int(dart_heap_t const* src) {
     return dart_heap_get_type(src) == DART_INTEGER;
   }
 
-  bool dart_heap_is_dcm(dart_heap_t const* src) {
+  int dart_heap_is_dcm(dart_heap_t const* src) {
     return dart_heap_get_type(src) == DART_DECIMAL;
   }
 
-  bool dart_heap_is_bool(dart_heap_t const* src) {
+  int dart_heap_is_bool(dart_heap_t const* src) {
     return dart_heap_get_type(src) == DART_BOOLEAN;
   }
 
-  bool dart_heap_is_null(dart_heap_t const* src) {
+  int dart_heap_is_null(dart_heap_t const* src) {
     return dart_heap_get_type(src) == DART_NULL;
   }
 

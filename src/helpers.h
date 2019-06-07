@@ -26,7 +26,7 @@ static_assert(sizeof(dart::packet::iterator) * 2 <= DART_ITERATOR_MAX_SIZE, "Dar
 
 /*----- Globals -----*/
 
-extern thread_local char const* errmsg;
+extern thread_local std::string errmsg;
 
 /*----- Private Types -----*/
 

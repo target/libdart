@@ -1,8 +1,9 @@
 # Have cmake distinguish between clang and apple clang.
 cmake_policy(SET CMP0025 NEW)
+cmake_policy(SET CMP0048 NEW)
 
 # Name the project.
-project(libdart)
+project(libdart VERSION 0.9)
 cmake_minimum_required(VERSION 3.1.0)
 include(CheckIncludeFileCXX)
 
@@ -83,8 +84,12 @@ include_directories(include)
 
 # Build the ABI if we were asked to.
 if (build_abi)
-  add_library(dart_abi STATIC src/heap.cc src/buffer.cc src/generic.cc)
+  set(abi_sources src/heap.cc src/buffer.cc src/generic.cc)
+  add_library(dart_abi SHARED ${abi_sources})
+  add_library(dart_abi_static STATIC ${abi_sources})
+  set_target_properties(dart_abi PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION})
   target_compile_options(dart_abi PUBLIC "-O3")
+  target_compile_options(dart_abi_static PUBLIC "-O3")
 endif ()
 
 # Conditionally setup our tests.
@@ -106,5 +111,6 @@ file(GLOB headers include/dart/*.h include/dart/*.tcc include/extern/variant.h)
 install(FILES ${global_header} DESTINATION include)
 install(FILES ${headers} DESTINATION include/dart)
 if (build_abi)
-  install(TARGETS dart_abi ARCHIVE DESTINATION lib)
+  install(TARGETS dart_abi LIBRARY DESTINATION lib)
+  install(TARGETS dart_abi_static ARCHIVE DESTINATION lib)
 endif (build_abi)

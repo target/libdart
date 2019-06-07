@@ -54,7 +54,7 @@ extern "C" {
   /*----- Public Type Declarations -----*/
 
   enum dart_type {
-    DART_OBJECT,
+    DART_OBJECT = 1,
     DART_ARRAY,
     DART_STRING,
     DART_INTEGER,
@@ -66,14 +66,14 @@ extern "C" {
   typedef enum dart_type dart_type_t;
 
   enum dart_packet_type {
-    DART_HEAP,
+    DART_HEAP = 1,
     DART_BUFFER,
     DART_PACKET
   };
   typedef enum dart_packet_type dart_packet_type_t;
 
   enum dart_rc_type {
-    DART_RC_SAFE,
+    DART_RC_SAFE = 1,
     DART_RC_UNSAFE
   };
   typedef enum dart_rc_type dart_rc_type_t;
@@ -255,16 +255,16 @@ extern "C" {
   dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
 
   // dart::heap object retrieval operations.
-  bool dart_heap_obj_has_key(dart_heap_t const* src, char const* key);
-  bool dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len);
+  int dart_heap_obj_has_key(dart_heap_t const* src, char const* key);
+  int dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len);
   dart_heap_t dart_heap_obj_get(dart_heap_t const* src, char const* key);
   dart_err_t dart_heap_obj_get_err(dart_heap_t* dst, dart_heap_t const* src, char const* key);
   dart_heap_t dart_heap_obj_get_len(dart_heap_t const* src, char const* key, size_t len);
   dart_err_t dart_heap_obj_get_len_err(dart_heap_t* dst, dart_heap_t const* src, char const* key, size_t len);
 
   // dart::heap array retrieval operations.
-  dart_heap_t dart_heap_arr_get(dart_heap_t const* src, int64_t idx);
-  dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, int64_t idx);
+  dart_heap_t dart_heap_arr_get(dart_heap_t const* src, size_t idx);
+  dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, size_t idx);
 
   // dart::heap string retrieval operations.
   char const* dart_heap_str_get(dart_heap_t const* src);
@@ -284,14 +284,14 @@ extern "C" {
 
   // dart::heap introspection operations.
   size_t dart_heap_size(dart_heap_t const* src);
-  bool dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs);
-  bool dart_heap_is_obj(dart_heap_t const* src);
-  bool dart_heap_is_arr(dart_heap_t const* src);
-  bool dart_heap_is_str(dart_heap_t const* src);
-  bool dart_heap_is_int(dart_heap_t const* src);
-  bool dart_heap_is_dcm(dart_heap_t const* src);
-  bool dart_heap_is_bool(dart_heap_t const* src);
-  bool dart_heap_is_null(dart_heap_t const* src);
+  int dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs);
+  int dart_heap_is_obj(dart_heap_t const* src);
+  int dart_heap_is_arr(dart_heap_t const* src);
+  int dart_heap_is_str(dart_heap_t const* src);
+  int dart_heap_is_int(dart_heap_t const* src);
+  int dart_heap_is_dcm(dart_heap_t const* src);
+  int dart_heap_is_bool(dart_heap_t const* src);
+  int dart_heap_is_null(dart_heap_t const* src);
   dart_type_t dart_heap_get_type(dart_heap_t const* src);
 
   // dart::heap json operations.
@@ -323,16 +323,16 @@ extern "C" {
   dart_err_t dart_buffer_destroy(dart_buffer_t* pkt);
 
   // dart::buffer object retrieval operations.
-  bool dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key);
-  bool dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len);
+  int dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key);
+  int dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len);
   dart_buffer_t dart_buffer_obj_get(dart_buffer_t const* src, char const* key);
   dart_err_t dart_buffer_obj_get_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key);
   dart_buffer_t dart_buffer_obj_get_len(dart_buffer_t const* src, char const* key, size_t len);
   dart_err_t dart_buffer_obj_get_len_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key, size_t len);
 
   // dart::buffer array retrieval operations.
-  dart_buffer_t dart_buffer_arr_get(dart_buffer_t const* src, int64_t idx);
-  dart_err_t dart_buffer_arr_get_err(dart_buffer_t* dst, dart_buffer_t const* src, int64_t idx);
+  dart_buffer_t dart_buffer_arr_get(dart_buffer_t const* src, size_t idx);
+  dart_err_t dart_buffer_arr_get_err(dart_buffer_t* dst, dart_buffer_t const* src, size_t idx);
 
   // dart::buffer string retrieval operations.
   char const* dart_buffer_str_get(dart_buffer_t const* src);
@@ -352,14 +352,14 @@ extern "C" {
 
   // dart::buffer introspection operations.
   size_t dart_buffer_size(dart_buffer_t const* src);
-  bool dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs);
-  bool dart_buffer_is_obj(dart_buffer_t const* src);
-  bool dart_buffer_is_arr(dart_buffer_t const* src);
-  bool dart_buffer_is_str(dart_buffer_t const* src);
-  bool dart_buffer_is_int(dart_buffer_t const* src);
-  bool dart_buffer_is_dcm(dart_buffer_t const* src);
-  bool dart_buffer_is_bool(dart_buffer_t const* src);
-  bool dart_buffer_is_null(dart_buffer_t const* src);
+  int dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs);
+  int dart_buffer_is_obj(dart_buffer_t const* src);
+  int dart_buffer_is_arr(dart_buffer_t const* src);
+  int dart_buffer_is_str(dart_buffer_t const* src);
+  int dart_buffer_is_int(dart_buffer_t const* src);
+  int dart_buffer_is_dcm(dart_buffer_t const* src);
+  int dart_buffer_is_bool(dart_buffer_t const* src);
+  int dart_buffer_is_null(dart_buffer_t const* src);
   dart_type_t dart_buffer_get_type(dart_buffer_t const* src);
 
   // dart::buffer json operations.
@@ -516,16 +516,16 @@ extern "C" {
   dart_err_t dart_arr_erase(void* pkt, size_t idx);
 
   // generic object retrieval operations.
-  bool dart_obj_has_key(void const* src, char const* key);
-  bool dart_obj_has_key_len(void const* src, char const* key, size_t len);
+  int dart_obj_has_key(void const* src, char const* key);
+  int dart_obj_has_key_len(void const* src, char const* key, size_t len);
   dart_packet_t dart_obj_get(void const* src, char const* key);
   dart_err_t dart_obj_get_err(dart_packet_t* dst, void const* src, char const* key);
   dart_packet_t dart_obj_get_len(void const* src, char const* key, size_t len);
   dart_err_t dart_obj_get_len_err(dart_packet_t* dst, void const* src, char const* key, size_t len);
 
   // generic array retrieval operations.
-  dart_packet_t dart_arr_get(void const* src, int64_t idx);
-  dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, int64_t idx);
+  dart_packet_t dart_arr_get(void const* src, size_t idx);
+  dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, size_t idx);
 
   // generic string retrieval operations.
   char const* dart_str_get(void const* src);
@@ -545,15 +545,15 @@ extern "C" {
 
   // generic introspection operations.
   size_t dart_size(void const* src);
-  bool dart_equal(void const* lhs, void const* rhs);
-  bool dart_is_obj(void const* src);
-  bool dart_is_arr(void const* src);
-  bool dart_is_str(void const* src);
-  bool dart_is_int(void const* src);
-  bool dart_is_dcm(void const* src);
-  bool dart_is_bool(void const* src);
-  bool dart_is_null(void const* src);
-  bool dart_is_finalized(void const* src);
+  int dart_equal(void const* lhs, void const* rhs);
+  int dart_is_obj(void const* src);
+  int dart_is_arr(void const* src);
+  int dart_is_str(void const* src);
+  int dart_is_int(void const* src);
+  int dart_is_dcm(void const* src);
+  int dart_is_bool(void const* src);
+  int dart_is_null(void const* src);
+  int dart_is_finalized(void const* src);
   dart_type_t dart_get_type(void const* src);
 
   // generic json operations.
@@ -602,8 +602,8 @@ extern "C" {
   dart_packet_t dart_iterator_get(dart_iterator_t const* src);
   dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src);
   dart_err_t dart_iterator_next(dart_iterator_t* dst);
-  bool dart_iterator_done(dart_iterator_t const* src);
-  bool dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt);
+  int dart_iterator_done(dart_iterator_t const* src);
+  int dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt);
 
   // error handling functions.
   char const* dart_get_error();
