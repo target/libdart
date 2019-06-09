@@ -190,20 +190,20 @@ namespace {
   template <class Func>
   auto mutable_visitor(Func&& cb) {
     return compose(
-      [=] (dart::heap& pkt) { cb(pkt); },
-      [=] (dart::unsafe_heap& pkt) { cb(pkt); },
-      [=] (dart::packet& pkt) { cb(pkt); },
-      [=] (dart::unsafe_packet& pkt) { cb(pkt); }
+      [=] (dart::heap& pkt) { return cb(pkt); },
+      [=] (dart::unsafe_heap& pkt) { return cb(pkt); },
+      [=] (dart::packet& pkt) { return cb(pkt); },
+      [=] (dart::unsafe_packet& pkt) { return cb(pkt); }
     );
   }
 
   template <class Func>
   auto immutable_visitor(Func&& cb) {
     return compose(
-      [=] (dart::buffer const& pkt) { cb(pkt); },
-      [=] (dart::unsafe_buffer const& pkt) { cb(pkt); },
-      [=] (dart::packet const& pkt) { cb(pkt); },
-      [=] (dart::unsafe_packet const& pkt) { cb(pkt); }
+      [=] (dart::buffer const& pkt) { return cb(pkt); },
+      [=] (dart::unsafe_buffer const& pkt) { return cb(pkt); },
+      [=] (dart::packet const& pkt) { return cb(pkt); },
+      [=] (dart::unsafe_packet const& pkt) { return cb(pkt); }
     );
   }
 

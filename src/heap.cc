@@ -861,6 +861,28 @@ extern "C" {
     );
   }
 
+  dart_err_t dart_heap_arr_resize(dart_heap_t* dst, size_t len) {
+    auto resize = [=] (auto& dst) { dst.resize(len); };
+    return heap_access(
+      compose(
+        [resize] (dart::heap& dst) { resize(dst); },
+        [resize] (dart::unsafe_heap& dst) { resize(dst); }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_heap_arr_reserve(dart_heap_t* dst, size_t len) {
+    auto reserve = [=] (auto& dst) { dst.reserve(len); };
+    return heap_access(
+      compose(
+        [reserve] (dart::heap& dst) { reserve(dst); },
+        [reserve] (dart::unsafe_heap& dst) { reserve(dst); }
+      ),
+      dst
+    );
+  }
+
   int dart_heap_obj_has_key(dart_heap_t const* src, char const* key) {
     return dart_heap_obj_has_key_len(src, key, strlen(key));
   }
@@ -1146,10 +1168,10 @@ extern "C" {
     auto print = [&] (auto& pkt) {
       // Call these first so they throw before allocation.
       auto instr = pkt.to_json();
-      auto inlen = instr.size() + 1;
+      auto inlen = instr.size();
       if (len) *len = inlen;
-      outstr = reinterpret_cast<char*>(malloc(inlen));
-      memcpy(outstr, instr.data(), inlen);
+      outstr = reinterpret_cast<char*>(malloc(inlen + 1));
+      memcpy(outstr, instr.data(), inlen + 1);
     };
     auto ret = heap_access(
       compose(

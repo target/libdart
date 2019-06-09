@@ -266,7 +266,7 @@ SCENARIO("objects can be iterated over", "[abi unit]") {
     WHEN("we create an iterator") {
       // Initialize an iterator for our array.
       dart_iterator_t it;
-      dart_iterator_init_err(&it, &obj);
+      dart_iterator_init_from_err(&it, &obj);
 
       THEN("it visits all values") {
         REQUIRE(!dart_iterator_done(&it));
@@ -333,7 +333,7 @@ SCENARIO("arrays can be iterated over", "[abi unit]") {
     WHEN("we create an iterator") {
       // Initialize an iterator for our array.
       dart_iterator_t it;
-      dart_iterator_init_err(&it, &arr);
+      dart_iterator_init_from_err(&it, &arr);
 
       THEN("it visits all values") {
         REQUIRE(!dart_iterator_done(&it));

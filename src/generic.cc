@@ -761,6 +761,20 @@ extern "C" {
     );
   }
 
+  dart_err_t dart_arr_resize(void* dst, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.resize(len); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_reserve(void* dst, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.reserve(len); }),
+      dst
+    );
+  }
+
   int dart_obj_has_key(void const* src, char const* key) {
     return dart_obj_has_key_len(src, key, strlen(key));
   }
@@ -1002,10 +1016,10 @@ extern "C" {
       [&] (auto& pkt) {
         // Call these first so they throw before allocation.
         auto instr = pkt.to_json();
-        auto inlen = instr.size() + 1;
+        auto inlen = instr.size();
         if (len) *len = inlen;
-        outstr = reinterpret_cast<char*>(malloc(inlen));
-        memcpy(outstr, instr.data(), inlen);
+        outstr = reinterpret_cast<char*>(malloc(inlen + 1));
+        memcpy(outstr, instr.data(), inlen + 1);
       },
       src
     );
@@ -1213,7 +1227,17 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_iterator_init_err(dart_iterator_t* dst, void const* src) {
+  dart_err_t dart_iterator_init_err(dart_iterator_t* dst) {
+    // Initialize.
+    dst->rtti.p_id = DART_PACKET;
+    dst->rtti.rc_id = DART_RC_SAFE;
+    return iterator_construct([] (dart::packet::iterator* begin, dart::packet::iterator* end) {
+      new(begin) dart::packet::iterator();
+      new(end) dart::packet::iterator();
+    }, dst);
+  }
+
+  dart_err_t dart_iterator_init_from_err(dart_iterator_t* dst, void const* src) {
     // Initialize.
     dart_rtti_propagate(dst, src);
     return generic_access(
@@ -1228,7 +1252,7 @@ extern "C" {
     );
   }
 
-  dart_err_t dart_iterator_init_key_err(dart_iterator_t* dst, void const* src) {
+  dart_err_t dart_iterator_init_key_from_err(dart_iterator_t* dst, void const* src) {
     // Initialize.
     dart_rtti_propagate(dst, src);
     return generic_access(
