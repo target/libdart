@@ -379,10 +379,10 @@ extern "C" {
     auto print = [&] (auto& pkt) {
       // Call these first so they throw before allocation.
       auto instr = pkt.to_json();
-      auto inlen = instr.size() + 1;
+      auto inlen = instr.size();
       if (len) *len = inlen;
-      outstr = reinterpret_cast<char*>(malloc(inlen));
-      memcpy(outstr, instr.data(), inlen);
+      outstr = reinterpret_cast<char*>(malloc(inlen + 1));
+      memcpy(outstr, instr.data(), inlen + 1);
     };
     auto ret = buffer_access(
       compose(

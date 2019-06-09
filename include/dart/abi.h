@@ -39,11 +39,11 @@
   DART_FOR_EACH_IMPL(aggr, value, it_func, it_name, err_name)
 
 #define dart_for_each(aggr, value)                                                          \
-  DART_FOR_EACH(aggr, value, dart_iterator_init_err,                                        \
+  DART_FOR_EACH(aggr, value, dart_iterator_init_from_err,                                   \
       DART_GEN_UNIQUE_NAME(__dart_iterator__), DART_GEN_UNIQUE_NAME(__dart_err__))
 
 #define dart_for_each_key(aggr, value)                                                      \
-  DART_FOR_EACH(aggr, value, dart_iterator_init_key_err,                                    \
+  DART_FOR_EACH(aggr, value, dart_iterator_init_key_from_err,                               \
       DART_GEN_UNIQUE_NAME(__dart_iterator__), DART_GEN_UNIQUE_NAME(__dart_err__))
 #endif
 
@@ -253,6 +253,10 @@ extern "C" {
 
   // dart::heap array erase operations.
   dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
+
+  // dart::heap array resize operations.
+  dart_err_t dart_heap_arr_resize(dart_heap_t* dst, size_t len);
+  dart_err_t dart_heap_arr_reserve(dart_heap_t* dst, size_t len);
 
   // dart::heap object retrieval operations.
   int dart_heap_obj_has_key(dart_heap_t const* src, char const* key);
@@ -515,6 +519,10 @@ extern "C" {
   // generic array erase operations.
   dart_err_t dart_arr_erase(void* pkt, size_t idx);
 
+  // generic array resize operations.
+  dart_err_t dart_arr_resize(void* dst, size_t len);
+  dart_err_t dart_arr_reserve(void* dst, size_t len);
+
   // generic object retrieval operations.
   int dart_obj_has_key(void const* src, char const* key);
   int dart_obj_has_key_len(void const* src, char const* key, size_t len);
@@ -594,8 +602,9 @@ extern "C" {
   dart_err_t dart_take_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void* bytes);
 
   // Iterator operations.
-  dart_err_t dart_iterator_init_err(dart_iterator_t* dst, void const* src);
-  dart_err_t dart_iterator_init_key_err(dart_iterator_t* dst, void const* src);
+  dart_err_t dart_iterator_init_err(dart_iterator_t* dst);
+  dart_err_t dart_iterator_init_from_err(dart_iterator_t* dst, void const* src);
+  dart_err_t dart_iterator_init_key_from_err(dart_iterator_t* dst, void const* src);
   dart_err_t dart_iterator_copy_err(dart_iterator_t* dst, dart_iterator_t const* src);
   dart_err_t dart_iterator_move_err(dart_iterator_t* dst, dart_iterator_t* src);
   dart_err_t dart_iterator_destroy(dart_iterator_t* dst);
