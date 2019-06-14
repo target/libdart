@@ -621,6 +621,10 @@ extern "C" {
     );
   }
 
+  dart_err_t dart_obj_clear(void* dst) {
+    return generic_access(mutable_visitor([] (auto& dst) { dst.clear(); }), dst);
+  }
+
   dart_err_t dart_obj_erase(void* dst, char const* key) {
     return dart_obj_erase_len(dst, key, strlen(key));
   }
@@ -752,6 +756,10 @@ extern "C" {
       mutable_visitor([=] (auto& dst) { dst.set(idx, nullptr); }),
       dst
     );
+  }
+
+  dart_err_t dart_arr_clear(void* dst) {
+    return generic_access(mutable_visitor([] (auto& dst) { dst.clear(); }), dst);
   }
 
   dart_err_t dart_arr_erase(void* dst, size_t idx) {

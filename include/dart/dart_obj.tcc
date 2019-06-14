@@ -250,6 +250,12 @@ namespace dart {
   }
 
   template <class Object>
+  template <class, class>
+  void basic_object<Object>::clear() {
+    val.clear();
+  }
+
+  template <class Object>
   template <class KeyType, class>
   auto basic_object<Object>::operator [](KeyType const& key) const& -> value_type {
     return val[key];

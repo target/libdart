@@ -657,6 +657,10 @@ extern "C" {
     );
   }
 
+  dart_err_t dart_heap_obj_clear(dart_heap_t* dst) {
+    return heap_access([] (auto& dst) { dst.clear(); }, dst);
+  }
+
   dart_err_t dart_heap_obj_erase(dart_heap_t* dst, char const* key) {
     return dart_heap_obj_erase_len(dst, key, strlen(key));
   }
@@ -848,6 +852,10 @@ extern "C" {
       ),
       dst
     );
+  }
+
+  dart_err_t dart_heap_arr_clear(dart_heap_t* dst) {
+    return heap_access([] (auto& dst) { dst.clear(); }, dst);
   }
 
   dart_err_t dart_heap_arr_erase(dart_heap_t* dst, size_t idx) {

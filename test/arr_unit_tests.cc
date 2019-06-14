@@ -724,9 +724,11 @@ SCENARIO("arrays can access contents at either end", "[array unit]") {
       auto arr = dart::conversion_helper<pkt>(tmp)["arr"];
 
       DYNAMIC_WHEN("the ends are accessed", idx) {
-        DYNAMIC_THEN("it throws", idx) {
-          REQUIRE_THROWS_AS(arr.front(), std::out_of_range);
-          REQUIRE_THROWS_AS(arr.back(), std::out_of_range);
+        DYNAMIC_THEN("error behavior depends on access", idx) {
+          REQUIRE(arr.front().is_null());
+          REQUIRE(arr.back().is_null());
+          REQUIRE_THROWS_AS(arr.at_front(), std::out_of_range);
+          REQUIRE_THROWS_AS(arr.at_back(), std::out_of_range);
         }
       }
 

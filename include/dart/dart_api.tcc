@@ -730,6 +730,18 @@ namespace dart {
     else throw type_error("dart::packet cannot erase iterators from other/finalized packets");
   }
 
+  template <template <class> class RefCount>
+  void basic_heap<RefCount>::clear() {
+    if (is_object()) get_fields().clear();
+    else if (is_array()) get_elements().clear();
+    else throw type_error("dart::heap is not an aggregate and cannot be cleared");
+  }
+
+  template <template <class> class RefCount>
+  void basic_packet<RefCount>::clear() {
+    get_heap().clear();
+  }
+
   template <class Object>
   decltype(auto) basic_object<Object>::definalize() & {
     return val.definalize();
