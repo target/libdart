@@ -112,6 +112,8 @@ namespace dart {
     using set_t = decltype(std::declval<Obj>().set(std::declval<K>(), std::declval<V>()));
     template <class Obj, class A>
     using erase_t = decltype(std::declval<Obj>().erase(std::declval<A>()));
+    template <class Obj>
+    using clear_t = decltype(std::declval<Obj>().clear());
     template <class Obj, class A>
     using get_t = decltype(std::declval<Obj>().get(std::declval<A>()));
     template <class Obj, class A, class T>
@@ -663,6 +665,20 @@ namespace dart {
         >
       >
       auto erase(KeyType const& key) -> iterator;
+
+      /**
+       *  @brief
+       *  Function clears an aggregate of all values.
+       *
+       *  @details
+       *  If this is non-finalized, will remove all key-value pairs.
+       */
+      template <class Obj = Object, class =
+        std::enable_if_t<
+          meta::is_detected<clear_t, Obj&>::value
+        >
+      >
+      void clear();
 
       /**
        *  @brief
@@ -1432,6 +1448,8 @@ namespace dart {
     using set_t = decltype(std::declval<Arr>().set(std::declval<I>(), std::declval<V>()));
     template <class Arr, class I>
     using erase_t = decltype(std::declval<Arr>().erase(std::declval<I>()));
+    template <class Arr>
+    using clear_t = decltype(std::declval<Arr>().clear());
     template <class Arr, class A>
     using reserve_t = decltype(std::declval<Arr>().reserve(std::declval<A>()));
     template <class Arr, class A, class T>
@@ -2002,6 +2020,20 @@ namespace dart {
       >
       auto erase(Index const& idx) -> iterator;
 
+      /**
+       *  @brief
+       *  Function clears an aggregate of all values.
+       *
+       *  @details
+       *  If this is non-finalized, will remove all elements.
+       */
+      template <class Arr = Array, class =
+        std::enable_if_t<
+          meta::is_detected<clear_t, Arr&>::value
+        >
+      >
+      void clear();
+
       /*----- State Manipulation Functions -----*/
 
       /**
@@ -2176,10 +2208,74 @@ namespace dart {
        *  Function returns the first element in an array.
        *
        *  @details
-       *  If this has at least one thing in it, returns the first element.
-       *  Throws otherwise.
+       *  Return the first element or throws if the array is empty.
        */
-      auto front() const -> value_type;
+      auto at_front() const& -> value_type;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
+       *  Return the first element or throws if the array is empty.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto arr = some_array();
+       *  auto deep = arr[0][1][2];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      decltype(auto) at_front() &&;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  Returns the last element or throws if the array is empty.
+       */
+      auto at_back() const& -> value_type;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  Returns the last element or throws if the array is empty.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto arr = some_array();
+       *  auto deep = arr[0][1][2];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      decltype(auto) at_back() &&;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
+       *  Returns the first element or null.
+       */
+      auto front() const& -> value_type;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
+       *  Returns the first element or null.
+       */
+      decltype(auto) front() &&;
 
       /**
        *  @brief
@@ -2205,7 +2301,17 @@ namespace dart {
        *  If this has at least one thing in it, returns the last element.
        *  Throws otherwise.
        */
-      auto back() const -> value_type;
+      auto back() const& -> value_type;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  If this has at least one thing in it, returns the last element.
+       *  Throws otherwise.
+       */
+      decltype(auto) back() &&;
 
       /**
        *  @brief
@@ -5042,6 +5148,15 @@ namespace dart {
        */
       auto erase(size_type pos) -> iterator;
 
+      /**
+       *  @brief
+       *  Function clears an aggregate of all values.
+       *
+       *  @details
+       *  If this is object/array, will remove all subvalues.
+       */
+      void clear();
+
       /*----- State Manipulation Functions -----*/
 
       /**
@@ -5618,6 +5733,24 @@ namespace dart {
         >
       >
       basic_heap at(KeyType const& identifier) const;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
+       *  Return the first element or throws if the array is empty.
+       */
+      basic_heap at_front() const;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  Returns the last element or throws if the array is empty.
+       */
+      basic_heap at_back() const;
 
       /**
        *  @brief
@@ -7519,6 +7652,60 @@ namespace dart {
        *  Function returns the first element in an array.
        *
        *  @details
+       *  Return the first element or throws if the array is empty.
+       */
+      basic_buffer at_front() const&;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
+       *  Return the first element or throws if the array is empty.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       */
+      basic_buffer&& at_front() &&;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  Return the last element or throws if the array is empty.
+       */
+      basic_buffer at_back() const&;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  Return the last element or throws if the array is empty.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       */
+      basic_buffer&& at_back() &&;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
        *  If this is an array with at least one thing in it,
        *  returns the first element.
        *  Throws otherwise.
@@ -9280,6 +9467,15 @@ namespace dart {
        */
       auto erase(size_type pos) -> iterator;
 
+      /**
+       *  @brief
+       *  Function clears an aggregate of all values.
+       *
+       *  @details
+       *  If this is a non-finalized object/array, function will remove all subvalues.
+       */
+      void clear();
+
       /*----- State Manipulation Functions -----*/
 
       /**
@@ -10024,6 +10220,62 @@ namespace dart {
         >
       >
       basic_packet&& at(KeyType const& identifier) &&;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
+       *  Return the first element or throws if the array is empty.
+       */
+      basic_packet at_front() const&;
+
+      /**
+       *  @brief
+       *  Function returns the first element in an array.
+       *
+       *  @details
+       *  Return the first element or throws if the array is empty.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      basic_packet&& at_front() &&;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  Return the last element or throws if the array is empty.
+       */
+      basic_packet at_back() const&;
+
+      /**
+       *  @brief
+       *  Function returns the last element in an array.
+       *
+       *  @details
+       *  Return the last element or throws if the array is empty.
+       *
+       *  @remarks
+       *  dart::buffer is able to profitably use an rvalue overloaded subscript
+       *  operator to skip unnecessary refcount increments/decrements in expressions
+       *  like the following:
+       *  ```
+       *  auto obj = some_object();
+       *  auto deep = obj["first"]["second"]["third"];
+       *  ```
+       *  and so all classes that can wrap dart::buffer also implement this overload.
+       */
+      basic_packet&& at_back() &&;
 
       /**
        *  @brief

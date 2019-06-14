@@ -228,6 +228,7 @@ extern "C" {
   dart_err_t dart_heap_obj_set_null_len(dart_heap_t* pkt, char const* key, size_t len);
 
   // dart::heap object erase operations.
+  dart_err_t dart_heap_obj_clear(dart_heap_t* pkt);
   dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key);
   dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len);
 
@@ -252,6 +253,7 @@ extern "C" {
   dart_err_t dart_heap_arr_set_null(dart_heap_t* pkt, size_t idx);
 
   // dart::heap array erase operations.
+  dart_err_t dart_heap_arr_clear(dart_heap_t* pkt);
   dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
 
   // dart::heap array resize operations.
@@ -493,6 +495,7 @@ extern "C" {
   dart_err_t dart_obj_set_null_len(void* dst, char const* key, size_t len);
 
   // generic object erase operations.
+  dart_err_t dart_obj_clear(void* dst);
   dart_err_t dart_obj_erase(void* dst, char const* key);
   dart_err_t dart_obj_erase_len(void* dst, char const* key, size_t len);
 
@@ -517,6 +520,7 @@ extern "C" {
   dart_err_t dart_arr_set_null(void* dst, size_t idx);
 
   // generic array erase operations.
+  dart_err_t dart_arr_clear(void* pkt);
   dart_err_t dart_arr_erase(void* pkt, size_t idx);
 
   // generic array resize operations.

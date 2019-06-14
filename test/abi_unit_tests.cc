@@ -214,8 +214,34 @@ SCENARIO("objects can be constructed with many values", "[abi unit]") {
         REQUIRE(dart_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_str_get(&str) == "string"s);
         REQUIRE(dart_bool_get(&boolean) == true);
-        REQUIRE(dart_dcm_get(&decimal) == 2.99792);
+        REQUIRE(dart_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_int_get(&integer) == 1337);
+      }
+
+      WHEN("that object is cleared") {
+        dart_obj_clear(&obj);
+        THEN("all key value pairs are gone") {
+          REQUIRE(dart_size(&obj) == 0U);
+
+          auto sized_str = dart_obj_get(&obj, "Str");
+          auto str = dart_obj_get(&obj, "str");
+          auto boolean = dart_obj_get(&obj, "bool");
+          auto decimal = dart_obj_get(&obj, "decimal");
+          auto integer = dart_obj_get(&obj, "integer");
+          auto guard = make_scope_guard([&] {
+            dart_destroy(&integer);
+            dart_destroy(&decimal);
+            dart_destroy(&boolean);
+            dart_destroy(&str);
+            dart_destroy(&sized_str);
+          });
+
+          REQUIRE(dart_is_null(&sized_str));
+          REQUIRE(dart_is_null(&str));
+          REQUIRE(dart_is_null(&boolean));
+          REQUIRE(dart_is_null(&decimal));
+          REQUIRE(dart_is_null(&integer));
+        }
       }
     }
 
@@ -324,6 +350,62 @@ SCENARIO("objects can be iterated over", "[abi unit]") {
     }
   }
 }
+
+SCENARIO("arrays can be constructed with many values", "[abi unit]") {
+  GIVEN("many test cases to run") {
+    WHEN("an array is constructed with many values") {
+      auto* str = "runtime";
+      auto arr = dart_arr_init_va("Ssbdi",
+          str, strlen(str), "string", true, 2.99792, 1337);
+
+      THEN("everything winds up where it's supposed to") {
+        auto sized_str = dart_arr_get(&arr, 0);
+        auto str = dart_arr_get(&arr, 1);
+        auto boolean = dart_arr_get(&arr, 2);
+        auto decimal = dart_arr_get(&arr, 3);
+        auto integer = dart_arr_get(&arr, 4);
+        auto guard = make_scope_guard([&] {
+          dart_destroy(&integer);
+          dart_destroy(&decimal);
+          dart_destroy(&boolean);
+          dart_destroy(&str);
+          dart_destroy(&sized_str);
+        });
+
+        REQUIRE(dart_str_get(&sized_str) == "runtime"s);
+        REQUIRE(dart_str_get(&str) == "string"s);
+        REQUIRE(dart_bool_get(&boolean) == true);
+        REQUIRE(dart_dcm_get(&decimal) == Approx(2.99792));
+        REQUIRE(dart_int_get(&integer) == 1337);
+      }
+
+      WHEN("that array is cleared") {
+        dart_arr_clear(&arr);
+        THEN("all the elements are gone") {
+          auto sized_str = dart_arr_get(&arr, 0);
+          auto str = dart_arr_get(&arr, 1);
+          auto boolean = dart_arr_get(&arr, 2);
+          auto decimal = dart_arr_get(&arr, 3);
+          auto integer = dart_arr_get(&arr, 4);
+          auto guard = make_scope_guard([&] {
+            dart_destroy(&integer);
+            dart_destroy(&decimal);
+            dart_destroy(&boolean);
+            dart_destroy(&str);
+            dart_destroy(&sized_str);
+          });
+
+          REQUIRE(dart_is_null(&sized_str));
+          REQUIRE(dart_is_null(&str));
+          REQUIRE(dart_is_null(&boolean));
+          REQUIRE(dart_is_null(&decimal));
+          REQUIRE(dart_is_null(&integer));
+        }
+      }
+    }
+  }
+}
+
 SCENARIO("arrays can be iterated over", "[abi unit]") {
   GIVEN("an array with contents") {
     auto* dyn = "dynamic";
@@ -360,7 +442,7 @@ SCENARIO("arrays can be iterated over", "[abi unit]") {
         REQUIRE(dart_is_int(&one));
         REQUIRE(dart_int_get(&one) == 1);
         REQUIRE(dart_is_dcm(&two));
-        REQUIRE(dart_dcm_get(&two) == 3.14159);
+        REQUIRE(dart_dcm_get(&two) == Approx(3.14159));
         REQUIRE(dart_is_bool(&three));
         REQUIRE(dart_bool_get(&three) == false);
         REQUIRE(dart_is_str(&four));

@@ -538,8 +538,34 @@ SCENARIO("objects can find iterators to keys and values", "[type unit]") {
           REQUIRE(nested_it->at("nested_key").size() == 2U);
           REQUIRE(arr_it != big.end());
           REQUIRE(arr_it->front() == 1);
+          REQUIRE(arr_it->at_front() == 1);
           REQUIRE(arr_it->back() == 13);
+          REQUIRE(arr_it->at_back() == 13);
           REQUIRE(arr_it->size() == 7U);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("objects can be cleared", "[type unit]") {
+  GIVEN("an object with contents") {
+    dart::mutable_object_api_test([] (auto tag, auto idx) {
+      using object = typename decltype(tag)::type;
+
+      // Get an object with some stuff in it.
+      object obj {"hello", "world", "pi", 3.14159, "c", 2.99792};
+      REQUIRE_FALSE(obj.empty());
+      REQUIRE(obj.size() == 3U);
+
+      DYNAMIC_WHEN("the object is cleared", idx) {
+        obj.clear();
+        DYNAMIC_THEN("nothing is left in it", idx) {
+          REQUIRE(obj.empty());
+          REQUIRE(obj.size() == 0U);
+          REQUIRE(obj["hello"].is_null());
+          REQUIRE(obj["pi"].is_null());
+          REQUIRE(obj["c"].is_null());
         }
       }
     });
@@ -666,6 +692,7 @@ SCENARIO("arrays accept a variety of different types", "[type unit]") {
         DYNAMIC_THEN("everything winds up where we expect", idx) {
           REQUIRE(arr.front() == 0.5);
           REQUIRE(0.5 == arr.front());
+          REQUIRE(arr.at_front() == 0.5);
           REQUIRE(arr[number {1}] == number {2.99792});
           REQUIRE(number {2.99792} == arr[number {1}]);
           REQUIRE(arr.get(2_dart) == 3600UL);
@@ -700,6 +727,7 @@ SCENARIO("arrays accept a variety of different types", "[type unit]") {
           REQUIRE(flag {true} == arr.get(number {16}));
           REQUIRE(arr.back() == nullptr);
           REQUIRE(nullptr == arr.back());
+          REQUIRE(arr.at_back() == nullptr);
           REQUIRE(arr.size() == 18ULL);
           REQUIRE(18ULL == arr.size());
         }
@@ -735,6 +763,7 @@ SCENARIO("arrays accept a variety of different types", "[type unit]") {
         DYNAMIC_THEN("everything winds up where we expect", idx) {
           REQUIRE(arr.front() == 0.5);
           REQUIRE(0.5 == arr.front());
+          REQUIRE(arr.at_front() == 0.5);
           REQUIRE(arr[number {1}] == number {2.99792});
           REQUIRE(number {2.99792} == arr[number {1}]);
           REQUIRE(arr.get(2_dart) == 3600UL);
@@ -769,6 +798,7 @@ SCENARIO("arrays accept a variety of different types", "[type unit]") {
           REQUIRE(flag {true} == arr.get(number {16}));
           REQUIRE(arr.back() == nullptr);
           REQUIRE(nullptr == arr.back());
+          REQUIRE(arr.at_back() == nullptr);
           REQUIRE(arr.size() == 18ULL);
           REQUIRE(18ULL == arr.size());
         }
@@ -823,6 +853,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
           REQUIRE(arr.size() == 4U);
           REQUIRE(arr.front() == "front");
           REQUIRE("front" == arr.front());
+          REQUIRE(arr.at_front() == "front");
           REQUIRE(arr[0] == "front");
           REQUIRE("front" == arr[0]);
           REQUIRE(arr[1] == "almost_front");
@@ -833,6 +864,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
           REQUIRE("middle" == arr[3]);
           REQUIRE(arr.back() == "middle");
           REQUIRE("middle" == arr.back());
+          REQUIRE(arr.at_back() == "middle");
         }
 
         DYNAMIC_WHEN("those values are popped from the front", idx) {
@@ -842,6 +874,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
           DYNAMIC_THEN("only the original content remains", idx) {
             REQUIRE(arr.size() == 1U);
             REQUIRE(arr.front() == arr.back());
+            REQUIRE(arr.at_front() == arr.at_back());
             REQUIRE(arr[0] == "middle");
             REQUIRE("middle" == arr[0]);
           }
@@ -855,6 +888,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
         DYNAMIC_THEN("values are in expected order", idx) {
           REQUIRE(arr.front() == "middle");
           REQUIRE("middle" == arr.front());
+          REQUIRE(arr.at_front() == "middle");
           REQUIRE(arr[0] == "middle");
           REQUIRE("middle" == arr[0]);
           REQUIRE(arr[1] == "almost_middle");
@@ -865,6 +899,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
           REQUIRE("back" == arr[3]);
           REQUIRE(arr.back() == "back");
           REQUIRE("back" == arr.back());
+          REQUIRE(arr.at_back() == "back");
         }
 
         DYNAMIC_WHEN("those values are popped from the back", idx) {
@@ -874,6 +909,7 @@ SCENARIO("arrays are ordered containers", "[type unit]") {
           DYNAMIC_THEN("only the original content remains", idx) {
             REQUIRE(arr.size() == 1U);
             REQUIRE(arr.front() == arr.back());
+            REQUIRE(arr.at_front() == arr.at_back());
             REQUIRE(arr[0] == "middle");
             REQUIRE("middle" == arr[0]);
           }
@@ -1010,6 +1046,7 @@ SCENARIO("arrays can set individual indices", "[type unit]") {
         DYNAMIC_THEN("everything is where we expect", idx) {
           REQUIRE(arr.front() == string {"yes"});
           REQUIRE(string {"yes"} == arr.front());
+          REQUIRE(arr.at_front() == string {"yes"});
           REQUIRE(arr[0] == "yes");
           REQUIRE("yes" == arr[0]);
           REQUIRE(arr[number {1}] == "no");
@@ -1020,6 +1057,7 @@ SCENARIO("arrays can set individual indices", "[type unit]") {
           REQUIRE("go" == arr[3]);
           REQUIRE(arr.back() == "go");
           REQUIRE("go" == arr.back());
+          REQUIRE(arr.at_back() == "go");
         }
       }
 
@@ -1031,6 +1069,7 @@ SCENARIO("arrays can set individual indices", "[type unit]") {
         DYNAMIC_THEN("everything is where we expect", idx) {
           REQUIRE(arr.front() == string {"yes"});
           REQUIRE(string {"yes"} == arr.front());
+          REQUIRE(arr.at_front() == string {"yes"});
           REQUIRE(arr[0] == "yes");
           REQUIRE("yes" == arr[0]);
           REQUIRE(arr[number {1}] == "no");
@@ -1039,6 +1078,7 @@ SCENARIO("arrays can set individual indices", "[type unit]") {
           REQUIRE("stop and go" == arr[2]);
           REQUIRE(arr.back() == "stop and go");
           REQUIRE("stop and go" == arr.back());
+          REQUIRE(arr.at_back() == "stop and go");
         }
       }
 
@@ -1071,6 +1111,29 @@ SCENARIO("arrays indices must be integers", "[type unit]") {
           REQUIRE_THROWS_AS(arr.insert(flag {true}, "oops"), std::logic_error);
           REQUIRE_THROWS_AS(arr.insert(number {2.5}, "oops"), std::logic_error);
           REQUIRE_THROWS_AS(arr.insert(null {}, "oops"), std::logic_error);
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("arrays can be cleared", "[type unit]") {
+  GIVEN("an array with contents") {
+    dart::mutable_array_api_test([] (auto tag, auto idx) {
+      using array = typename decltype(tag)::type;
+
+      // Get an object with some stuff in it.
+      array arr {"hello", "world", "pi", 3.14159, "c", 2.99792};
+      REQUIRE_FALSE(arr.empty());
+      REQUIRE(arr.size() == 6U);
+
+      DYNAMIC_WHEN("the object is cleared", idx) {
+        arr.clear();
+        DYNAMIC_THEN("nothing is left in it", idx) {
+          REQUIRE(arr.empty());
+          REQUIRE(arr.size() == 0U);
+          REQUIRE(arr.front().is_null());
+          REQUIRE_THROWS_AS(arr.at_front(), std::out_of_range);
         }
       }
     });

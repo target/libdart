@@ -242,6 +242,12 @@ namespace dart {
 
   template <class Array>
   template <class, class>
+  void basic_array<Array>::clear() {
+    val.clear();
+  }
+
+  template <class Array>
+  template <class, class>
   void basic_array<Array>::reserve(size_type count) {
     val.reserve(count);
   }
@@ -514,31 +520,114 @@ namespace dart {
     shim::visit([&] (auto& v) { v = std::move(v).at(index); }, impl);
     return std::move(*this);
   }
-  
+
   template <class Array>
-  auto basic_array<Array>::front() const -> value_type {
+  auto basic_array<Array>::at_front() const& -> value_type {
+    return val.at_front();
+  }
+
+  template <class Array>
+  decltype(auto) basic_array<Array>::at_front() && {
+    return std::move(val).at_front();
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::at_front() const {
+    if (empty()) throw std::out_of_range("dart::heap is empty and has no value at front");
+    else return front();
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::at_front() const& {
+    if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at front");
+    else return front();
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::at_front() && {
+    if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at front");
+    else return std::move(*this).front();
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::at_front() const& {
+    return shim::visit([] (auto& v) -> basic_packet { return v.at_front(); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::at_front() && {
+    shim::visit([] (auto& v) -> basic_packet { v = std::move(v).at_front(); }, impl);
+    return std::move(*this);
+  }
+
+  template <class Array>
+  auto basic_array<Array>::at_back() const& -> value_type {
+    return val.at_back();
+  }
+
+  template <class Array>
+  decltype(auto) basic_array<Array>::at_back() && {
+    return std::move(val).at_back();
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::at_back() const {
+    if (empty()) throw std::out_of_range("dart::heap is empty and has no value at back");
+    else return back();
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::at_back() const& {
+    if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at back");
+    else return back();
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>&& basic_buffer<RefCount>::at_back() && {
+    if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at back");
+    else return std::move(*this).back();
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::at_back() const& {
+    return shim::visit([] (auto& v) -> basic_packet { return v.at_back(); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>&& basic_packet<RefCount>::at_back() && {
+    shim::visit([] (auto& v) -> basic_packet { v = std::move(v).at_back(); }, impl);
+    return std::move(*this);
+  }
+
+  template <class Array>
+  auto basic_array<Array>::front() const& -> value_type {
     return val.front();
+  }
+
+  template <class Array>
+  decltype(auto) basic_array<Array>::front() && {
+    return std::move(val).front();
   }
 
   template <template <class> class RefCount>
   basic_heap<RefCount> basic_heap<RefCount>::front() const {
     auto& elements = get_elements();
-    if (elements.empty()) throw std::out_of_range("dart::heap is empty and cannot access front");
-    return elements.front();
+    if (elements.empty()) return basic_heap::make_null();
+    else return elements.front();
   }
 
   template <template <class> class RefCount>
   basic_buffer<RefCount> basic_buffer<RefCount>::front() const& {
     auto* arr = detail::get_array<RefCount>(raw);
-    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access front");
-    return basic_buffer(arr->get_elem(0), buffer_ref);
+    if (empty()) return basic_buffer::make_null();
+    else return basic_buffer(arr->get_elem(0), buffer_ref);
   }
 
   template <template <class> class RefCount>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::front() && {
     auto* arr = detail::get_array<RefCount>(raw);
-    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access front");
-    raw = arr->get_elem(0);
+    if (empty()) raw = {detail::raw_type::null, nullptr};
+    else raw = arr->get_elem(0);
     if (is_null()) buffer_ref = nullptr;
     return std::move(*this);
   }
@@ -574,29 +663,34 @@ namespace dart {
   }
 
   template <class Array>
-  auto basic_array<Array>::back() const -> value_type {
+  auto basic_array<Array>::back() const& -> value_type {
     return val.back();
+  }
+
+  template <class Array>
+  decltype(auto) basic_array<Array>::back() && {
+    return std::move(val).back();
   }
 
   template <template <class> class RefCount>
   basic_heap<RefCount> basic_heap<RefCount>::back() const {
     auto& elements = get_elements();
-    if (elements.empty()) throw std::out_of_range("dart::heap is empty and cannot access back");
-    return elements.back();
+    if (elements.empty()) return basic_heap::make_null();
+    else return elements.back();
   }
 
   template <template <class> class RefCount>
   basic_buffer<RefCount> basic_buffer<RefCount>::back() const& {
     auto* arr = detail::get_array<RefCount>(raw);
-    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access back");
-    return basic_buffer(arr->get_elem(size() - 1), buffer_ref);
+    if (empty()) return basic_buffer::make_null();
+    else return basic_buffer(arr->get_elem(size() - 1), buffer_ref);
   }
 
   template <template <class> class RefCount>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::back() && {
     auto* arr = detail::get_array<RefCount>(raw);
-    if (empty()) throw std::out_of_range("dart::buffer is empty and cannot access back");
-    raw = arr->get_elem(size() - 1);
+    if (empty()) raw = {detail::raw_type::null, nullptr};
+    else raw = arr->get_elem(size() - 1);
     if (is_null()) buffer_ref = nullptr;
     return std::move(*this);
   }
