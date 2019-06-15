@@ -242,7 +242,7 @@ namespace dart {
      *  }
      *  ```
      */
-    template <class Packet, class T>
+    template <class Packet = dart::basic_packet<std::shared_ptr>, class T>
     decltype(auto) cast(T&& val) {
       return detail::caster_impl<detail::normalize_t<T>>::template cast<Packet>(std::forward<T>(val));
     }
