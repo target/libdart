@@ -72,7 +72,7 @@ TEST_CASE("dart::packet parses JSON via RapidJSON", "[json unit]") {
   for (size_t index = 0; index < parsed.size(); ++index) {
     // Construct the packet.
     auto& packet = parsed[index];
-    auto pkt = dart::packet::from_json(packets[index]);
+    auto pkt = dart::parse(packets[index]);
 
     // Validate against the reference.
     compare_rj_dart(packet, pkt);

@@ -112,6 +112,7 @@ namespace dart {
 
   template <class T>
   struct obtuse_ptr {
+    obtuse_ptr() = delete;
     obtuse_ptr(obtuse_ptr const&) = delete;
     obtuse_ptr(obtuse_ptr&&) = delete;
     std::shared_ptr<T> impl;
