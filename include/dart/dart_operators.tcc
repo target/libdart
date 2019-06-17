@@ -93,6 +93,8 @@ namespace dart {
 
   // Macro defines symmetric equality comparison operators for a given wrapper type and its
   // implementation type.
+  // XXX: Would be nice to be able to compare across packet types here, but these templates
+  // aren't otherwise constrained, and I'm afraid it would be too wide open.
 #define DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(wrapper)                                                  \
   template <template <class> class RefCount, template <template <class> class> class Packet>                    \
   bool operator ==(wrapper<Packet<RefCount>> const& lhs, Packet<RefCount> const& rhs) {                         \

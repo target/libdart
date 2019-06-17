@@ -130,6 +130,7 @@ void yajl_serialize(yajl_val curr, yajl_gen handle) {
 /*----- Globals -----*/
 
 static auto base_dir = extract_directory(__FILE__);
+static auto byte_counter = [] (auto a, auto& s) { return a + s.size(); };
 static std::string const json_input = std::string {base_dir} + "/input.json";
 
 /*----- Type Declarations -----*/
@@ -253,11 +254,15 @@ struct benchmark_helper : benchmark::Fixture {
 /*----- Benchmark Definitions -----*/
 
 BENCHMARK_F(benchmark_helper, dart_nontrivial_finalized_json_test) (benchmark::State& state) {
-  auto chunk = input.size();
   for (auto _ : state) {
-    for (auto const& pkt : input) benchmark::DoNotOptimize(unsafe_buffer::from_json(pkt));
-    rate_counter += chunk;
+    for (auto const& pkt : input) {
+      benchmark::DoNotOptimize(unsafe_buffer::from_json(pkt));
+      rate_counter++;
+    }
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
@@ -267,6 +272,9 @@ BENCHMARK_F(benchmark_helper, dart_nontrivial_dynamic_json_test) (benchmark::Sta
     for (auto const& pkt : input) benchmark::DoNotOptimize(unsafe_heap::from_json(pkt));
     rate_counter += chunk;
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
@@ -306,6 +314,22 @@ BENCHMARK_F(benchmark_helper, dart_nontrivial_json_key_lookups) (benchmark::Stat
   state.counters["parsed key lookups"] = rate_counter;
 }
 
+BENCHMARK_F(benchmark_helper, dart_nontrivial_json_finalizing) (benchmark::State& state) {
+  int64_t bytes = 0;
+  for (auto _ : state) {
+    for (auto const& pkt : input) {
+      auto parsed = unsafe_buffer::from_json(pkt);
+      auto buf = parsed.get_bytes();
+      benchmark::DoNotOptimize(buf.data());
+      rate_counter++;
+      bytes += buf.size();
+    }
+  }
+
+  state.SetBytesProcessed(bytes);
+  state.counters["parsed packets"] = rate_counter;
+}
+
 BENCHMARK_F(benchmark_helper, rapidjson_nontrivial_insitu_json_test) (benchmark::State& state) {
   auto chunk = input.size();
   for (auto _ : state) {
@@ -321,6 +345,9 @@ BENCHMARK_F(benchmark_helper, rapidjson_nontrivial_insitu_json_test) (benchmark:
     }
     rate_counter += chunk;
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
@@ -334,6 +361,9 @@ BENCHMARK_F(benchmark_helper, rapidjson_nontrivial_json_test) (benchmark::State&
     }
     rate_counter += chunk;
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
@@ -374,6 +404,9 @@ BENCHMARK_F(benchmark_helper, sajson_nontrivial_json_test) (benchmark::State& st
     }
     rate_counter += chunk;
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
@@ -400,6 +433,9 @@ BENCHMARK_F(benchmark_helper, nlohmann_json_nontrivial_json_test) (benchmark::St
     for (auto const& pkt : input) benchmark::DoNotOptimize(nl::json::parse(pkt));
     rate_counter += chunk;
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
@@ -434,6 +470,9 @@ BENCHMARK_F(benchmark_helper, yajl_nontrivial_json_test) (benchmark::State& stat
     }
     rate_counter += chunk;
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
@@ -485,6 +524,9 @@ BENCHMARK_F(benchmark_helper, jansson_nontrivial_json_test) (benchmark::State& s
     }
     rate_counter += chunk;
   }
+
+  auto bytes = std::accumulate(std::begin(input), std::end(input), 0, byte_counter);
+  state.SetBytesProcessed(bytes * state.iterations());
   state.counters["parsed packets"] = rate_counter;
 }
 
