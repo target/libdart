@@ -34,7 +34,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   basic_packet<RefCount> basic_packet<RefCount>::make_integer(int64_t val) noexcept {
-    return basic_packet(detail::integer_tag {}, val);
+    return basic_heap<RefCount>::make_integer(val);
   }
 
   template <template <class> class RefCount>
@@ -44,7 +44,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   basic_packet<RefCount> basic_packet<RefCount>::make_decimal(double val) noexcept {
-    return basic_packet(detail::decimal_tag {}, val);
+    return basic_heap<RefCount>::make_decimal(val);
   }
 
   template <template <class> class RefCount>
@@ -54,7 +54,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   basic_packet<RefCount> basic_packet<RefCount>::make_boolean(bool val) noexcept {
-    return basic_packet(detail::boolean_tag {}, val);
+    return basic_heap<RefCount>::make_boolean(val);
   }
 
   template <class Number>

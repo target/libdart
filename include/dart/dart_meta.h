@@ -4,6 +4,7 @@
 /*----- System Includes -----*/
 
 #include <memory>
+#include <gsl/span>
 #include <type_traits>
 
 #define DART_COMPARE_HELPER(name, op)                                     \
@@ -167,6 +168,11 @@ namespace dart {
     struct is_higher_specialization_of : std::false_type {};
     template <template <class...> class Inner, template <template <class...> class> class Outer>
     struct is_higher_specialization_of<Outer<Inner>, Outer> : std::true_type {};
+
+    template <class T>
+    struct is_span : std::false_type {};
+    template <class T, std::ptrdiff_t extent>
+    struct is_span<gsl::span<T, extent>> : std::true_type {};
 
     template <size_t pos>
     struct priority_tag : priority_tag<pos - 1> {};

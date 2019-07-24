@@ -572,6 +572,119 @@ SCENARIO("objects can be cleared", "[type unit]") {
   }
 }
 
+SCENARIO("all objects can inject additional keys", "[type unit]") {
+  GIVEN("a statically built object") {
+    dart::object_api_test([] (auto tag, auto idx) {
+      using object = typename decltype(tag)::type;
+
+      object obj {
+        "", "problems?",
+        "int", 42,
+        "unsigned", 365U,
+        "long", 86400L,
+        "unsigned long", 3600UL,
+        "long long", 7200LL,
+        "unsigned long long", 93000000ULL,
+        "pi", 3.14159,
+        "c", 2.99792f,
+        "truth", true,
+        "lies", false,
+        "absent", nullptr
+      };
+
+      DYNAMIC_WHEN("when additional pairs are injected", idx) {
+        // Inject some new keys, some duplicates,
+        // replace values and change types
+        auto injected = obj.inject(
+          "Int", 42,
+          "unsigned long", 3600000UL,
+          "", object {"status", "problems?"},
+          "LONG", 86400L,
+          "unsigned", 365.25,
+          "PI", 3.14159,
+          "lightspeed", 2.99792,
+          "unsigned_long_long", 93000000ULL
+        );
+
+        DYNAMIC_THEN("duplicates update, new keys get added, everything checks out", idx) {
+          REQUIRE(injected[""] == object {"status", "problems?"});
+          REQUIRE(injected["int"] == 42);
+          REQUIRE(injected["Int"] == 42);
+          REQUIRE(injected["unsigned"].decimal() == Approx(365.25));
+          REQUIRE(injected["long"] == 86400L);
+          REQUIRE(injected["LONG"] == 86400L);
+          REQUIRE(injected["unsigned long"] == 3600000UL);
+          REQUIRE(injected["long long"] == 7200LL);
+          REQUIRE(injected["unsigned long long"] == 93000000ULL);
+          REQUIRE(injected["unsigned_long_long"] == 93000000ULL);
+          REQUIRE(injected["pi"].decimal() == Approx(3.14159));
+          REQUIRE(injected["PI"].decimal() == Approx(3.14159));
+          REQUIRE(injected["c"].decimal() == Approx(2.99792));
+          REQUIRE(injected["lightspeed"].decimal() == Approx(2.99792));
+          REQUIRE(injected["truth"] == true);
+          REQUIRE(injected["lies"] == false);
+          REQUIRE(injected["absent"] == nullptr);
+        }
+      }
+    });
+  }
+
+  GIVEN("a dynamically built object") {
+    constexpr auto num_keys = 1024;
+
+    dart::object_api_test([] (auto tag, auto idx) {
+      using object = typename decltype(tag)::type;
+      using packet = typename object::value_type;
+
+      // Helper lambda to generate a random vector of injectable strings.
+      // Generate a large set of keys.
+      std::unordered_set<std::string> keys;
+      while (keys.size() < num_keys) keys.insert(dart::rand_string());
+
+      auto get_arr = [] (auto& set) {
+        // Generate the pairs.
+        std::vector<packet> pairs;
+        pairs.reserve(num_keys * 2);
+        for (auto& key : set) {
+          // This is awkward, because we have to avoid attempting to create a bare
+          // finalized string, and we also have to handle different reference counters.
+          auto tmp = dart::conversion_helper<packet>(dart::packet::make_object("key", key))["key"];
+          pairs.push_back(std::move(tmp));
+          pairs.push_back(pairs.back());
+        }
+        return pairs;
+      };
+
+      // Generate the final object.
+      auto pairs = get_arr(keys);
+      auto obj = object {pairs};
+
+      DYNAMIC_WHEN("we inject the orignal key value pairs", idx) {
+        auto injected = obj.inject(pairs);
+        DYNAMIC_THEN("we end up with the original object", idx) {
+          REQUIRE(obj == injected);
+        }
+      }
+
+      DYNAMIC_WHEN("we inject a new set of key value pairs", idx) {
+        std::unordered_set<std::string> moar;
+        while (moar.size() < num_keys) {
+          auto str = dart::rand_string();
+          if (keys.count(str)) continue;
+          moar.insert(std::move(str));
+        }
+
+        auto injected = obj.inject(get_arr(moar));
+        DYNAMIC_THEN("the size of the object doubles, and all keys are reachable", idx) {
+          REQUIRE(injected.size() == obj.size() * 2);
+          for (auto& k : moar) REQUIRE(injected.has_key(k));
+          for (auto& k : keys) REQUIRE(injected.has_key(k));
+        }
+      }
+    });
+  }
+}
+
 SCENARIO("arrays are regular types", "[type unit]") {
   GIVEN("a default-constructed, strongly typed, array") {
     dart::mutable_array_api_test([] (auto tag, auto idx) {

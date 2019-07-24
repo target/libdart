@@ -100,17 +100,9 @@ namespace dart {
 
     // Allocate space to store our finalized representation.
     // FIXME: Make this allocation size more intelligent.
-    gsl::byte* tmp;
-    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
-        detail::alignment_of<RefCount>(detail::raw_type::object), json.size() * 8);
-    if (retval) throw std::bad_alloc();
-
-    // Forgive me this one indiscretion.
-    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
-    std::unique_ptr<gsl::byte, void (*) (gsl::byte const*)> block {tmp, del};
-
-    // Lower sajson into our buffer.
-    detail::json_lower<RefCount>(tmp, doc.get_root());
+    auto block = detail::aligned_alloc<RefCount>(json.size() * 8, detail::raw_type::object, [&] (auto* buf) {
+      detail::json_lower<RefCount>(buf, doc.get_root());
+    });
 
     // Export our buffer to the user.
     return basic_buffer {std::move(block)};
@@ -173,17 +165,9 @@ namespace dart {
 
     // Allocate space to store our finalized representation.
     // FIXME: Make this allocation size more intelligent.
-    gsl::byte* tmp;
-    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
-        detail::alignment_of<RefCount>(detail::raw_type::object), json.size() * 8);
-    if (retval) throw std::bad_alloc();
-
-    // Forgive me this one indiscretion.
-    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
-    std::unique_ptr<gsl::byte, void (*) (gsl::byte const*)> block {tmp, del};
-
-    // Lower RapidJSON into our buffer.
-    detail::json_lower<RefCount>(tmp, doc);
+    auto block = detail::aligned_alloc<RefCount>(json.size() * 8, detail::raw_type::object, [&] (auto* buf) {
+      detail::json_lower<RefCount>(buf, doc);
+    });
 
     // Export our buffer to the user.
     return basic_buffer {std::move(block)};

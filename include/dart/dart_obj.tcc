@@ -84,19 +84,89 @@ namespace dart {
   template <template <class> class RefCount>
   template <class... Args, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_object(Args&&... pairs) {
-    return basic_heap(detail::object_tag {}, std::forward<Args>(pairs)...);
+    auto obj = basic_heap(detail::object_tag {});
+    convert::as_span<basic_heap>([&] (auto args) {
+      // I don't know why this needs to be qualified,
+      // but some older versions of gcc get weird without it.
+      basic_heap::inject_pairs<true>(obj, args); 
+    }, std::forward<Args>(pairs)...);
+    return obj;
   }
 
   template <template <class> class RefCount>
   template <class... Args, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(Args&&... pairs) {
-    return basic_buffer {basic_heap<RefCount>::make_object(std::forward<Args>(pairs)...)};
+    // XXX: This HAS to check the parameter pack size using Args instead of pairs
+    // because using pairs segfaults gcc 5.1.0 for some reason
+    using pair_storage = std::array<detail::basic_pair<basic_packet<RefCount>>, sizeof...(Args) / 2>;
+    return convert::as_span<basic_packet<RefCount>>([] (auto args) {
+      // Group each key-value pair together, and create more temporary storage so that
+      // all other logic can work with pointers to pairs.
+      pair_storage storage;
+      for (auto i = 0U; i < static_cast<size_t>(args.size()); i += 2) {
+        storage[i / 2] = {std::move(args[i]), std::move(args[i + 1])};
+      }
+
+      // Sort the pairs and hand off to the low level code.
+      return detail::buffer_builder<RefCount>::build_buffer(gsl::make_span(storage));
+    }, std::forward<Args>(pairs)...);
   }
 
   template <template <class> class RefCount>
   template <class... Args, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_object(Args&&... pairs) {
-    return basic_packet(detail::object_tag {}, std::forward<Args>(pairs)...);
+    return basic_heap<RefCount>::make_object(std::forward<Args>(pairs)...);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_heap const> pairs) {
+    auto obj = basic_heap(detail::object_tag {});
+    inject_pairs<false>(obj, pairs);
+    return obj;
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_heap<RefCount> const> pairs) {
+    return dynamic_make_object(pairs);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_heap<RefCount> const> pairs) {
+    return basic_heap<RefCount>::make_object(pairs);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_buffer<RefCount> const> pairs) {
+    auto obj = basic_heap(detail::object_tag {});
+    inject_pairs<false>(obj, pairs);
+    return obj;
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_buffer const> pairs) {
+    return dynamic_make_object(pairs);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_buffer<RefCount> const> pairs) {
+    return basic_heap<RefCount>::make_object(pairs);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::make_object(gsl::span<basic_packet<RefCount> const> pairs) {
+    auto obj = basic_heap(detail::object_tag {});
+    inject_pairs<false>(obj, pairs);
+    return obj;
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_packet<RefCount> const> pairs) {
+    return dynamic_make_object(pairs);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::make_object(gsl::span<basic_packet const> pairs) {
+    return basic_heap<RefCount>::make_object(pairs);
   }
 
   template <class Object>
@@ -253,6 +323,148 @@ namespace dart {
   template <class, class>
   void basic_object<Object>::clear() {
     val.clear();
+  }
+
+  template <class Object>
+  template <class... Args, class>
+  basic_object<Object> basic_object<Object>::inject(Args&&... the_args) const {
+    return basic_object {val.inject(std::forward<Args>(the_args)...)};
+  }
+
+  template <template <class> class RefCount>
+  template <class... Args, class>
+  basic_heap<RefCount> basic_heap<RefCount>::inject(Args&&... pairs) const {
+    // Hand off to our implementation.
+    auto obj {*this};
+    convert::as_span<basic_heap>([&] (auto span) {
+      // I don't know why this needs to be qualified,
+      // but some older versions of gcc get weird without it.
+      basic_heap::inject_pairs<true>(obj, span);
+    }, std::forward<Args>(pairs)...);
+    return obj;
+  }
+
+  template <template <class> class RefCount>
+  template <class... Args, class>
+  basic_buffer<RefCount> basic_buffer<RefCount>::inject(Args&&... pairs) const {
+    // Forward the given arguments into a temporary object.
+    auto tmp = make_object(std::forward<Args>(pairs)...);
+
+    // Hand off to our implementation.
+    return detail::buffer_builder<RefCount>::merge_buffers(*this, tmp);
+  }
+
+  template <template <class> class RefCount>
+  template <class... Args, class>
+  basic_packet<RefCount> basic_packet<RefCount>::inject(Args&&... pairs) const {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(std::forward<Args>(pairs)...); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_heap const> pairs) const {
+    auto obj {*this};
+    inject_pairs<false>(obj, pairs);
+    return obj;
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_heap<RefCount> const> pairs) const {
+    return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_heap<RefCount> const> pairs) const {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_buffer<RefCount> const> pairs) const {
+    auto obj {*this};
+    inject_pairs<false>(obj, pairs);
+    return obj;
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_buffer const> pairs) const {
+    return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_buffer<RefCount> const> pairs) const {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::inject(gsl::span<basic_packet<RefCount> const> pairs) const {
+    auto obj {*this};
+    inject_pairs<false>(obj, pairs);
+    return obj;
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_packet<RefCount> const> pairs) const {
+    return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::inject(gsl::span<basic_packet const> pairs) const {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.inject(pairs); }, impl);
+  }
+
+  template <class Object>
+  basic_object<Object> basic_object<Object>::project(std::initializer_list<shim::string_view> keys) const {
+    return val.project(keys);
+  }
+
+  template <class Object>
+  template <class StringSpan, class>
+  basic_object<Object> basic_object<Object>::project(StringSpan const& keys) const {
+    return val.project(keys);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
+    return project_keys(keys);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
+    return detail::buffer_builder<RefCount>::project_keys(*this, keys);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::project(gsl::span<std::string const> keys) const {
+    return project_keys(keys);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<std::string const> keys) const {
+    return detail::buffer_builder<RefCount>::project_keys(*this, keys);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::project(gsl::span<std::string const> keys) const {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::project(gsl::span<shim::string_view const> keys) const {
+    return project_keys(keys);
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<shim::string_view const> keys) const {
+    return detail::buffer_builder<RefCount>::project_keys(*this, keys);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::project(gsl::span<shim::string_view const> keys) const {
+    return shim::visit([&] (auto& v) -> basic_packet { return v.project(keys); }, impl);
   }
 
   template <class Object>
@@ -704,18 +916,32 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class... Args>
-  basic_heap<RefCount>::basic_heap(detail::object_tag, Args&&... the_args) :
-    data(make_shareable<RefCount<packet_fields>>())
-  {
-    inject_pairs(std::forward<Args>(the_args)...);
+  template <bool consume, class Span>
+  void basic_heap<RefCount>::inject_pairs(basic_heap& obj, Span pairs) {
+    // Validate that what we're being asked to do makes sense.
+    if (!obj.is_object()) throw type_error("dart::heap is not an object and cannot inject key-value pairs");
+
+    // Insert each of the requested pairs.
+    auto end = std::end(pairs);
+    auto it = std::begin(pairs);
+    while (it != end) {
+      auto& k = *it++;
+      auto& v = *it++;
+      if (consume) obj.insert(std::move(k), std::move(v));
+      else obj.insert(k, v);
+    }
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class... Pairs>
-  void basic_heap<RefCount>::inject_pairs(KeyType&& key, ValueType&& value, Pairs&&... pairs) {
-    add_field(std::forward<KeyType>(key), std::forward<ValueType>(value));
-    inject_pairs(std::forward<Pairs>(pairs)...);
+  template <class Spannable>
+  basic_heap<RefCount> basic_heap<RefCount>::project_keys(Spannable const& keys) const {
+    // Validate that what we're being asked to do makes sense.
+    if (!is_object()) throw type_error("dart::heap is not an object an cannot project keys");
+
+    // Iterate and pull out.
+    auto obj = make_object();
+    for (auto& key : keys) if (has_key(key)) obj.add_field(key, get(key));
+    return obj;
   }
 
   template <template <class> class RefCount>
@@ -770,7 +996,7 @@ namespace dart {
       for (auto idx = 0U; idx < elems; ++idx) {
         // Using the current offset, align a pointer for the key (string type).
         auto* unaligned = DART_FROM_THIS_MUT + offset;
-        auto* aligned = detail::align_pointer<RefCount>(unaligned, detail::raw_type::string);
+        auto* aligned = align_pointer<RefCount>(unaligned, detail::raw_type::string);
         offset += aligned - unaligned;
 
         // Get our key/value from sajson.
@@ -788,7 +1014,7 @@ namespace dart {
 
         // Realign our pointer for our value type.
         unaligned = DART_FROM_THIS_MUT + offset;
-        aligned = detail::align_pointer<RefCount>(unaligned, val_type);
+        aligned = align_pointer<RefCount>(unaligned, val_type);
         offset += aligned - unaligned;
 
         // Layout our value (or copy it in if it's already been finalized).
@@ -797,7 +1023,7 @@ namespace dart {
 
       // This is necessary to ensure packets can be naively stored in
       // contiguous buffers without ruining their alignment.
-      offset = detail::pad_bytes<RefCount>(offset, detail::raw_type::object);
+      offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
       bytes = offset;
@@ -835,7 +1061,7 @@ namespace dart {
       for (auto& it : sorted) {
         // Using the current offset, align a pointer for the key (string type).
         auto* unaligned = DART_FROM_THIS_MUT + offset;
-        auto* aligned = detail::align_pointer<RefCount>(unaligned, detail::raw_type::string);
+        auto* aligned = align_pointer<RefCount>(unaligned, detail::raw_type::string);
         offset += aligned - unaligned;
 
         // Add an entry to the vtable.
@@ -847,7 +1073,7 @@ namespace dart {
 
         // Realign our pointer for our value type.
         unaligned = DART_FROM_THIS_MUT + offset;
-        aligned = detail::align_pointer<RefCount>(unaligned, val_type);
+        aligned = align_pointer<RefCount>(unaligned, val_type);
         offset += aligned - unaligned;
 
         // Layout our value (or copy it in if it's already been finalized).
@@ -856,12 +1082,46 @@ namespace dart {
 
       // This is necessary to ensure packets can be naively stored in
       // contiguous buffers without ruining their alignment.
-      offset = detail::pad_bytes<RefCount>(offset, detail::raw_type::object);
+      offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
       bytes = offset;
     }
 #endif
+
+    template <template <class> class RefCount>
+    object<RefCount>::object(gsl::span<packet_pair<RefCount>> pairs) noexcept : elems(pairs.size()) {
+      // Iterate over our elements and write each one into the buffer.
+      object_entry* entry = vtable();
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
+      for (auto& pair : pairs) {
+        // Using the current offset, align a pointer for the key (string type).
+        auto* unaligned = DART_FROM_THIS_MUT + offset;
+        auto* aligned = align_pointer<RefCount>(unaligned, detail::raw_type::string);
+        offset += aligned - unaligned;
+
+        // Add an entry to the vtable.
+        new(entry++) object_entry(pair.value.get_raw_type(), offset, pair.key.str());
+
+        // Layout our key.
+        offset += pair.key.layout(aligned);
+
+        // Realign our pointer for our value type.
+        unaligned = DART_FROM_THIS_MUT + offset;
+        aligned = align_pointer<RefCount>(unaligned, pair.value.get_raw_type());
+        offset += aligned - unaligned;
+
+        // Layout our value (or copy it in if it's already been finalized).
+        offset += pair.value.layout(aligned);
+      }
+
+      // This is necessary to ensure packets can be naively stored in
+      // contiguous buffers without ruining their alignment.
+      offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
+
+      // object is laid out, write in our final size.
+      bytes = offset;
+    }
 
     // FIXME: Audit this function. A LOT has changed since it was written.
     template <template <class> class RefCount>
@@ -872,7 +1132,7 @@ namespace dart {
       for (auto const& field : *fields) {
         // Using the current offset, align a pointer for the key (string type).
         auto* unaligned = DART_FROM_THIS_MUT + offset;
-        auto* aligned = detail::align_pointer<RefCount>(unaligned, detail::raw_type::string);
+        auto* aligned = align_pointer<RefCount>(unaligned, detail::raw_type::string);
         offset += aligned - unaligned;
 
         // Add an entry to the vtable.
@@ -883,7 +1143,7 @@ namespace dart {
 
         // Realign our pointer for our value type.
         unaligned = DART_FROM_THIS_MUT + offset;
-        aligned = detail::align_pointer<RefCount>(unaligned, field.second.get_raw_type());
+        aligned = align_pointer<RefCount>(unaligned, field.second.get_raw_type());
         offset += aligned - unaligned;
 
         // Layout our value (or copy it in if it's already been finalized).
@@ -892,7 +1152,115 @@ namespace dart {
 
       // This is necessary to ensure packets can be naively stored in
       // contiguous buffers without ruining their alignment.
-      offset = detail::pad_bytes<RefCount>(offset, detail::raw_type::object);
+      offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
+
+      // object is laid out, write in our final size.
+      bytes = offset;
+    }
+
+    template <template <class> class RefCount>
+    object<RefCount>::object(object const* base, object const* incoming) noexcept : elems(0) {
+      // This is unfortunate.
+      // We need to merge together two objects that may contain duplicate keys,
+      // but before we can start laying out the object we have to know how many
+      // keys will be present so we can calculate the address of the end of the vtable.
+      // Unfortunately we can't know how many keys there will be until we've already
+      // walked across the objects and de-duped things, which is expensive, and so
+      // for now we'll just assume that all keys are unique (conservative option, maximum
+      // memory usage by the vtable), and memmove things after the fact if that assumption
+      // turns out to be inaccurate.
+      // Note that, of course this whole problem could be solved by creating a
+      // temporary std::unordered_set to dedupe the keys for us, but the cost of doing so
+      // would completely defeat the point of this whole pathway.
+      auto guess = base->size() + incoming->size();
+
+      // Iterate across both object simultaneously, uniquely visiting each key-value pair,
+      // giving precedence to the incoming packet for collisions.
+      // Write each pair into our buffer.
+      object_entry* entry = vtable();
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[guess]) - DART_FROM_THIS_MUT;
+      buffer_builder<RefCount>::each_unique_pair(base, incoming, [&] (auto raw_key, auto raw_val) {
+        // Using the current offset, align a pointer for the key (string type).
+        auto* unaligned = DART_FROM_THIS_MUT + offset;
+        auto* aligned = align_pointer<RefCount>(unaligned, detail::raw_type::string);
+        offset += aligned - unaligned;
+
+        // Add an entry to the vtable.
+        auto* key = get_string(raw_key);
+        new(entry++) object_entry(raw_val.type, offset, key->get_strv().data());
+
+        // Copy in our key.
+        auto key_len = find_sizeof<RefCount>(raw_key);
+        std::copy_n(raw_key.buffer, key_len, aligned);
+        offset += key_len;
+
+        // Realign our pointer for our value type.
+        unaligned = DART_FROM_THIS_MUT + offset;
+        aligned = align_pointer<RefCount>(unaligned, raw_val.type);
+        offset += aligned - unaligned;
+
+        // Copy in our value
+        auto val_len = find_sizeof<RefCount>(raw_val);
+        std::copy_n(raw_val.buffer, val_len, aligned);
+        offset += val_len;
+        ++elems;
+      });
+
+      // Alright, since we guessed at the total size of the object, we now have to handle
+      // the case where we were wrong.
+      if (elems != guess) offset = realign(guess, offset);
+
+      // This is necessary to ensure packets can be naively stored in
+      // contiguous buffers without ruining their alignment.
+      offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
+
+      // object is laid out, write in our final size.
+      bytes = offset;
+    }
+
+    template <template <class> class RefCount>
+    template <class Key>
+    object<RefCount>::object(object const* base, gsl::span<Key const*> key_ptrs) noexcept : elems(0) {
+      // Need to guess again. To see the reasoning for this, check the object merge constructor.
+      auto guess = key_ptrs.size();
+
+      // Iterate over our elements and write each one into the buffer.
+      object_entry* entry = vtable();
+      size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[guess]) - DART_FROM_THIS_MUT;
+      buffer_builder<RefCount>::project_each_pair(base, key_ptrs, [&] (auto raw_key, auto raw_val) {
+        // Using the current offset, align a pointer for the key (string type).
+        auto* unaligned = DART_FROM_THIS_MUT + offset;
+        auto* aligned = align_pointer<RefCount>(unaligned, detail::raw_type::string);
+        offset += aligned - unaligned;
+
+        // Add an entry to the vtable.
+        auto* key = get_string(raw_key);
+        new(entry++) object_entry(raw_val.type, offset, key->get_strv().data());
+
+        // Copy in our key.
+        auto key_len = find_sizeof<RefCount>(raw_key);
+        std::copy_n(raw_key.buffer, key_len, aligned);
+        offset += key_len;
+
+        // Realign our pointer for our value type.
+        unaligned = DART_FROM_THIS_MUT + offset;
+        aligned = align_pointer<RefCount>(unaligned, raw_val.type);
+        offset += aligned - unaligned;
+
+        // Copy in our value
+        auto val_len = find_sizeof<RefCount>(raw_val);
+        std::copy_n(raw_val.buffer, val_len, aligned);
+        offset += val_len;
+        ++elems;
+      });
+
+      // Alright, since we guessed at the total size of the object, we now have to handle
+      // the case where we were wrong.
+      if (elems != guess) offset = realign(guess, offset);
+
+      // This is necessary to ensure packets can be naively stored in
+      // contiguous buffers without ruining their alignment.
+      offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
       bytes = offset;
@@ -1019,7 +1387,31 @@ namespace dart {
       // Jump over the key and align to the given type.
       auto const* val_ptr = base + entry.get_offset();
       auto const* key_ptr = detail::get_string({raw_type::string, val_ptr});
-      return {entry.get_type(), detail::align_pointer<RefCount>(val_ptr + key_ptr->get_sizeof(), entry.get_type())};
+      return {entry.get_type(), align_pointer<RefCount>(val_ptr + key_ptr->get_sizeof(), entry.get_type())};
+    }
+
+    template <template <class> class RefCount>
+    size_t object<RefCount>::realign(size_t guess, size_t offset) noexcept {
+      // Get a pointer to where the packet data we wrote starts
+      assert(elems < guess);
+      auto* src = reinterpret_cast<gsl::byte const*>(&vtable()[guess]);
+
+      // Get a pointer to the next alignment boundary after where the vtable ACTUALLY ends.
+      auto* unaligned = reinterpret_cast<gsl::byte*>(&vtable()[elems]);
+      auto* dst = align_pointer<RefCount>(unaligned, vtable()[0].get_type());
+
+      // Re-align things.
+      auto diff = src - dst;
+      std::copy(src, DART_FROM_THIS + offset, dst);
+      offset -= diff;
+
+      // We just realigned things, which means all of our vtable offsets are now wrong.
+      for (auto idx = 0U; idx < elems; ++idx) vtable()[idx].adjust_offset(-diff);
+
+      // Lastly, we need to zero the trailing bytes to ensure buffers
+      // can still be compared via memcmp.
+      std::fill_n(DART_FROM_THIS_MUT + offset, diff, gsl::byte {});
+      return offset;
     }
 
     template <template <class> class RefCount>
@@ -1044,7 +1436,7 @@ namespace dart {
 
       // Otherwise, jump over the key and align to the given type.
       auto const* key_ptr = detail::get_string({detail::raw_type::string, field.buffer});
-      return {field.type, detail::align_pointer<RefCount>(field.buffer + key_ptr->get_sizeof(), field.type)};
+      return {field.type, align_pointer<RefCount>(field.buffer + key_ptr->get_sizeof(), field.type)};
     }
 
     template <template <class> class RefCount>
