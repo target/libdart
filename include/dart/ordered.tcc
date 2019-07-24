@@ -70,43 +70,50 @@ namespace dart {
     template <class T, class O>
     template <class Operand, class>
     auto ordered<T, O>::operator +=(Operand op) noexcept -> ordered& {
-      return increment(op);
+      increment(op);
+      return *this;
     }
 
     template <class T, class O>
     template <class Operand, class>
     auto ordered<T, O>::operator -=(Operand op) noexcept -> ordered& {
-      return increment(-op);
+      increment(-op);
+      return *this;
     }
 
     template <class T, class O>
     template <class Operand, class>
     auto ordered<T, O>::operator *=(Operand op) noexcept -> ordered& {
-      return scale(op);
+      scale(op);
+      return *this;
     }
 
     template <class T, class O>
     template <class Operand, class>
     auto ordered<T, O>::operator /=(Operand op) noexcept -> ordered& {
-      return shrink(op);
+      shrink(op);
+      return *this;
     }
 
     template <class T, class O>
     template <class Operand, class>
     auto ordered<T, O>::operator &=(Operand op) noexcept -> ordered& {
-      return mask(op);
+      mask(op);
+      return *this;
     }
 
     template <class T, class O>
     template <class Operand, class>
     auto ordered<T, O>::operator |=(Operand op) noexcept -> ordered& {
-      return fill(op);
+      fill(op);
+      return *this;
     }
 
     template <class T, class O>
     template <class Operand, class>
     auto ordered<T, O>::operator ^=(Operand op) noexcept -> ordered& {
-      return flip(op);
+      flip(op);
+      return *this;
     }
 
     template <class T, class O>

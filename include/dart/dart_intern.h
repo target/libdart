@@ -35,6 +35,7 @@
 #include "dart_shim.h"
 #include "dart_meta.h"
 #include "ordered.h"
+#include "ptrs.h"
 
 /*----- System Includes with Compiler Flags -----*/
 
@@ -171,14 +172,94 @@ namespace dart {
 
     /**
      *  @brief
+     *  Used internally in scenarios where two dart types aren't contained within
+     *  some existing data structure, but they need to be paired together.
+     */
+    template <class Packet>
+    struct basic_pair {
+
+      /*----- Lifecycle Functions -----*/
+
+      basic_pair() = default;
+      template <class P, class =
+        std::enable_if_t<
+          std::is_convertible<
+            P,
+            Packet
+          >::value
+        >
+      >
+      basic_pair(P&& key, P&& value) : key(std::forward<P>(key)), value(std::forward<P>(value)) {}
+      basic_pair(basic_pair const&) = default;
+      basic_pair(basic_pair&&) = default;
+      ~basic_pair() = default;
+
+      /*----- Operators -----*/
+
+      basic_pair& operator =(basic_pair const&) = default;
+      basic_pair& operator =(basic_pair&&) = default;
+
+      /*----- Members -----*/
+
+      Packet key, value;
+
+    };
+    template <template <class> class RefCount>
+    using heap_pair = basic_pair<basic_heap<RefCount>>;
+    template <template <class> class RefCount>
+    using buffer_pair = basic_pair<basic_buffer<RefCount>>;
+    template <template <class> class RefCount>
+    using packet_pair = basic_pair<basic_packet<RefCount>>;
+
+    /**
+     *  @brief
      *  Helper-struct for sorting `dart::packet`s within `std::map`s.
      */
     template <template <class> class RefCount>
-    struct map_comparator {
+    struct dart_comparator {
       using is_transparent = shim::string_view;
-      bool operator ()(basic_heap<RefCount> const& lhs, shim::string_view rhs) const;
-      bool operator ()(shim::string_view lhs, basic_heap<RefCount> const& rhs) const;
-      bool operator ()(basic_heap<RefCount> const& lhs, basic_heap<RefCount> const& rhs) const;
+
+      bool operator ()(shim::string_view lhs, shim::string_view rhs) const;
+
+      // Comparison between some packet type and a string
+      template <template <template <class> class> class Packet>
+      bool operator ()(Packet<RefCount> const& lhs, shim::string_view rhs) const;
+      template <template <template <class> class> class Packet>
+      bool operator ()(shim::string_view lhs, Packet<RefCount> const& rhs) const;
+
+      // Comparison between a key-value pair of some packet type and a string
+      template <template <template <class> class> class Packet>
+      bool operator ()(basic_pair<Packet<RefCount>> const& lhs, shim::string_view rhs) const;
+      template <template <template <class> class> class Packet>
+      bool operator ()(shim::string_view lhs, basic_pair<Packet<RefCount>> const& rhs) const;
+
+      // Comparison between two, potentially disparate, packet types
+      template <
+        template <template <class> class> class LhsPacket,
+        template <template <class> class> class RhsPacket
+      >
+      bool operator ()(LhsPacket<RefCount> const& lhs, RhsPacket<RefCount> const& rhs) const;
+
+      // Comparison between a key-value pair of some packet type and some,
+      // potentially disparate, packet type
+      template <
+        template <template <class> class> class LhsPacket,
+        template <template <class> class> class RhsPacket
+      >
+      bool operator ()(basic_pair<LhsPacket<RefCount>> const& lhs, RhsPacket<RefCount> const& rhs) const;
+      template <
+        template <template <class> class> class LhsPacket,
+        template <template <class> class> class RhsPacket
+      >
+      bool operator ()(LhsPacket<RefCount> const& lhs, basic_pair<RhsPacket<RefCount>> const& rhs) const;
+
+      // Comparison between a key-value pair of some packet type and
+      // a key-value pair of some, potentially disparate, packet type.
+      template <
+        template <template <class> class> class LhsPacket,
+        template <template <class> class> class RhsPacket
+      >
+      bool operator ()(basic_pair<LhsPacket<RefCount>> const& lhs, basic_pair<RhsPacket<RefCount>> const& rhs) const;
     };
 
     /**
@@ -189,6 +270,9 @@ namespace dart {
       template <class Lhs, class Rhs>
       bool operator ()(Lhs&& lhs, Rhs&& rhs) const noexcept;
     };
+
+    template <template <class> class RefCount>
+    using buffer_refcount_type = shareable_ptr<RefCount<gsl::byte const>>;
 
     class prefix_entry;
     template <class>
@@ -238,8 +322,11 @@ namespace dart {
 
         /*----- Public API -----*/
 
-        detail::raw_type get_type() const noexcept;
+        raw_type get_type() const noexcept;
         uint32_t get_offset() const noexcept;
+
+        // This sucks, but we need it for dart::buffer::inject
+        void adjust_offset(std::ptrdiff_t diff) noexcept;
 
       protected:
 
@@ -308,7 +395,7 @@ namespace dart {
     template <template <class> class RefCount>
     using packet_elements = std::vector<basic_heap<RefCount>>;
     template <template <class> class RefCount>
-    using packet_fields = std::map<basic_heap<RefCount>, basic_heap<RefCount>, map_comparator<RefCount>>;
+    using packet_fields = std::map<basic_heap<RefCount>, basic_heap<RefCount>, dart_comparator<RefCount>>;
 
     /**
      *  @brief
@@ -463,13 +550,24 @@ namespace dart {
         /*----- Lifecycle Functions -----*/
 
         object() = delete;
+
+        // JSON Constructors
 #ifdef DART_USE_SAJSON
         explicit object(sajson::value fields) noexcept;
 #endif
 #if DART_HAS_RAPIDJSON
         explicit object(rapidjson::Value const& fields) noexcept;
 #endif
-        object(packet_fields<RefCount> const* fields) noexcept;
+
+        // Direct constructors
+        explicit object(gsl::span<packet_pair<RefCount>> pairs) noexcept;
+        explicit object(packet_fields<RefCount> const* fields) noexcept;
+
+        // Special constructors
+        object(object const* base, object const* incoming) noexcept;
+        template <class Key>
+        object(object const* base, gsl::span<Key const*> key_ptrs) noexcept;
+
         object(object const&) = delete;
         ~object() = delete;
 
@@ -504,6 +602,8 @@ namespace dart {
       private:
 
         /*----- Private Helpers -----*/
+
+        size_t realign(size_t guess, size_t offset) noexcept;
 
         template <class Callback>
         auto get_value_impl(shim::string_view const key, Callback&& cb) const -> raw_element;
@@ -692,6 +792,26 @@ namespace dart {
 
     };
     static_assert(std::is_standard_layout<primitive<int>>::value, "dart library is misconfigured");
+
+    template <template <class> class RefCount>
+    struct buffer_builder {
+      using buffer = basic_buffer<RefCount>;
+
+      template <class Span>
+      static auto build_buffer(Span pairs) -> buffer;
+      static auto merge_buffers(buffer const& base, buffer const& incoming) -> buffer;
+
+      template <class Spannable>
+      static auto project_keys(buffer const& base, Spannable const& keys) -> buffer;
+
+      template <class Callback>
+      static void each_unique_pair(object<RefCount> const* base, object<RefCount> const* incoming, Callback&& cb);
+      template <class Key, class Callback>
+      static void project_each_pair(object<RefCount> const* base, gsl::span<Key const*> key_ptrs, Callback&& cb);
+
+      template <class Span>
+      static size_t max_bytes(Span pairs);
+    };
 
     // Used for tag dispatch from factory functions.
     struct object_tag {
@@ -1121,6 +1241,47 @@ namespace dart {
 #elif DART_USING_CLANG
 #pragma clang diagnostic pop
 #endif
+
+    template <template <class> class RefCount, class Owner = buffer_refcount_type<RefCount>, class Callback>
+    Owner aligned_alloc(size_t bytes, raw_type type, Callback&& cb) {
+      // Make an aligned allocation.
+      gsl::byte* tmp;
+      int retval = posix_memalign(reinterpret_cast<void**>(&tmp), alignment_of<RefCount>(type), bytes);
+      if (retval) throw std::bad_alloc();
+
+      // Associate it with an owner in case anything goes wrong.
+      Owner ref {tmp, +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); }};
+
+      // Hand out mutable access and return.
+      cb(tmp);
+      return ref;
+    }
+
+    template <template <class> class RefCount, size_t static_elems = 8, class Spannable, class Callback>
+    decltype(auto) sort_spannable(Spannable const& elems, Callback&& cb) {
+      using value_type = typename Spannable::value_type;
+
+      // Check if we can perform the sorting statically.
+      dart_comparator<RefCount> comp;
+      auto const size = static_cast<size_t>(elems.size());
+      if (size <= static_elems) {
+        // We've got enough static space, setup a local array.
+        std::array<value_type const*, static_elems> ptrs;
+        std::transform(std::begin(elems), std::end(elems), std::begin(ptrs), [] (auto& e) { return &e; });
+
+        // Sort the pointers and pass back to the user.
+        std::sort(ptrs.data(), ptrs.data() + size, [&] (auto* lhs, auto* rhs) { return comp(*lhs, *rhs); });
+        return cb(gsl::make_span(ptrs.data(), size));
+      } else {
+        // Dynamic fallback.
+        std::vector<value_type const*> ptrs(size, nullptr);
+        std::transform(std::begin(elems), std::end(elems), std::begin(ptrs), [] (auto& e) { return &e; });
+
+        // Sort and pass back.
+        std::sort(std::begin(ptrs), std::end(ptrs), [&] (auto* lhs, auto* rhs) { return comp(*lhs, *rhs); });
+        return cb(gsl::make_span(ptrs));
+      }
+    }
 
   }
 

@@ -48,7 +48,6 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 
 /*----- Local Includes -----*/
 
-#include "dart/ptrs.h"
 #include "dart/dart_intern.h"
 #include "dart/conversion_traits.h"
 
@@ -100,6 +99,8 @@ namespace dart {
   class basic_object final {
 
     // Type aliases used to SFINAE away member functions we shouldn't have.
+    template <class Obj, class... As>
+    using make_object_t = decltype(Obj::make_object(std::declval<As>()...));
     template <class Obj, class K>
     using subscript_operator_t = decltype(std::declval<Obj>()[std::declval<K>()]);
     template <class Obj, class K, class V>
@@ -114,6 +115,10 @@ namespace dart {
     using erase_t = decltype(std::declval<Obj>().erase(std::declval<A>()));
     template <class Obj>
     using clear_t = decltype(std::declval<Obj>().clear());
+    template <class Obj, class... As>
+    using inject_t = decltype(std::declval<Obj>().inject(std::declval<As>()...));
+    template <class Obj, class S>
+    using project_t = decltype(std::declval<Obj>().project(std::declval<S>()));
     template <class Obj, class A>
     using get_t = decltype(std::declval<Obj>().get(std::declval<A>()));
     template <class Obj, class A, class T>
@@ -176,7 +181,7 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
-          sizeof...(Args) % 2 == 0
+          meta::is_detected<make_object_t, value_type, Args...>::value
         >
       >
       explicit basic_object(Args&&... the_args) :
@@ -679,6 +684,32 @@ namespace dart {
         >
       >
       void clear();
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      template <class... Args, class =
+        std::enable_if_t<
+          meta::is_detected<inject_t, Object const&, Args...>::value
+        >
+      >
+      basic_object inject(Args&&... the_args) const;
+
+      basic_object project(std::initializer_list<shim::string_view> keys) const;
+
+      template <class StringSpan, class =
+        std::enable_if_t<
+          meta::is_detected<project_t, Object const&, StringSpan>::value
+        >
+      >
+      basic_object project(StringSpan const& keys) const;
 
       /**
        *  @brief
@@ -4643,11 +4674,76 @@ namespace dart {
 
       /**
        *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_heap make_object(gsl::span<basic_heap const> pairs);
+
+      /**
+       *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_heap make_object(gsl::span<basic_buffer<RefCount> const> pairs);
+
+      /**
+       *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_heap make_object(gsl::span<basic_packet<RefCount> const> pairs);
+
+      /**
+       *  @brief
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
-      template <class... Args>
+      template <class... Args, class =
+        std::enable_if_t<
+          (sizeof...(Args) > 1)
+          ||
+          !meta::is_span<
+            meta::first_type_t<std::decay_t<Args>...>
+          >::value
+        >
+      >
       static basic_heap make_array(Args&&... elems);
+
+      /**
+       *  @brief
+       *  Array factory function.
+       *  Returns a new, non-finalized, array with the given sequence of elements.
+       */
+      static basic_heap make_array(gsl::span<basic_heap const> elems);
+
+      /**
+       *  @brief
+       *  Array factory function.
+       *  Returns a new, non-finalized, array with the given sequence of elements.
+       */
+      static basic_heap make_array(gsl::span<basic_buffer<RefCount> const> elems);
+
+      /**
+       *  @brief
+       *  Array factory function.
+       *  Returns a new, non-finalized, array with the given sequence of elements.
+       */
+      static basic_heap make_array(gsl::span<basic_packet<RefCount> const> elems);
 
       /**
        *  @brief
@@ -5156,6 +5252,109 @@ namespace dart {
        *  If this is object/array, will remove all subvalues.
        */
       void clear();
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      template <class... Args, class =
+        std::enable_if_t<
+          meta::conjunction<
+            convert::is_castable<Args, basic_heap>...
+          >::value
+          &&
+          sizeof...(Args) % 2 == 0
+        >
+      >
+      basic_heap inject(Args&&... pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_heap inject(gsl::span<basic_heap const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_heap inject(gsl::span<basic_buffer<RefCount> const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_heap inject(gsl::span<basic_packet<RefCount> const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_heap project(std::initializer_list<shim::string_view> keys) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_heap project(gsl::span<std::string const> keys) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_heap project(gsl::span<shim::string_view const> keys) const;
 
       /*----- State Manipulation Functions -----*/
 
@@ -6375,10 +6574,12 @@ namespace dart {
 
       /*----- Private Lifecycle Functions -----*/
 
-      template <class... Args>
-      basic_heap(detail::object_tag, Args&&... pairs);
-      template <class... Args>
-      basic_heap(detail::array_tag, Args&&... elems);
+      basic_heap(detail::object_tag) :
+        data(make_shareable<RefCount<packet_fields>>())
+      {}
+      basic_heap(detail::array_tag) :
+        data(make_shareable<RefCount<packet_elements>>())
+      {}
       basic_heap(detail::string_tag, shim::string_view val);
       basic_heap(detail::integer_tag, int64_t val) noexcept : data(val) {}
       basic_heap(detail::decimal_tag, double val) noexcept : data(val) {}
@@ -6387,13 +6588,14 @@ namespace dart {
 
       /*----- Private Helpers -----*/
 
-      void append_elems() {}
-      template <class Elem, class... Elems>
-      void append_elems(Elem&& elem, Elems&&... elems);
+      template <bool consume, class Span>
+      static void push_elems(basic_heap& arr, Span elems);
 
-      void inject_pairs() {}
-      template <class KeyType, class ValueType, class... Pairs>
-      void inject_pairs(KeyType&& key, ValueType&& value, Pairs&&... pairs);
+      template <bool consume, class Span>
+      static void inject_pairs(basic_heap& obj, Span pairs);
+
+      template <class Spannable>
+      basic_heap project_keys(Spannable const& keys) const;
 
       void copy_on_write(size_type overcount = 1);
       auto upper_bound() const -> size_type;
@@ -6437,6 +6639,7 @@ namespace dart {
       friend class detail::object<RefCount>;
       friend class detail::array<RefCount>;
       friend class basic_buffer<RefCount>;
+      friend class basic_packet<RefCount>;
 
   };
 
@@ -7003,12 +7206,143 @@ namespace dart {
 
       /**
        *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_buffer make_object(gsl::span<basic_heap<RefCount> const> pairs);
+
+      /**
+       *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_buffer make_object(gsl::span<basic_buffer<RefCount> const> pairs);
+
+      /**
+       *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_buffer make_object(gsl::span<basic_packet<RefCount> const> pairs);
+
+      /**
+       *  @brief
        *  Null factory function.
        *  Returns a null packet.
        */
       static basic_buffer make_null() noexcept;
 
       /*----- Aggregate Builder Functions -----*/
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      template <class... Args, class =
+        std::enable_if_t<
+          meta::conjunction<
+            convert::is_castable<Args, basic_packet<RefCount>>...
+          >::value
+          &&
+          sizeof...(Args) % 2 == 0
+        >
+      >
+      basic_buffer inject(Args&&... pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_buffer inject(gsl::span<basic_heap<RefCount> const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_buffer inject(gsl::span<basic_buffer const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_buffer inject(gsl::span<basic_packet<RefCount> const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_buffer project(std::initializer_list<shim::string_view> keys) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_buffer project(gsl::span<std::string const> keys) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_buffer project(gsl::span<shim::string_view const> keys) const;
+
+      /*----- State Manipulation Functions -----*/
 
       /**
        *  @brief
@@ -8336,7 +8670,7 @@ namespace dart {
 
       /*----- Private Types -----*/
 
-      using buffer_ref_type = shareable_ptr<RefCount<gsl::byte const>>;
+      using buffer_ref_type = detail::buffer_refcount_type<RefCount>;
 
       /*----- Private Lifecycle Functions -----*/
 
@@ -8348,6 +8682,9 @@ namespace dart {
       template <class Pointer>
       auto normalize(Pointer ptr) const -> buffer_ref_type;
 
+      template <class Span>
+      static basic_buffer dynamic_make_object(Span pairs);
+
       /*----- Private Members -----*/
 
       detail::raw_element raw;
@@ -8355,6 +8692,8 @@ namespace dart {
 
       /*----- Friends -----*/
 
+      friend class basic_packet<RefCount>;
+      friend struct detail::buffer_builder<RefCount>;
       template <template <class> class RC>
       friend bool operator ==(basic_buffer<RC> const&, basic_heap<RC> const&);
 
@@ -8962,11 +9301,68 @@ namespace dart {
 
       /**
        *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_packet make_object(gsl::span<basic_heap<RefCount> const> pairs);
+
+      /**
+       *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_packet make_object(gsl::span<basic_buffer<RefCount> const> pairs);
+
+      /**
+       *  @brief
+       *  Object factory function.
+       *  Returns a new, non-finalized, object with the given sequence of key-value pairs.
+       *
+       *  @details
+       *  Object keys can only be strings, and so arguments must be paired such that the
+       *  first of each pair is convertible to a dart::heap string, and the second of
+       *  each pair is convertible into a dart::heap of any type.
+       */
+      static basic_packet make_object(gsl::span<basic_packet<RefCount> const> pairs);
+
+      /**
+       *  @brief
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
       template <class... Args>
       static basic_packet make_array(Args&&... elems);
+
+      /**
+       *  @brief
+       *  Array factory function.
+       *  Returns a new, non-finalized, array with the given sequence of elements.
+       */
+      static basic_packet make_array(gsl::span<basic_heap<RefCount> const> elems);
+
+      /**
+       *  @brief
+       *  Array factory function.
+       *  Returns a new, non-finalized, array with the given sequence of elements.
+       */
+      static basic_packet make_array(gsl::span<basic_buffer<RefCount> const> elems);
+
+      /**
+       *  @brief
+       *  Array factory function.
+       *  Returns a new, non-finalized, array with the given sequence of elements.
+       */
+      static basic_packet make_array(gsl::span<basic_packet const> elems);
 
       /**
        *  @brief
@@ -9475,6 +9871,99 @@ namespace dart {
        *  If this is a non-finalized object/array, function will remove all subvalues.
        */
       void clear();
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      template <class... Args, class =
+        std::enable_if_t<
+          meta::conjunction<
+            convert::is_castable<Args, basic_packet>...
+          >::value
+          &&
+          sizeof...(Args) % 2 == 0
+        >
+      >
+      basic_packet inject(Args&&... pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_packet inject(gsl::span<basic_heap<RefCount> const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_packet inject(gsl::span<basic_buffer<RefCount> const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "injects" a set of key-value pairs into an object without
+       *  modifying it by returning a new object with the union of the keyset
+       *  of the original object and the provided key-value pairs.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ injection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_packet inject(gsl::span<basic_packet const> pairs) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_packet project(std::initializer_list<shim::string_view> keys) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_packet project(gsl::span<std::string const> keys) const;
+
+      /**
+       *  @brief
+       *  Function "projects" a set of key-value pairs in the mathematical
+       *  sense that it creates a new packet containing the intersection of
+       *  the supplied keys, and those present in the original packet.
+       *
+       *  @details
+       *  Function provides a uniform interface for _efficient_ projection of
+       *  keys across the entire Dart API (also works for dart::buffer).
+       */
+      basic_packet project(gsl::span<shim::string_view const> keys) const;
 
       /*----- State Manipulation Functions -----*/
 
@@ -10956,29 +11445,9 @@ namespace dart {
 
       /*----- Private Helpers -----*/
 
-      template <class... Args>
-      basic_packet(detail::object_tag, Args&&... pairs) :
-        impl(basic_heap<RefCount>::make_object(std::forward<Args>(pairs)...))
-      {}
-      template <class... Args>
-      basic_packet(detail::array_tag, Args&&... elems) :
-        impl(basic_heap<RefCount>::make_array(std::forward<Args>(elems)...))
-      {}
-      basic_packet(detail::string_tag, shim::string_view val) :
-        impl(basic_heap<RefCount>::make_string(val))
-      {}
-      basic_packet(detail::integer_tag, int64_t val) noexcept :
-        impl(basic_heap<RefCount>::make_integer(val))
-      {}
-      basic_packet(detail::decimal_tag, double val) noexcept :
-        impl(basic_heap<RefCount>::make_decimal(val))
-      {}
-      basic_packet(detail::boolean_tag, bool val) noexcept :
-        impl(basic_heap<RefCount>::make_boolean(val))
-      {}
-      basic_packet(detail::null_tag) noexcept :
-        impl(basic_heap<RefCount>::make_null())
-      {}
+      size_t upper_bound() const noexcept;
+      auto layout(gsl::byte* buffer) const noexcept -> size_type;
+      detail::raw_type get_raw_type() const noexcept;
 
       basic_heap<RefCount>& get_heap();
       basic_heap<RefCount> const& get_heap() const;
@@ -11006,6 +11475,8 @@ namespace dart {
       friend bool operator ==(basic_buffer<RC> const&, basic_packet<RC> const&);
       template <template <class> class RC>
       friend bool operator ==(basic_heap<RC> const&, basic_packet<RC> const&);
+      friend class detail::object<RefCount>;
+      friend struct detail::buffer_builder<RefCount>;
 
   };
 

@@ -48,24 +48,10 @@ namespace dart {
     // Calculate the maximum amount of memory that could be required to represent this dart::packet and
     // allocate the whole thing in one go.
     size_t bytes = heap.upper_bound();
-
-    // Allocate an aligned region.
-    gsl::byte* tmp;
-    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
-        detail::alignment_of<RefCount>(detail::raw_type::object), bytes);
-    if (retval) throw std::bad_alloc();
-
-    // Forgive me this one indiscretion.
-    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
-    std::unique_ptr<gsl::byte, void (*) (gsl::byte const*)> block {tmp, del};
-
-    // XXX: std::fill_n is REQUIRED here so that we can perform memcmps for finalized packets.
-    // Recursively layout the dart::packet.
-    std::fill_n(tmp, bytes, gsl::byte {});
-    heap.layout(tmp);
-
-    // Set ourselves up as a finalized dart::packet.
-    buffer_ref = std::move(block);
+    buffer_ref = detail::aligned_alloc<RefCount>(bytes, detail::raw_type::object, [&] (auto* buff) {
+      std::fill_n(buff, bytes, gsl::byte {});
+      heap.layout(buff);
+    });
     raw = {detail::raw_type::object, buffer_ref.get()};
   }
 
@@ -540,7 +526,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   basic_packet<RefCount> basic_packet<RefCount>::make_null() noexcept {
-    return basic_packet(detail::null_tag {});
+    return basic_heap<RefCount>::make_null();
   }
 
   template <template <class> class RefCount>
@@ -1204,18 +1190,11 @@ namespace dart {
   std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)> basic_buffer<RefCount>::dup_bytes(size_type& len) const {
     using tmp_ptr = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>;
 
-    // Allocate an aligned region.
-    gsl::byte* tmp;
     auto buf = get_bytes();
-    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
-        detail::alignment_of<RefCount>(detail::raw_type::object), buf.size());
-    if (retval) throw std::bad_alloc();
-
-    // Copy and return.
-    tmp_ptr block {tmp, +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); }};
-    std::copy(buf.begin(), buf.end(), tmp);
     len = buf.size();
-    return block;
+    return detail::aligned_alloc<RefCount, tmp_ptr>(buf.size(), detail::raw_type::object, [&] (auto* dup) {
+      std::copy(std::begin(buf), std::end(buf), dup);
+    });
   }
 
   template <template <class> class RefCount>

@@ -18,15 +18,57 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class... Args>
+  template <class... Args, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(Args&&... elems) {
-    return basic_heap(detail::array_tag {}, std::forward<Args>(elems)...);
+    auto arr = basic_heap(detail::array_tag {});
+    convert::as_span<basic_heap>([&] (auto args) {
+      // I don't know why this needs to be qualified,
+      // but some older versions of gcc get weird without it
+      basic_heap::push_elems<true>(arr, args);
+    }, std::forward<Args>(elems)...);
+    return arr;
   }
 
   template <template <class> class RefCount>
   template <class... Args>
   basic_packet<RefCount> basic_packet<RefCount>::make_array(Args&&... elems) {
-    return basic_packet(detail::array_tag {}, std::forward<Args>(elems)...);
+    return basic_heap<RefCount>::make_array(std::forward<Args>(elems)...);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_heap const> elems) {
+    auto arr = basic_heap(detail::array_tag {});
+    push_elems<false>(arr, elems);
+    return arr;
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::make_array(gsl::span<basic_heap<RefCount> const> elems) {
+    return basic_heap<RefCount>::make_array(elems);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_buffer<RefCount> const> elems) {
+    auto arr = basic_heap(detail::array_tag {});
+    push_elems<false>(arr, elems);
+    return arr;
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::make_array(gsl::span<basic_buffer<RefCount> const> elems) {
+    return basic_heap<RefCount>::make_array(elems);
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_packet<RefCount> const> elems) {
+    auto arr = basic_heap(detail::array_tag {});
+    push_elems<false>(arr, elems);
+    return arr;
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::make_array(gsl::span<basic_packet<RefCount> const> elems) {
+    return basic_heap<RefCount>::make_array(elems);
   }
 
   template <class Array>
@@ -746,18 +788,17 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class... Args>
-  basic_heap<RefCount>::basic_heap(detail::array_tag, Args&&... the_args) :
-    data(make_shareable<RefCount<packet_elements>>())
-  {
-    append_elems(std::forward<Args>(the_args)...);
-  }
-
-  template <template <class> class RefCount>
-  template <class Elem, class... Elems>
-  void basic_heap<RefCount>::append_elems(Elem&& elem, Elems&&... elems) {
-    push_back(std::forward<Elem>(elem));
-    append_elems(std::forward<Elems>(elems)...);
+  template <bool consume, class Span>
+  void basic_heap<RefCount>::push_elems(basic_heap& arr, Span elems) {
+    // Validate that what we're being asked to do makes sense.
+    if (!arr.is_array()) throw type_error("dart::heap is not an array and cannot push elements");
+    
+    // Push each of the requested elements.
+    arr.reserve(elems.size());
+    for (auto& elem : elems) {
+      if (consume) arr.push_back(std::move(elem));
+      else arr.push_back(elem);
+    }
   }
 
   template <template <class> class RefCount>

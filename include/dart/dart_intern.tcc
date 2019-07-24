@@ -172,17 +172,12 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_buffer<RefCount>::allocate_pointer(gsl::span<gsl::byte const> buffer) const -> buffer_ref_type {
     if (buffer.empty()) throw std::invalid_argument("dart::packet buffer must not be empty");
-    
-    // Allocate an aligned region.
-    gsl::byte* tmp;
-    int retval = posix_memalign(reinterpret_cast<void**>(&tmp),
-        detail::alignment_of<RefCount>(detail::raw_type::object), buffer.size());
-    if (retval) throw std::bad_alloc();
 
-    // Copy and return.
-    buffer_ref_type ref {tmp, [] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); }};
-    std::copy(buffer.begin(), buffer.end(), tmp);
-    return ref;
+    // Copy the data into a new buffer.
+    auto owner = detail::aligned_alloc<RefCount>(buffer.size(), detail::raw_type::object, [&] (auto* bytes) {
+      std::copy(std::begin(buffer), std::end(buffer), bytes);
+    });
+    return buffer_ref_type {std::move(owner)};
   }
 
   template <template <class> class RefCount>
@@ -206,6 +201,32 @@ namespace dart {
     buffer_ref_type tmp(ptr.get(), std::move(ptr.get_deleter()));
     ptr.release();
     return tmp;
+  }
+
+  template <template <class> class RefCount>
+  template <class Span>
+  basic_buffer<RefCount> basic_buffer<RefCount>::dynamic_make_object(Span pairs) {
+    using pair_storage = std::vector<detail::packet_pair<RefCount>>;
+
+    // Make sure we've been given something we can use.
+    if (pairs.size() & 1) {
+      throw std::invalid_argument("dart::buffer objects can only be constructed from a sequence of key-value PAIRS");
+    }
+
+    // Break our arguments up into pairs.
+    pair_storage storage;
+    auto end = std::end(pairs);
+    auto it = std::begin(pairs);
+    storage.reserve(pairs.size());
+    while (it != end) {
+      if (!it->is_str()) throw std::invalid_argument("dart::buffer object keys must be strings");
+      auto& k = *it++;
+      auto& v = *it++;
+      storage.emplace_back(k, v);
+    }
+
+    // Pass off to the low level code.
+    return detail::buffer_builder<RefCount>::build_buffer(gsl::make_span(storage));
   }
 
   template <template <class> class RefCount>
@@ -416,6 +437,49 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  size_t basic_packet<RefCount>::upper_bound() const noexcept {
+    return shim::visit(
+      shim::compose_together(
+        [] (basic_buffer<RefCount> const& impl) { return detail::find_sizeof<RefCount>(impl.raw); },
+        [] (basic_heap<RefCount> const& impl) { return impl.upper_bound(); }
+      ),
+      impl
+    );
+  }
+
+  template <template <class> class RefCount>
+  auto basic_packet<RefCount>::layout(gsl::byte* buffer) const noexcept -> size_type {
+    return shim::visit(
+      shim::compose_together(
+        [=] (basic_buffer<RefCount> const& impl) {
+          auto bytes = detail::find_sizeof<RefCount>(impl.raw);
+          std::copy_n(impl.raw.buffer, bytes, buffer);
+          return bytes;
+        },
+        [=] (basic_heap<RefCount> const& impl) {
+          return impl.layout(buffer);
+        }
+      ),
+      impl
+    );
+  }
+
+  template <template <class> class RefCount>
+  detail::raw_type basic_packet<RefCount>::get_raw_type() const noexcept {
+    return shim::visit(
+      shim::compose_together(
+        [] (basic_buffer<RefCount> const& impl) {
+          return impl.raw.type;
+        },
+        [] (basic_heap<RefCount> const& impl) {
+          return impl.get_raw_type();
+        }
+      ),
+      impl
+    );
+  }
+
+  template <template <class> class RefCount>
   basic_heap<RefCount>& basic_packet<RefCount>::get_heap() {
     if (!is_finalized()) return shim::get<basic_heap<RefCount>>(impl);
     else throw state_error("dart::packet is finalized and cannot access a heap representation");
@@ -462,7 +526,16 @@ namespace dart {
   namespace detail {
 
     template <template <class> class RefCount>
-    bool map_comparator<RefCount>::operator ()(basic_heap<RefCount> const& lhs, shim::string_view rhs) const {
+    bool dart_comparator<RefCount>::operator ()(shim::string_view lhs, shim::string_view rhs) const {
+      auto const lhs_size = lhs.size();
+      auto const rhs_size = rhs.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs < rhs;
+    }
+
+    template <template <class> class RefCount>
+    template <template <template <class> class> class Packet>
+    bool dart_comparator<RefCount>::operator ()(Packet<RefCount> const& lhs, shim::string_view rhs) const {
       auto const lhs_size = lhs.size();
       auto const rhs_size = rhs.size();
       if (lhs_size != rhs_size) return lhs_size < rhs_size;
@@ -470,7 +543,8 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool map_comparator<RefCount>::operator ()(shim::string_view lhs, basic_heap<RefCount> const& rhs) const {
+    template <template <template <class> class> class Packet>
+    bool dart_comparator<RefCount>::operator ()(shim::string_view lhs, Packet<RefCount> const& rhs) const {
       auto const lhs_size = lhs.size();
       auto const rhs_size = rhs.size();
       if (lhs_size != rhs_size) return lhs_size < rhs_size;
@@ -478,11 +552,72 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    bool map_comparator<RefCount>::operator ()(basic_heap<RefCount> const& lhs, basic_heap<RefCount> const& rhs) const {
+    template <template <template <class> class> class Packet>
+    bool dart_comparator<RefCount>::operator ()(basic_pair<Packet<RefCount>> const& lhs, shim::string_view rhs) const {
+      auto const lhs_size = lhs.key.size();
+      auto const rhs_size = rhs.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs.key.strv() < rhs;
+    }
+
+    template <template <class> class RefCount>
+    template <template <template <class> class> class Packet>
+    bool dart_comparator<RefCount>::operator ()(shim::string_view lhs, basic_pair<Packet<RefCount>> const& rhs) const {
+      auto const lhs_size = lhs.size();
+      auto const rhs_size = rhs.key.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs < rhs.key.strv();
+    }
+
+    template <template <class> class RefCount>
+    template <
+      template <template <class> class> class LhsPacket,
+      template <template <class> class> class RhsPacket
+    >
+    bool dart_comparator<RefCount>::operator ()(LhsPacket<RefCount> const& lhs, RhsPacket<RefCount> const& rhs) const {
       auto const lhs_size = lhs.size();
       auto const rhs_size = rhs.size();
       if (lhs_size != rhs_size) return lhs_size < rhs_size;
-      return lhs.strv() < rhs.strv();
+      else return lhs.strv() < rhs.strv();
+    }
+
+    template <template <class> class RefCount>
+    template <
+      template <template <class> class> class LhsPacket,
+      template <template <class> class> class RhsPacket
+    >
+    bool dart_comparator<RefCount>::operator
+        ()(basic_pair<LhsPacket<RefCount>> const& lhs, RhsPacket<RefCount> const& rhs) const {
+      auto const lhs_size = lhs.key.size();
+      auto const rhs_size = rhs.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs.key.strv() < rhs.strv();
+    }
+
+    template <template <class> class RefCount>
+    template <
+      template <template <class> class> class LhsPacket,
+      template <template <class> class> class RhsPacket
+    >
+    bool dart_comparator<RefCount>::operator
+        ()(LhsPacket<RefCount> const& lhs, basic_pair<RhsPacket<RefCount>> const& rhs) const {
+      auto const lhs_size = lhs.size();
+      auto const rhs_size = rhs.key.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs.strv() < rhs.key.strv();
+    }
+
+    template <template <class> class RefCount>
+    template <
+      template <template <class> class> class LhsPacket,
+      template <template <class> class> class RhsPacket
+    >
+    bool dart_comparator<RefCount>::operator
+        ()(basic_pair<LhsPacket<RefCount>> const& lhs, basic_pair<RhsPacket<RefCount>> const& rhs) const {
+      auto const lhs_size = lhs.key.size();
+      auto const rhs_size = rhs.key.size();
+      if (lhs_size != rhs_size) return lhs_size < rhs_size;
+      else return lhs.key.strv() < rhs.key.strv();
     }
 
     template <class Lhs, class Rhs>
@@ -521,6 +656,11 @@ namespace dart {
     template <class T>
     uint32_t vtable_entry<T>::get_offset() const noexcept {
       return layout.offset;
+    }
+
+    template <class T>
+    void vtable_entry<T>::adjust_offset(std::ptrdiff_t diff) noexcept {
+      layout.offset += diff;
     }
 
     inline prefix_entry::prefix_entry(detail::raw_type type, uint32_t offset, shim::string_view prefix) noexcept :
@@ -574,6 +714,196 @@ namespace dart {
       // Fallback path where we actually compare the prefixes.
       auto* bytes = reinterpret_cast<char const*>(&this->layout.prefix);
       return detail::prefix_compare_impl<sizeof(prefix_type)>(bytes, str, len);
+    }
+
+    template <template <class> class RefCount>
+    template <class Span>
+    auto buffer_builder<RefCount>::build_buffer(Span pairs) -> buffer {
+      using owner = buffer_refcount_type<RefCount>;
+
+      // Low level object code assumes keys are sorted, so validate that assumption.
+      std::sort(std::begin(pairs), std::end(pairs), dart_comparator<RefCount> {});
+
+      // Calculate how much space we'll need.
+      auto bytes = max_bytes(pairs);
+
+      // Build it.
+      auto ref = aligned_alloc<RefCount>(max_bytes(pairs), raw_type::object, [&] (auto* ptr) {
+        // XXX: std::fill_n is REQUIRED here so that we can perform memcmps for finalized packets.
+        std::fill_n(ptr, bytes, gsl::byte {});
+        new(ptr) detail::object<RefCount>(pairs);
+      });
+      return basic_buffer<RefCount> {std::move(ref)};
+    }
+
+    template <template <class> class RefCount>
+    auto buffer_builder<RefCount>::merge_buffers(buffer const& base, buffer const& incoming) -> buffer {
+      // Unwrap our buffers to get the underlying machine representation.
+      auto* raw_base = get_object<RefCount>(base.raw);
+      auto* raw_incoming = get_object<RefCount>(incoming.raw);
+      
+      // Figure out the maximum amount of space we could need for the merged object.
+      auto total_size = raw_base->get_sizeof() + raw_incoming->get_sizeof();
+
+      // Merge it.
+      auto ref = aligned_alloc<RefCount>(total_size, raw_type::object, [&] (auto* ptr) {
+        std::fill_n(ptr, total_size, gsl::byte {});
+        new(ptr) detail::object<RefCount>(raw_base, raw_incoming);
+      });
+      return basic_buffer<RefCount> {std::move(ref)};
+    }
+
+    template <template <class> class RefCount>
+    template <class Spannable>
+    auto buffer_builder<RefCount>::project_keys(buffer const& base, Spannable const& keys) -> buffer {
+      return detail::sort_spannable<RefCount>(keys, [&] (auto key_ptrs) {
+        // Unwrap our buffers to get the underlying machine representation.
+        auto* raw_base = get_object<RefCount>(base.raw);
+
+        // Maximum required size is that of the current object, as the new one must be smaller.
+        auto total_size = raw_base->get_sizeof();
+        auto ref = aligned_alloc<RefCount>(total_size, raw_type::object, [&] (auto* ptr) {
+          std::fill_n(ptr, total_size, gsl::byte {});
+          new(ptr) detail::object<RefCount>(raw_base, key_ptrs);
+        });
+        return basic_buffer<RefCount> {std::move(ref)};
+      });
+    }
+
+    template <template <class> class RefCount>
+    template <class Span>
+    size_t buffer_builder<RefCount>::max_bytes(Span pairs) {
+      // Walk across the span of pairs and calculate the total required memory.
+      size_t bytes = 0;
+      shim::optional<shim::string_view> prev_key;
+      for (auto& pair : pairs) {
+        // Keys are sorted, so check if we ever run into the same key twice
+        // in a row to avoid duplicates.
+        auto curr_key = pair.key.strv();
+        if (curr_key == prev_key) {
+          throw std::invalid_argument("dart::buffer cannot make an object with duplicate keys");
+        } else if (curr_key.size() > std::numeric_limits<uint16_t>::max()) {
+          throw std::invalid_argument("dart::buffer keys cannot be longer than UINT16_MAX");
+        }
+        prev_key = curr_key;
+
+        // Accumulate the total number of bytes.
+        bytes += pair.key.upper_bound() + alignment_of<RefCount>(pair.key.get_raw_type()) - 1;
+        bytes += pair.value.upper_bound() + alignment_of<RefCount>(pair.value.get_raw_type()) - 1;
+      }
+      bytes += sizeof(detail::object<RefCount>) + ((sizeof(detail::object_entry) * (pairs.size() + 1)));
+      return bytes + detail::pad_bytes<RefCount>(bytes, detail::raw_type::object);
+    }
+
+    template <template <class> class RefCount>
+    template <class Callback>
+    void buffer_builder<
+      RefCount
+    >::each_unique_pair(object<RefCount> const* base, object<RefCount> const* incoming, Callback&& cb) {
+      // BOY this sucks
+      dart_comparator<RefCount> comp;
+      auto in_vals = incoming->begin(), base_vals = base->begin();
+      auto in_keys = incoming->key_begin(), base_keys = base->key_begin();
+      auto in_key_end = incoming->key_end(), base_key_end = base->key_end();
+
+      // Spin across both keyspaces,
+      // identifying unique keys, giving precedence to the incoming object.
+      auto unwrap = [] (auto& it) { return get_string(*it); };
+      while (in_keys != in_key_end) {
+        // Walk the base key iterator forward until
+        // we find a pair of keys that compare greater or equal.
+        while (base_keys != base_key_end) {
+          // If the current base key is less than the current
+          // incoming key, pass it through as we know the incoming object
+          // can't contain it
+          // Otherwise it could be equal or greater, so break to allow
+          // the incoming object to overtake us again.
+          if (comp(unwrap(base_keys)->get_strv(), unwrap(in_keys)->get_strv())) {
+            // Current pair is unique, and there are more to find
+            cb(*base_keys++, *base_vals++);
+          } else if (!comp(unwrap(in_keys)->get_strv(), unwrap(base_keys)->get_strv())) {
+            // The base key is not less than the incoming key,
+            // and the incoming key is not less than the base key
+            // Current pair is a duplicate, skip it and yield control to the incoming
+            ++base_keys, ++base_vals;
+            break;
+          } else {
+            // The base key is not less than the incoming key,
+            // but the incoming key is greater than the base key, so key is unique,
+            // but we've overtaken the incoming iterator, so yield control to it.
+            break;
+          }
+        }
+
+        // At this point we're either out of base keys,
+        // or the base key iterator has overtaken us.
+        while (in_keys != in_key_end) {
+          if (base_keys == base_key_end
+              || !comp(unwrap(base_keys)->get_strv(), unwrap(in_keys)->get_strv())) {
+            // Incoming key is less than or equal to base key
+            cb(*in_keys, *in_vals);
+            if (base_keys != base_key_end && !comp(unwrap(in_keys)->get_strv(), unwrap(base_keys)->get_strv())) {
+              // Incoming key is equal to base key.
+              // Increment the base iterators to ensure this duplicate pair
+              // isn't considered when we make it back around the loop.
+              ++base_keys, ++base_vals;
+            }
+          } else {
+            // Incoming key is greater than the base key
+            // We've overtaken the base iterator, yield control back to it.
+            break;
+          }
+          ++in_keys, ++in_vals;
+        }
+      }
+
+      // It's possible we didn't exhaust our base iterator
+      while (base_keys != base_key_end) {
+        cb(*base_keys++, *base_vals++);
+      }
+    }
+
+    template <template <class> class RefCount>
+    template <class Key, class Callback>
+    void buffer_builder<
+      RefCount
+    >::project_each_pair(object<RefCount> const* base, gsl::span<Key const*> key_ptrs, Callback&& cb) {
+      // BOY this sucks
+      dart_comparator<RefCount> comp;
+      auto base_vals = base->begin();
+      auto base_keys = base->key_begin();
+      auto base_key_end = base->key_end();
+
+      // Spin across both keyspaces,
+      // identifying unique keys, giving precedence to the incoming object.
+      for (auto in_keys = std::begin(key_ptrs); in_keys != std::end(key_ptrs); ++in_keys) {
+        // Walk the base key iterator forward until
+        // we find a pair of keys that compare greater or equal.
+        auto& in_key = **in_keys;
+        while (base_keys != base_key_end) {
+          // If the current base key is less than the current
+          // incoming key, pass it through as we know the incoming object
+          // can't contain it
+          // Otherwise it could be equal or greater, so break to allow
+          // the incoming object to overtake us again.
+          auto base_key = get_string(*base_keys)->get_strv();
+          if (comp(base_key, in_key)) {
+            // Current key is less than our current key pointer, and cannot
+            // be contained within the projection. Skip it.
+            ++base_keys, ++base_vals;
+            continue;
+          } else if (!comp(in_key, base_key)) {
+            // Current key is equal to our current key pointer, and must
+            // be contained within the project. Pass it along.
+            cb(*base_keys++, *base_vals++);
+          } else {
+            // Current key is greater than our current key pointer.
+            // Key may be contained within the projection, move to the
+            // next key to know.
+            break;
+          }
+        }
+      }
     }
 
   }

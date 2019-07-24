@@ -839,6 +839,36 @@ SCENARIO("objects have limits on key sizes", "[object unit]") {
   }
 }
 
+SCENARIO("object keys are unique", "[object unit]") {
+  GIVEN("a desire to test finalized objects") {
+    dart::buffer_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      DYNAMIC_WHEN("we attempt to construct an object with duplicate keys", idx) {
+        DYNAMIC_THEN("it refuses", idx) {
+          REQUIRE_THROWS_AS(pkt::make_object("a", "val", "b", "val", "a", "oops"), std::invalid_argument);
+        }
+      }
+    });
+  }
+
+  GIVEN("a desire to test non-finalized objects") {
+    dart::mutable_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      DYNAMIC_WHEN("we attempt to construct an object with duplicate keys", idx) {
+        auto obj = pkt::make_object("a", "val", "b", "val", "a", "oops");
+        DYNAMIC_THEN("the later argument takes precendence", idx) {
+          REQUIRE(obj["a"] == "oops");
+          REQUIRE("oops" == obj["a"]);
+          REQUIRE(obj["b"] == "val");
+          REQUIRE("val" == obj["b"]);
+        }
+      }
+    });
+  }
+}
+
 SCENARIO("objects can export all current values", "[object unit]") {
   GIVEN("an object with some values") {
     dart::api_test([] (auto tag, auto idx) {
@@ -865,6 +895,239 @@ SCENARIO("objects can export all current values", "[object unit]") {
               REQUIRE(val.get_type() == dart::packet::type::null);
             }
           }
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("objects can optionally access non-existent keys with a fallback", "[object unit]") {
+  using namespace dart::literals;
+
+  GIVEN("an object without any keys") {
+    dart::mutable_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      auto obj = pkt::make_object();
+      DYNAMIC_WHEN("we attempt to optionally access a non-existent key", idx) {
+        auto key = dart::conversion_helper<pkt>("nope"_dart);
+        auto opt_one = obj.get_or("nope", 1);
+        auto opt_two = obj.get_or(key, 1.0);
+        auto opt_three = obj.get_or("nope", "not here");
+        auto opt_four = obj.get_or(key, false);
+        auto opt_five = obj.get_or("nope", pkt::make_object());
+
+        DYNAMIC_THEN("it returns the optional value", idx) {
+          REQUIRE(opt_one == 1);
+          REQUIRE(opt_two == 1.0);
+          REQUIRE(opt_three == "not here");
+          REQUIRE(opt_four == false);
+          REQUIRE(opt_five == pkt::make_object());
+        }
+      }
+
+      DYNAMIC_WHEN("we attempt to optionally access a non-existent key on a temporary", idx) {
+        auto key = dart::conversion_helper<pkt>("double_nope"_dart);
+        auto opt_one = obj["nope"].get_or("double_nope", 1);
+        auto opt_two = obj["nope"].get_or(key, 1.0);
+        auto opt_three = obj["nope"].get_or("double_nope", "not here");
+        auto opt_four = obj["nope"].get_or(key, false);
+        auto opt_five = obj["nope"].get_or("double_nope", pkt::make_object());
+
+        DYNAMIC_THEN("it returns the optional value", idx) {
+          REQUIRE(opt_one == 1);
+          REQUIRE(opt_two == 1.0);
+          REQUIRE(opt_three == "not here");
+          REQUIRE(opt_four == false);
+          REQUIRE(opt_five == pkt::make_object());
+        }
+      }
+
+      DYNAMIC_WHEN("the object is finalized", idx) {
+        obj.finalize();
+        auto key = dart::conversion_helper<pkt>("nope"_dart);
+        auto opt_one = obj.get_or("nope", 1);
+        auto opt_two = obj.get_or(key, 1.0);
+        auto opt_three = obj.get_or("nope", "not here");
+        auto opt_four = obj.get_or(key, false);
+        auto opt_five = obj.get_or("nope", pkt::make_object());
+
+        DYNAMIC_THEN("it still behaves as expected", idx) {
+          REQUIRE(opt_one == 1);
+          REQUIRE(opt_two == 1.0);
+          REQUIRE(opt_three == "not here");
+          REQUIRE(opt_four == false);
+          REQUIRE(opt_five == pkt::make_object());
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("objects can inject additional keys", "[object unit]") {
+  GIVEN("a statically built object") {
+    dart::api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      // Build a reasonably complex object.
+      auto obj = pkt::make_object(
+        "", "problems?",
+        "int", 42,
+        "unsigned", 365U,
+        "long", 86400L,
+        "unsigned long", 3600UL,
+        "long long", 7200LL,
+        "unsigned long long", 93000000ULL,
+        "pi", 3.14159,
+        "c", 2.99792f,
+        "truth", true,
+        "lies", false,
+        "absent", nullptr
+      );
+
+      DYNAMIC_WHEN("when additional pairs are injected", idx) {
+        // Inject some new keys, some duplicates,
+        // replace values and change types
+        auto injected = obj.inject(
+          "Int", 42,
+          "unsigned long", 3600000UL,
+          "", pkt::make_object("status", "problems?"),
+          "LONG", 86400L,
+          "unsigned", 365.25,
+          "PI", 3.14159,
+          "lightspeed", 2.99792,
+          "unsigned_long_long", 93000000ULL
+        );
+
+        DYNAMIC_THEN("duplicates update, new keys get added, everything checks out", idx) {
+          REQUIRE(injected[""] == pkt::make_object("status", "problems?"));
+          REQUIRE(injected["int"] == 42);
+          REQUIRE(injected["Int"] == 42);
+          REQUIRE(injected["unsigned"].decimal() == Approx(365.25));
+          REQUIRE(injected["long"] == 86400);
+          REQUIRE(injected["LONG"] == 86400);
+          REQUIRE(injected["unsigned long"] == 3600000);
+          REQUIRE(injected["long long"] == 7200);
+          REQUIRE(injected["unsigned long long"] == 93000000);
+          REQUIRE(injected["unsigned_long_long"] == 93000000);
+          REQUIRE(injected["pi"].decimal() == Approx(3.14159));
+          REQUIRE(injected["PI"].decimal() == Approx(3.14159));
+          REQUIRE(injected["c"].decimal() == Approx(2.99792));
+          REQUIRE(injected["lightspeed"].decimal() == Approx(2.99792));
+          REQUIRE(injected["truth"] == true);
+          REQUIRE(injected["lies"] == false);
+          REQUIRE(injected["absent"] == nullptr);
+        }
+      }
+    });
+  }
+
+  GIVEN("a dynamically built object") {
+    constexpr auto num_keys = 1024;
+
+    dart::api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      // Helper lambda to generate a random vector of injectable strings.
+      // Generate a large set of keys.
+      std::unordered_set<std::string> keys;
+      while (keys.size() < num_keys) keys.insert(dart::rand_string());
+
+      auto get_arr = [] (auto& set) {
+        // Generate the pairs.
+        std::vector<pkt> pairs;
+        pairs.reserve(num_keys * 2);
+        for (auto& key : set) {
+          // This is awkward, because we have to avoid attempting to create a bare
+          // finalized string, and we also have to handle different reference counters.
+          auto tmp = dart::conversion_helper<pkt>(dart::packet::make_object("key", key))["key"];
+          pairs.push_back(std::move(tmp));
+          pairs.push_back(pairs.back());
+        }
+        return pairs;
+      };
+
+      // Generate the final object.
+      auto pairs = get_arr(keys);
+      auto obj = pkt::make_object(pairs);
+
+      DYNAMIC_WHEN("we inject the orignal key value pairs", idx) {
+        auto injected = obj.inject(pairs);
+        DYNAMIC_THEN("we end up with the original object", idx) {
+          REQUIRE(obj == injected);
+        }
+      }
+
+      DYNAMIC_WHEN("we inject a new set of key value pairs", idx) {
+        std::unordered_set<std::string> moar;
+        while (moar.size() < num_keys) {
+          auto str = dart::rand_string();
+          if (keys.count(str)) continue;
+          moar.insert(std::move(str));
+        }
+
+        auto injected = obj.inject(get_arr(moar));
+        DYNAMIC_THEN("the size of the object doubles, and all keys are reachable", idx) {
+          REQUIRE(injected.size() == obj.size() * 2);
+          for (auto& k : moar) REQUIRE(injected.has_key(k));
+          for (auto& k : keys) REQUIRE(injected.has_key(k));
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("objects can project a subset of keys", "[object unit]") {
+  GIVEN("an object") {
+    dart::api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      // Build a reasonably complex object.
+      std::vector<dart::shim::string_view> keys {
+        "",
+        "int",
+        "unsigned",
+        "long",
+        "unsigned long",
+        "long long",
+        "unsigned long long",
+        "pi",
+        "c",
+        "truth",
+        "lies",
+        "absent"
+      };
+      auto obj = pkt::make_object(
+        keys[0], "problems?",
+        keys[1], 42,
+        keys[2], 365U,
+        keys[3], 86400L,
+        keys[4], 3600UL,
+        keys[5], 7200LL,
+        keys[6], 93000000ULL,
+        keys[7], 3.14159,
+        keys[8], 2.99792f,
+        keys[9], true,
+        keys[10], false,
+        keys[11], nullptr
+      );
+
+      DYNAMIC_WHEN("when all keys are projected", idx) {
+        auto projected = obj.project(keys);
+        DYNAMIC_THEN("it results in the original object", idx) {
+          REQUIRE(projected == obj);
+        }
+      }
+
+      DYNAMIC_WHEN("a subset of keys are projected", idx) {
+        auto projected = obj.project({"", "c", "long", "absent", "int", "not_here"});
+        DYNAMIC_THEN("only those keys are present", idx) {
+          REQUIRE(projected.size() == 5U);
+          REQUIRE(projected[""] == "problems?");
+          REQUIRE(projected["c"].decimal() == Approx(2.99792));
+          REQUIRE(projected["long"] == 86400);
+          REQUIRE(projected["absent"] == nullptr);
+          REQUIRE(projected["int"] == 42);
         }
       }
     });
@@ -1136,69 +1399,6 @@ SCENARIO("objects can contain nulls", "[object unit]") {
           auto embedded = obj["key"];
           REQUIRE(embedded.is_null());
           REQUIRE(embedded.get_type() == dart::packet::type::null);
-        }
-      }
-    });
-  }
-}
-
-SCENARIO("objects can optionally access non-existent keys with a fallback", "[object unit]") {
-  using namespace dart::literals;
-
-  GIVEN("an object without any keys") {
-    dart::mutable_api_test([] (auto tag, auto idx) {
-      using pkt = typename decltype(tag)::type;
-
-      auto obj = pkt::make_object();
-      DYNAMIC_WHEN("we attempt to optionally access a non-existent key", idx) {
-        auto key = dart::conversion_helper<pkt>("nope"_dart);
-        auto opt_one = obj.get_or("nope", 1);
-        auto opt_two = obj.get_or(key, 1.0);
-        auto opt_three = obj.get_or("nope", "not here");
-        auto opt_four = obj.get_or(key, false);
-        auto opt_five = obj.get_or("nope", pkt::make_object());
-
-        DYNAMIC_THEN("it returns the optional value", idx) {
-          REQUIRE(opt_one == 1);
-          REQUIRE(opt_two == 1.0);
-          REQUIRE(opt_three == "not here");
-          REQUIRE(opt_four == false);
-          REQUIRE(opt_five == pkt::make_object());
-        }
-      }
-
-      DYNAMIC_WHEN("we attempt to optionally access a non-existent key on a temporary", idx) {
-        auto key = dart::conversion_helper<pkt>("double_nope"_dart);
-        auto opt_one = obj["nope"].get_or("double_nope", 1);
-        auto opt_two = obj["nope"].get_or(key, 1.0);
-        auto opt_three = obj["nope"].get_or("double_nope", "not here");
-        auto opt_four = obj["nope"].get_or(key, false);
-        auto opt_five = obj["nope"].get_or("double_nope", pkt::make_object());
-
-        DYNAMIC_THEN("it returns the optional value", idx) {
-          REQUIRE(opt_one == 1);
-          REQUIRE(opt_two == 1.0);
-          REQUIRE(opt_three == "not here");
-          REQUIRE(opt_four == false);
-          REQUIRE(opt_five == pkt::make_object());
-        }
-      }
-
-      DYNAMIC_WHEN("the object is finalized", idx) {
-        obj.finalize();
-        auto key = dart::conversion_helper<pkt>("nope"_dart);
-        auto opt_one = obj.get_or("nope", 1);
-        auto opt_two = obj.get_or(key, 1.0);
-        auto opt_three = obj.get_or("nope", "not here");
-        auto opt_four = obj.get_or(key, false);
-        auto opt_five = obj.get_or("nope", pkt::make_object());
-
-        DYNAMIC_THEN("it still behaves as expected", idx) {
-          REQUIRE(opt_one == 1);
-          REQUIRE(opt_two == 1.0);
-          REQUIRE(opt_three == "not here");
-          REQUIRE(opt_four == false);
-          REQUIRE(opt_five == pkt::make_object());
         }
       }
     });

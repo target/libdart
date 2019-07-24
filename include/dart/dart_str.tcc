@@ -23,7 +23,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   basic_packet<RefCount> basic_packet<RefCount>::make_string(shim::string_view val) {
-    return basic_packet(detail::string_tag {}, val);
+    return basic_heap<RefCount>::make_string(val);
   }
 
   template <class String>

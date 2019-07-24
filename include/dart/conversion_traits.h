@@ -118,35 +118,35 @@ namespace dart {
       struct caster_impl<null_tag> {
         template <class Packet>
         static Packet cast(std::nullptr_t) {
-          return Packet(dart::detail::null_tag {});
+          return Packet::make_null();
         }
       };
       template <>
       struct caster_impl<boolean_tag> {
         template <class Packet>
         static Packet cast(bool val) {
-          return Packet(dart::detail::boolean_tag {}, val);
+          return Packet::make_boolean(val);
         }
       };
       template <>
       struct caster_impl<integer_tag> {
         template <class Packet>
         static Packet cast(int64_t val) {
-          return Packet(dart::detail::integer_tag {}, val);
+          return Packet::make_integer(val);
         }
       };
       template <>
       struct caster_impl<decimal_tag> {
         template <class Packet>
         static Packet cast(double val) {
-          return Packet(dart::detail::decimal_tag {}, val);
+          return Packet::make_decimal(val);
         }
       };
       template <>
       struct caster_impl<string_tag> {
         template <class Packet>
         static Packet cast(shim::string_view val) {
-          return Packet(dart::detail::string_tag {}, val);
+          return Packet::make_string(val);
         }
       };
       template <>
@@ -314,6 +314,21 @@ namespace dart {
         >
       >
     {};
+
+    template <class Packet = dart::basic_packet<std::shared_ptr>, class Callback, class... Args, class =
+      std::enable_if_t<
+        meta::conjunction<
+          is_castable<Args, Packet>...
+        >::value
+      >
+    >
+    decltype(auto) as_span(Callback&& cb, Args&&... the_args) {
+      // Create some temporary storage for the given arguments.
+      std::array<Packet, sizeof...(Args)> storage {{cast<Packet>(std::forward<Args>(the_args))...}};
+
+      // Pass through as a span.
+      return std::forward<Callback>(cb)(gsl::make_span(storage));
+    }
 
     // Specialization for interoperability with std::vector
     template <class T, class Alloc>

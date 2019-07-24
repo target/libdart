@@ -931,6 +931,36 @@ namespace dart {
     return meta::packet_rebind<LhsPacket>::rebind(curr);
   }
 
+  template <int64_t low = std::numeric_limits<int64_t>::min(),
+           int64_t high = std::numeric_limits<int64_t>::max()>
+  int64_t rand_int() {
+    static std::mt19937 engine(std::random_device {}());
+    static std::uniform_int_distribution<int64_t> dist(low, high);
+    return dist(engine);
+  }
+
+  inline std::string rand_string(size_t len = rand_int<0, 32>(), dart::shim::string_view prefix = "") {
+    constexpr int low = 0, high = 25;
+    static std::vector<char> alpha {
+      'a', 'b', 'c', 'd', 'e', 'f', 'g',
+      'h', 'i', 'j', 'k', 'l', 'm', 'n',
+      'o', 'p', 'q', 'r', 's', 't', 'u',
+      'v', 'w', 'x', 'y', 'z'
+    };
+
+    std::string retval {prefix};
+    retval.resize(len, '\0');
+    std::generate(retval.begin() + prefix.size(), retval.end(), [&] {
+      return alpha[rand_int<low, high>()];
+    });
+    return retval;
+  }
+
+  template <class Callback>
+  void n_times(int n, Callback&& cb) {
+    for (auto i = 0; i < n; ++i) cb();
+  }
+
 }
 
 #endif
