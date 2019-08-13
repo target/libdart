@@ -1129,9 +1129,9 @@ namespace dart {
 
   template <template <class> class RefCount>
   gsl::span<gsl::byte const> basic_buffer<RefCount>::get_bytes() const {
-    if (is_null()) throw type_error("dart::buffer is null and has no network buffer");
-    auto len = detail::find_sizeof<RefCount>({detail::raw_type::object, buffer_ref.get()});
-    return gsl::make_span(buffer_ref.get(), len);
+    if (!is_object()) throw type_error("dart::buffer is not an object and cannot return a network buffer");
+    auto len = detail::find_sizeof<RefCount>({detail::raw_type::object, raw.buffer});
+    return gsl::make_span(raw.buffer, len);
   }
 
   template <template <class> class RefCount>

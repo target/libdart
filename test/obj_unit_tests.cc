@@ -652,6 +652,24 @@ SCENARIO("objects protect scope of shared resources", "[object unit]") {
   }
 }
 
+SCENARIO("finalized objects always return buffers for the current object", "[object unit]") {
+  GIVEN("an object with some contents") {
+    dart::finalized_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      auto obj = pkt::make_object("nested", pkt::make_object("data", "value")).finalize();
+      DYNAMIC_WHEN("a nested object is accessed", idx) {
+        auto nested = obj["nested"];
+        DYNAMIC_THEN("it returns its own network buffer", idx) {
+          pkt dup {nested.get_bytes()};
+          REQUIRE(dup == nested);
+          REQUIRE(dup["data"] == nested["data"]);
+        }
+      }
+    });
+  }
+}
+
 SCENARIO("objects can only be constructed from aligned pointers", "[object unit]") {
   GIVEN("an unaligned pointer") {
     dart::finalized_api_test([] (auto tag, auto idx) {
