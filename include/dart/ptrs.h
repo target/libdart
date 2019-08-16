@@ -246,6 +246,7 @@ namespace dart {
 
       /*----- Public Types -----*/
 
+      using value_type = T;
       using element_type = typename refcount_traits<T>::element_type;
 
       /*----- Lifecycle Functions -----*/
@@ -344,12 +345,13 @@ namespace dart {
       // The only thing we can definitely do with T is pass it into dart::refcount_traits::move.
       void transfer(T& ptr) && noexcept(refcount_traits<T>::is_nothrow_moveable::value);
 
+      auto raw() noexcept -> value_type&;
+      auto raw() const noexcept -> value_type const&;
+
     private:
 
       /*----- Private Types -----*/
 
-      using value_type = T;
-      
       struct partial_construction_tag {};
 
       /*----- Private Lifecycle Functions -----*/
@@ -366,6 +368,83 @@ namespace dart {
 
       template <class U, class... Args>
       friend shareable_ptr<U> make_shareable(Args&&...);
+
+  };
+
+  template <template <class> class RefCount>
+  struct view_ptr_context {
+
+    template <class T>
+    class view_ptr {
+
+      public:
+
+        /*----- Public Types -----*/
+
+        using refcount_type = RefCount<T>;
+        using is_nonowning = refcount_type;
+        using element_type = typename refcount_traits<refcount_type>::element_type;
+
+        template <template <template <class> class> class Binder>
+        using refcount_rebind = Binder<RefCount>;
+
+        /*----- Lifecycle Functions -----*/
+
+        // Functions must exist for refcount concept, but will throw if called
+        // as view_ptr doesn't have ownership semantics
+        explicit view_ptr(T*);
+        template <class Del>
+        explicit view_ptr(T*, Del&&);
+        
+        // I'm not currently disallowing construction from temporaries
+        // I can imagine scenarios where it could be useful, and generally,
+        // you'll need to know what you're doing to work with the view types
+        view_ptr(std::nullptr_t) noexcept : view_ptr() {}
+        view_ptr(refcount_type const& owner) noexcept : impl(&owner) {}
+
+        // Lifecycle functions mostly do nothing
+        view_ptr() noexcept : impl(nullptr) {}
+        view_ptr(view_ptr const&) = default;
+        view_ptr(view_ptr&& other) noexcept;
+        ~view_ptr() = default;
+
+        /*----- Operators -----*/
+
+        auto operator =(refcount_type const& owner) noexcept -> view_ptr&;
+
+        auto operator =(view_ptr const&) -> view_ptr& = default;
+        auto operator =(view_ptr&& other) noexcept -> view_ptr&;
+
+        auto operator *() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value) -> element_type&;
+        auto operator ->() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value) -> element_type*;
+
+        bool operator ==(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator !=(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator <(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator <=(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator >(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+        bool operator >=(view_ptr const& other) const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+
+        explicit operator bool() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
+
+        explicit operator refcount_type() const;
+
+        /*----- Public API -----*/
+
+        auto get() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value) -> element_type*;
+        size_t use_count() const noexcept(refcount_traits<refcount_type>::has_nothrow_use_count::value);
+
+        void reset() noexcept;
+
+        auto raw() const noexcept -> refcount_type const&;
+
+      private:
+
+        /*----- Private Members -----*/
+
+        refcount_type const* impl;
+
+    };
 
   };
 
@@ -400,6 +479,43 @@ namespace dart {
 
   template <class T, class... Args>
   std::enable_if_t<!std::is_array<T>::value, skinny_ptr<T>> make_skinny(Args&&... the_args);
+
+  namespace refcount {
+
+    namespace detail {
+      template <class T>
+      using nonowning_t = typename T::is_nonowning;
+
+      template <bool, template <template <class> class> class Tmp, template <class> class RefCount>
+      struct owner_indirection_impl {
+        using type = Tmp<RefCount>;
+      };
+      template <template <template <class> class> class Tmp, template <class> class RefCount>
+      struct owner_indirection_impl<false, Tmp, RefCount> {
+        template <template <class> class Owner>
+        struct rebinder {
+          using type = Tmp<Owner>;
+        };
+
+        using type = typename RefCount<gsl::byte>::template refcount_rebind<rebinder>::type;
+      };
+    }
+
+    template <template <class> class Owner>
+    struct is_owner : meta::negation<meta::is_detected<detail::nonowning_t, Owner<gsl::byte>>> {};
+
+    template <template <template <class> class> class Tmp, template <class> class RefCount>
+    struct owner_indirection {
+      using type = typename detail::owner_indirection_impl<
+        is_owner<RefCount>::value,
+        Tmp,
+        RefCount
+      >::type;
+    };
+    template <template <template <class> class> class Tmp, template <class> class RefCount>
+    using owner_indirection_t = typename owner_indirection<Tmp, RefCount>::type;
+
+  }
 
 }
 

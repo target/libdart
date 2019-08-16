@@ -35,16 +35,19 @@ namespace dart {
   };
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::from_yaml(shim::string_view yaml) {
     return detail::parse_yaml<RefCount>(yaml);
   }
   
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::from_yaml(shim::string_view yaml) {
     return basic_buffer {detail::parse_yaml<RefCount>(yaml)};
   }
   
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::from_yaml(shim::string_view yaml, bool finalized) {
     auto tmp = basic_heap<RefCount>::from_yaml(yaml);
     if (finalized) return basic_buffer<RefCount> {std::move(tmp)};

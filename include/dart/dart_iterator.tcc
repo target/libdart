@@ -286,8 +286,8 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    auto dn_iterator<RefCount>::operator *() const noexcept -> value_type {
-      return shim::visit([] (auto& impl) { return impl.deref(impl.it); }, impl);
+    auto dn_iterator<RefCount>::operator *() const noexcept -> reference {
+      return shim::visit([] (auto& impl) -> auto& { return impl.deref(impl.it); }, impl);
     }
 
   }

@@ -162,6 +162,49 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <class TypeData>
+  basic_heap<RefCount>::basic_heap(detail::view_tag, TypeData const& other) {
+    // XXX: I have absolutely no idea why this is necessary, I just know that
+    // some configurations of gcc 8.3.0 segfault while compiling this constructor
+    // if I use a lambda instead of this explicit visitor
+    struct mono_visitor {
+      void operator ()(shim::monostate) const noexcept {}
+    };
+
+    // XXX: This is pretty not great, but the the first four types need special treatment,
+    // and it's not straightforward to compute what they will be.
+    // At the very least, this approach will generate compilation errors if more
+    // types are added, and will likely cause errors if they're re-arranged unexpectedly
+    shim::visit(
+      shim::compose_together(
+        mono_visitor {},
+        [this] (shim::variant_alternative_t<1, TypeData> const& fields) {
+          data = fields_rc_type {fields.raw()};
+        },
+        [this] (shim::variant_alternative_t<2, TypeData> const& elems) {
+          data = elements_rc_type {elems.raw()};
+        },
+        [this] (shim::variant_alternative_t<3, TypeData> const& str) {
+          data = dynamic_string_layout {str.ptr, str.len};
+        },
+        [this] (shim::variant_alternative_t<4, TypeData> const& str) {
+          data = inline_string_layout {str.buffer, str.left};
+        },
+        [this] (shim::variant_alternative_t<5, TypeData> const& num) {
+          data = num;
+        },
+        [this] (shim::variant_alternative_t<6, TypeData> const& num) {
+          data = num;
+        },
+        [this] (shim::variant_alternative_t<7, TypeData> const& flag) {
+          data = flag;
+        }
+      ),
+      other
+    );
+  }
+
+  template <template <class> class RefCount>
   basic_buffer<RefCount>::basic_buffer(detail::raw_element raw, buffer_ref_type ref) :
     raw(raw),
     buffer_ref(std::move(ref))

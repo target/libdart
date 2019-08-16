@@ -40,6 +40,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>::basic_buffer(basic_heap<RefCount> const& heap) {
     if (!heap.is_object()) {
       throw type_error("dart::buffer can only be constructed from an object heap");
@@ -118,39 +119,48 @@ namespace dart {
   }
 
   template <class Object>
-  bool basic_object<Object>::operator ==(basic_object const& other) const noexcept {
+  template <class OtherObject>
+  bool basic_object<Object>::operator ==(basic_object<OtherObject> const& other) const noexcept {
     return val == other.val;
   }
 
   template <class Array>
-  bool basic_array<Array>::operator ==(basic_array const& other) const noexcept {
+  template <class OtherArray>
+  bool basic_array<Array>::operator ==(basic_array<OtherArray> const& other) const noexcept {
     return val == other.val;
   }
 
   template <class String>
-  bool basic_string<String>::operator ==(basic_string const& other) const noexcept {
+  template <class OtherString>
+  bool basic_string<String>::operator ==(basic_string<OtherString> const& other) const noexcept {
     return val == other.val;
   }
 
   template <class Number>
-  bool basic_number<Number>::operator ==(basic_number const& other) const noexcept {
+  template <class OtherNumber>
+  bool basic_number<Number>::operator ==(basic_number<OtherNumber> const& other) const noexcept {
     return val == other.val;
   }
 
   template <class Boolean>
-  bool basic_flag<Boolean>::operator ==(basic_flag const& other) const noexcept {
+  template <class OtherBoolean>
+  bool basic_flag<Boolean>::operator ==(basic_flag<OtherBoolean> const& other) const noexcept {
     return val == other.val;
   }
 
   template <class Null>
-  constexpr bool basic_null<Null>::operator ==(basic_null const&) const noexcept {
+  template <class OtherNull>
+  constexpr bool basic_null<Null>::operator ==(basic_null<OtherNull> const&) const noexcept {
     return true;
   }
 
   template <template <class> class RefCount>
-  bool basic_heap<RefCount>::operator ==(basic_heap const& other) const noexcept {
+  template <template <class> class OtherRC>
+  bool basic_heap<RefCount>::operator ==(basic_heap<OtherRC> const& other) const noexcept {
     // Check if we're comparing against ourselves.
-    if (this == &other) return true;
+    // Cast is necessary to ensure validity if we're comparing
+    // against a different refcounter.
+    if (static_cast<void const*>(this) == static_cast<void const*>(&other)) return true;
 
     // Check if we're even the same type.
     if (is_null() && other.is_null()) return true;
@@ -172,9 +182,12 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  bool basic_buffer<RefCount>::operator ==(basic_buffer const& other) const noexcept {
+  template <template <class> class OtherRC>
+  bool basic_buffer<RefCount>::operator ==(basic_buffer<OtherRC> const& other) const noexcept {
     // Check if we're comparing against ourselves.
-    if (this == &other) return true;
+    // Cast is necessary to ensure validity if we're comparing
+    // against a different refcounter.
+    if (static_cast<void const*>(this) == static_cast<void const*>(&other)) return true;
 
     // Check if we're sure we're even the same type.
     if (is_null() && other.is_null()) return true;
@@ -187,53 +200,75 @@ namespace dart {
 
   template <template <class> class RefCount>
   bool basic_packet<RefCount>::operator ==(basic_packet const& other) const noexcept {
+    return this->operator ==<RefCount>(other);
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class OtherRC>
+  bool basic_packet<RefCount>::operator ==(basic_packet<OtherRC> const& other) const noexcept {
     // Check if we're comparing against ourselves.
-    if (this == &other) return true;
+    // Cast is necessary to ensure validity if we're comparing
+    // against a different refcounter.
+    if (static_cast<void const*>(this) == static_cast<void const*>(&other)) return true;
     return shim::visit([] (auto& lhs, auto& rhs) { return lhs == rhs; }, impl, other.impl);
   }
 
   template <class Object>
-  bool basic_object<Object>::operator !=(basic_object const& other) const noexcept {
+  template <class OtherObject>
+  bool basic_object<Object>::operator !=(basic_object<OtherObject> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <class Array>
-  bool basic_array<Array>::operator !=(basic_array const& other) const noexcept {
+  template <class OtherArray>
+  bool basic_array<Array>::operator !=(basic_array<OtherArray> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <class String>
-  bool basic_string<String>::operator !=(basic_string const& other) const noexcept {
+  template <class OtherString>
+  bool basic_string<String>::operator !=(basic_string<OtherString> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <class Number>
-  bool basic_number<Number>::operator !=(basic_number const& other) const noexcept {
+  template <class OtherNumber>
+  bool basic_number<Number>::operator !=(basic_number<OtherNumber> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <class Boolean>
-  bool basic_flag<Boolean>::operator !=(basic_flag const& other) const noexcept {
+  template <class OtherBoolean>
+  bool basic_flag<Boolean>::operator !=(basic_flag<OtherBoolean> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <class Null>
-  constexpr bool basic_null<Null>::operator !=(basic_null const& other) const noexcept {
+  template <class OtherNull>
+  constexpr bool basic_null<Null>::operator !=(basic_null<OtherNull> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <template <class> class RefCount>
-  bool basic_heap<RefCount>::operator !=(basic_heap const& other) const noexcept {
+  template <template <class> class OtherRC>
+  bool basic_heap<RefCount>::operator !=(basic_heap<OtherRC> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <template <class> class RefCount>
-  bool basic_buffer<RefCount>::operator !=(basic_buffer const& other) const noexcept {
+  template <template <class> class OtherRC>
+  bool basic_buffer<RefCount>::operator !=(basic_buffer<OtherRC> const& other) const noexcept {
     return !(*this == other);
   }
 
   template <template <class> class RefCount>
   bool basic_packet<RefCount>::operator !=(basic_packet const& other) const noexcept {
+    return this->operator !=<RefCount>(other);
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class OtherRC>
+  bool basic_packet<RefCount>::operator !=(basic_packet<OtherRC> const& other) const noexcept {
     return !(*this == other);
   }
 
@@ -383,6 +418,26 @@ namespace dart {
   basic_packet<RefCount>::operator bool() const noexcept {
     if (!is_boolean()) return !is_null();
     else return boolean();
+  }
+
+  template <template <class> class RefCount>
+  basic_heap<RefCount>::operator view() const& noexcept {
+    return view {detail::view_tag {}, data};
+  }
+
+  template <template <class> class RefCount>
+  basic_buffer<RefCount>::operator view() const& noexcept {
+    view tmp;
+    tmp.raw = raw;
+    tmp.buffer_ref = typename view::ref_type {buffer_ref.raw()};
+    return tmp;
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator view() const& noexcept {
+    return shim::visit([] (auto& impl) -> view {
+      return typename std::decay_t<decltype(impl)>::view {impl};
+    }, impl);
   }
 
   template <class String>
@@ -555,13 +610,13 @@ namespace dart {
       // If the key was already present, insert will fail without consuming our value.
       // Overwrite it.
       if (!res.second) res.first->second = std::move(tmp_value);
-      return detail::dn_iterator<RefCount> {res.first, [] (auto& it) { return it->second; }};
+      return detail::dynamic_iterator<RefCount> {res.first, [] (auto& it) -> auto const& { return it->second; }};
     } else if (tmp_key.is_integer()) {
       auto& elements = get_elements();
       auto pos = static_cast<size_type>(tmp_key.integer());
       if (pos > elements.size()) throw std::out_of_range("dart::heap cannot insert at out of range index");
       auto new_it = elements.insert(elements.begin() + pos, std::forward<decltype(tmp_value)>(tmp_value));
-      return detail::dn_iterator<RefCount> {new_it, [] (auto& it) { return *it; }};
+      return detail::dynamic_iterator<RefCount> {new_it, [] (auto& it) -> auto const& { return *it; }};
     } else {
       throw type_error("dart::heap cannot insert keys with non string/integer types");
     }
@@ -577,7 +632,7 @@ namespace dart {
   template <class ValueType, class>
   auto basic_heap<RefCount>::insert(iterator pos, ValueType&& value) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
-    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+    using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
 
     // Make sure our iterator can be used.
     if (!pos) throw std::invalid_argument("dart::heap cannot insert from a valueless iterator");
@@ -617,14 +672,14 @@ namespace dart {
       auto it = fields.find(tmp_key);
       if (it == fields.end()) throw std::out_of_range("dart::heap cannot set a non-existent key");
       it->second = std::forward<decltype(tmp_val)>(tmp_val);
-      return detail::dn_iterator<RefCount>{it, [] (auto& it) { return it->second; }};
+      return detail::dynamic_iterator<RefCount>{it, [] (auto& it) -> auto const& { return it->second; }};
     } else if (tmp_key.is_integer()) {
       auto& elements = get_elements();
       auto pos = static_cast<size_type>(tmp_key.integer());
       if (pos >= elements.size()) throw std::out_of_range("dart::heap cannot set a value at out of range index");
       auto it = elements.begin() + pos;
       *it = std::forward<decltype(tmp_val)>(tmp_val);
-      return detail::dn_iterator<RefCount> {it, [] (auto& it) { return *it; }};
+      return detail::dynamic_iterator<RefCount> {it, [] (auto& it) -> auto const& { return *it; }};
     } else {
       throw type_error("dart::heap cannot set keys with non string/integer types");
     }
@@ -640,7 +695,7 @@ namespace dart {
   template <class ValueType, class>
   auto basic_heap<RefCount>::set(iterator pos, ValueType&& value) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
-    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+    using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
 
     // Make sure our iterator can be used.
     if (!pos) throw std::invalid_argument("dart::heap cannot insert from a valueless iterator");
@@ -686,9 +741,10 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_heap<RefCount>::erase(iterator pos) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
-    using fields_layout = typename detail::dn_iterator<RefCount>::fields_layout;
+    using fields_layout = typename detail::dynamic_iterator<RefCount>::fields_layout;
 
     // Make sure our iterator can be used.
     if (!pos) throw std::invalid_argument("dart::heap cannot erase from a valueless iterator");
@@ -709,6 +765,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_packet<RefCount>::erase(iterator pos) -> iterator {
     if (!pos) throw std::invalid_argument("dart::packet cannot erase from a valueless iterator");
     auto* it = shim::get_if<typename basic_heap<RefCount>::iterator>(&pos.impl);
@@ -717,6 +774,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   void basic_heap<RefCount>::clear() {
     if (is_object()) get_fields().clear();
     else if (is_array()) get_elements().clear();
@@ -724,6 +782,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   void basic_packet<RefCount>::clear() {
     get_heap().clear();
   }
@@ -739,37 +798,44 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>& basic_heap<RefCount>::definalize() & {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const& basic_heap<RefCount>::definalize() const& {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>&& basic_heap<RefCount>::definalize() && {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const&& basic_heap<RefCount>::definalize() const&& {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_buffer<RefCount>::definalize() const {
     return basic_heap<RefCount> {*this};
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::definalize() & {
     if (is_finalized()) impl = basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::definalize() && {
     definalize();
     return std::move(*this);
@@ -786,36 +852,43 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>& basic_heap<RefCount>::lift() & {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const& basic_heap<RefCount>::lift() const& {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>&& basic_heap<RefCount>::lift() && {
     return std::move(*this).definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> const&& basic_heap<RefCount>::lift() const&& {
     return std::move(*this).definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_buffer<RefCount>::lift() const {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::lift() & {
     return definalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::lift() && {
     return std::move(*this).definalize();
   }
@@ -831,37 +904,44 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_heap<RefCount>::finalize() const {
     return basic_buffer<RefCount> {*this};
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>& basic_buffer<RefCount>::finalize() & {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const& basic_buffer<RefCount>::finalize() const& {
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::finalize() && {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const&& basic_buffer<RefCount>::finalize() const&& {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::finalize() & {
     if (!is_finalized()) impl = basic_buffer<RefCount> {shim::get<basic_heap<RefCount>>(impl)};
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::finalize() && {
     finalize();
     return std::move(*this);
@@ -878,36 +958,43 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> basic_heap<RefCount>::lower() const {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>& basic_buffer<RefCount>::lower() & {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const& basic_buffer<RefCount>::lower() const& {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::lower() && {
     return std::move(*this).finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount> const&& basic_buffer<RefCount>::lower() const&& {
     return std::move(*this).finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::lower() & {
     return finalize();
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::lower() && {
     return std::move(*this).finalize();
   }
@@ -1937,11 +2024,11 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::begin() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->second; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->begin(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->second; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->begin(), deref));
     } else if (is_array()) {
-      auto deref = [] (auto& it) { return *it; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_elements()->begin(), deref));
+      auto deref = [] (auto& it) -> auto const& { return *it; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_elements()->begin(), deref));
     } else {
       throw type_error("dart::heap isn't an aggregate and cannot be iterated over");
     }
@@ -1997,11 +2084,11 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::end() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->second; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->end(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->second; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->end(), deref));
     } else if (is_array()) {
-      auto deref = [] (auto& it) { return *it; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_elements()->end(), deref));
+      auto deref = [] (auto& it) -> auto const& { return *it; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_elements()->end(), deref));
     } else {
       throw type_error("dart::heap isn't an aggregate and cannot be iterated over");
     }
@@ -2102,8 +2189,8 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::key_begin() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->first; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->begin(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->first; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->begin(), deref));
     } else {
       throw type_error("dart::heap is not an object and cannot iterate over keys");
     }
@@ -2147,8 +2234,8 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::key_end() const -> iterator {
     if (is_object()) {
-      auto deref = [] (auto& it) { return it->first; };
-      return iterator(detail::dn_iterator<RefCount>(try_get_fields()->end(), deref));
+      auto deref = [] (auto& it) -> auto const& { return it->first; };
+      return iterator(detail::dynamic_iterator<RefCount>(try_get_fields()->end(), deref));
     } else {
       throw type_error("dart::heap is not an object and cannot iterate over keys");
     }
@@ -2262,6 +2349,44 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_packet<RefCount>::rkvend() const -> std::tuple<reverse_iterator, reverse_iterator> {
     return std::tuple<reverse_iterator, reverse_iterator> {rkey_end(), rend()};
+  }
+
+  template <template <class> class RefCount>
+  constexpr bool basic_heap<RefCount>::is_view() const noexcept {
+    return !refcount::is_owner<RefCount>::value;
+  }
+
+  template <template <class> class RefCount>
+  constexpr bool basic_buffer<RefCount>::is_view() const noexcept {
+    return !refcount::is_owner<RefCount>::value;
+  }
+
+  template <template <class> class RefCount>
+  constexpr bool basic_packet<RefCount>::is_view() const noexcept {
+    return !refcount::is_owner<RefCount>::value;
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class, class>
+  auto basic_heap<RefCount>::as_owner() const noexcept {
+    return refcount::owner_indirection_t<dart::basic_heap, RefCount> {detail::view_tag {}, data};
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class, class>
+  auto basic_buffer<RefCount>::as_owner() const noexcept {
+    refcount::owner_indirection_t<dart::basic_buffer, RefCount> tmp;
+    tmp.raw = raw;
+    tmp.buffer_ref = buffer_ref.raw().raw();
+    return tmp;
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class, class>
+  auto basic_packet<RefCount>::as_owner() const noexcept {
+    return shim::visit([] (auto& impl) -> refcount::owner_indirection_t<dart::basic_packet, RefCount> {
+      return impl.as_owner();
+    }, impl);
   }
 
   inline namespace literals {

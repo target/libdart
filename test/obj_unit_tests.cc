@@ -181,7 +181,7 @@ SCENARIO("finalized objects can be deep copied", "[object unit]") {
       DYNAMIC_WHEN("the underlying buffer is copied", idx) {
         auto buf = obj.dup_bytes();
         DYNAMIC_THEN("a new packet can be initialized from it", idx) {
-          pkt copy(std::move(obj));
+          pkt copy(std::move(buf));
         }
       }
     });
