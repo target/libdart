@@ -15,58 +15,38 @@ namespace dart {
   /*----- Wrapper Equality Operations -----*/
 
   // Macro defines symmetric equality comparison operators (across implementation types)
-  // for a given wrapper template
-#define DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(wrapper)                                                         \
-  template <template <class> class RefCount,                                                                    \
-           template <template <class> class> class LhsPacket,                                                   \
-           template <template <class> class> class RhsPacket>                                                   \
-  bool operator ==(wrapper<LhsPacket<RefCount>> const& lhs, wrapper<RhsPacket<RefCount>> const& rhs) {          \
-    return lhs.dynamic() == rhs.dynamic();                                                                      \
-  }                                                                                                             \
-  template <template <class> class RefCount,                                                                    \
-           template <template <class> class> class LhsPacket,                                                   \
-           template <template <class> class> class RhsPacket>                                                   \
-  bool operator !=(wrapper<LhsPacket<RefCount>> const& lhs, wrapper<RhsPacket<RefCount>> const& rhs) {          \
-    return !(lhs == rhs);                                                                                       \
-  }
-
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_object);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_array);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_string);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_number);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_flag);
-  DART_DEFINE_WRAPPER_EQUALITY_OPERATORS(basic_null);
-#undef DART_DEFINE_WRAPPER_EQUALITY_OPERATORS
-
-  // Macro defines symmetric equality comparison operators (across implementation types)
   // for a given pair of wrapper templates.
 #define DART_DEFINE_CROSS_WRAPPER_EQUALITY_OPERATORS(lhs_wrapper, rhs_wrapper)                                  \
-  template <template <class> class RefCount,                                                                    \
-           template <template <class> class> class LhsPacket,                                                   \
-           template <template <class> class> class RhsPacket>                                                   \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC,                                                                       \
+            template <template <class> class> class LhsPacket,                                                  \
+            template <template <class> class> class RhsPacket>                                                  \
   constexpr bool                                                                                                \
-  operator ==(lhs_wrapper<LhsPacket<RefCount>> const&, rhs_wrapper<RhsPacket<RefCount>> const&) {               \
+  operator ==(lhs_wrapper<LhsPacket<LhsRC>> const&, rhs_wrapper<RhsPacket<RhsRC>> const&) {                     \
     return false;                                                                                               \
   }                                                                                                             \
-  template <template <class> class RefCount,                                                                    \
-           template <template <class> class> class LhsPacket,                                                   \
-           template <template <class> class> class RhsPacket>                                                   \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC,                                                                       \
+            template <template <class> class> class LhsPacket,                                                  \
+            template <template <class> class> class RhsPacket>                                                  \
   constexpr bool                                                                                                \
-  operator !=(lhs_wrapper<LhsPacket<RefCount>> const& lhs, rhs_wrapper<RhsPacket<RefCount>> const& rhs) {       \
+  operator !=(lhs_wrapper<LhsPacket<LhsRC>> const& lhs, rhs_wrapper<RhsPacket<RhsRC>> const& rhs) {             \
     return !(lhs == rhs);                                                                                       \
   }                                                                                                             \
-  template <template <class> class RefCount,                                                                    \
-           template <template <class> class> class LhsPacket,                                                   \
-           template <template <class> class> class RhsPacket>                                                   \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC,                                                                       \
+            template <template <class> class> class LhsPacket,                                                  \
+            template <template <class> class> class RhsPacket>                                                  \
   constexpr bool                                                                                                \
-  operator ==(rhs_wrapper<LhsPacket<RefCount>> const&, lhs_wrapper<RhsPacket<RefCount>> const&) {               \
+  operator ==(rhs_wrapper<LhsPacket<LhsRC>> const&, lhs_wrapper<RhsPacket<RhsRC>> const&) {                     \
     return false;                                                                                               \
   }                                                                                                             \
-  template <template <class> class RefCount,                                                                    \
-           template <template <class> class> class LhsPacket,                                                   \
-           template <template <class> class> class RhsPacket>                                                   \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC,                                                                       \
+            template <template <class> class> class LhsPacket,                                                  \
+            template <template <class> class> class RhsPacket>                                                  \
   constexpr bool                                                                                                \
-  operator !=(rhs_wrapper<LhsPacket<RefCount>> const& rhs, lhs_wrapper<RhsPacket<RefCount>> const& lhs) {       \
+  operator !=(rhs_wrapper<LhsPacket<LhsRC>> const& rhs, lhs_wrapper<RhsPacket<RhsRC>> const& lhs) {             \
     return !(rhs == lhs);                                                                                       \
   }
 
@@ -96,20 +76,24 @@ namespace dart {
   // XXX: Would be nice to be able to compare across packet types here, but these templates
   // aren't otherwise constrained, and I'm afraid it would be too wide open.
 #define DART_DEFINE_WRAPPER_PACKET_EQUALITY_OPERATORS(wrapper)                                                  \
-  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
-  bool operator ==(wrapper<Packet<RefCount>> const& lhs, Packet<RefCount> const& rhs) {                         \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC, template <template <class> class> class Packet>                       \
+  bool operator ==(wrapper<Packet<LhsRC>> const& lhs, Packet<RhsRC> const& rhs) {                               \
     return lhs.dynamic() == rhs;                                                                                \
   }                                                                                                             \
-  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
-  bool operator !=(wrapper<Packet<RefCount>> const& lhs, Packet<RefCount> const& rhs) {                         \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC, template <template <class> class> class Packet>                       \
+  bool operator !=(wrapper<Packet<LhsRC>> const& lhs, Packet<RhsRC> const& rhs) {                               \
     return !(lhs == rhs);                                                                                       \
   }                                                                                                             \
-  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
-  bool operator ==(Packet<RefCount> const& rhs, wrapper<Packet<RefCount>> const& lhs) {                         \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC, template <template <class> class> class Packet>                       \
+  bool operator ==(Packet<LhsRC> const& rhs, wrapper<Packet<RhsRC>> const& lhs) {                               \
     return rhs == lhs.dynamic();                                                                                \
   }                                                                                                             \
-  template <template <class> class RefCount, template <template <class> class> class Packet>                    \
-  bool operator !=(Packet<RefCount> const& rhs, wrapper<Packet<RefCount>> const& lhs) {                         \
+  template <template <class> class LhsRC,                                                                       \
+            template <class> class RhsRC, template <template <class> class> class Packet>                       \
+  bool operator !=(Packet<LhsRC> const& rhs, wrapper<Packet<RhsRC>> const& lhs) {                               \
     return !(rhs == lhs);                                                                                       \
   }
 
@@ -168,8 +152,8 @@ namespace dart {
 
   /*----- Cross-type Equality Operators -----*/
 
-  template <template <class> class RefCount>
-  bool operator ==(basic_buffer<RefCount> const& lhs, basic_heap<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator ==(basic_buffer<LhsRC> const& lhs, basic_heap<RhsRC> const& rhs) {
     // Make sure they're at least of the same type.
     if (lhs.get_type() != rhs.get_type()) return false;
 
@@ -183,7 +167,7 @@ namespace dart {
           // Ouch.
           // Iterates over rhs and looks up into lhs because lhs is the finalized
           // object and lookups should be significantly faster on it.
-          typename basic_heap<RefCount>::iterator k, v;
+          typename basic_heap<RhsRC>::iterator k, v;
           std::tie(k, v) = rhs.kvbegin();
           while (v != rhs.end()) {
             if (*v != lhs[*k]) return false;
@@ -216,38 +200,38 @@ namespace dart {
     }
   }
 
-  template <template <class> class RefCount>
-  bool operator ==(basic_heap<RefCount> const& lhs, basic_buffer<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator ==(basic_heap<LhsRC> const& lhs, basic_buffer<RhsRC> const& rhs) {
     return rhs == lhs;
   }
 
-  template <template <class> class RefCount>
-  bool operator ==(basic_buffer<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator ==(basic_buffer<LhsRC> const& lhs, basic_packet<RhsRC> const& rhs) {
     return shim::visit([&] (auto& v) { return lhs == v; }, rhs.impl);
   }
 
-  template <template <class> class RefCount>
-  bool operator ==(basic_heap<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator ==(basic_heap<LhsRC> const& lhs, basic_packet<RhsRC> const& rhs) {
     return shim::visit([&] (auto& v) { return lhs == v; }, rhs.impl);
   }
 
-  template <template <class> class RefCount>
-  bool operator !=(basic_buffer<RefCount> const& lhs, basic_heap<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator !=(basic_buffer<LhsRC> const& lhs, basic_heap<RhsRC> const& rhs) {
     return !(lhs == rhs);
   }
 
-  template <template <class> class RefCount>
-  bool operator !=(basic_heap<RefCount> const& lhs, basic_buffer<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator !=(basic_heap<LhsRC> const& lhs, basic_buffer<RhsRC> const& rhs) {
     return !(lhs == rhs);
   }
 
-  template <template <class> class RefCount>
-  bool operator !=(basic_buffer<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator !=(basic_buffer<LhsRC> const& lhs, basic_packet<RhsRC> const& rhs) {
     return !(lhs == rhs);
   }
 
-  template <template <class> class RefCount>
-  bool operator !=(basic_heap<RefCount> const& lhs, basic_packet<RefCount> const& rhs) {
+  template <template <class> class LhsRC, template <class> class RhsRC>
+  bool operator !=(basic_heap<LhsRC> const& lhs, basic_packet<RhsRC> const& rhs) {
     return !(lhs == rhs);
   }
 

@@ -73,7 +73,7 @@ namespace dart {
 
 #ifdef DART_USE_SAJSON
   template <template <class> class RefCount>
-  template <unsigned parse_stack_size>
+  template <unsigned parse_stack_size, template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::from_json(shim::string_view json) {
     // Allocate however much stack space was requested.
     std::array<size_t, parse_stack_size / sizeof(size_t)> stack;
@@ -89,7 +89,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <unsigned parse_stack_size>
+  template <unsigned parse_stack_size, template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::from_json(shim::string_view json) {
     // Allocate however much stack space was requested.
     std::array<size_t, parse_stack_size / sizeof(size_t)> stack;
@@ -109,14 +109,14 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <unsigned parse_stack_size>
+  template <unsigned parse_stack_size, template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::from_json(shim::string_view json, bool finalized) {
     if (finalized) return basic_buffer<RefCount>::template from_json<parse_stack_size>(json);
     else return basic_heap<RefCount>::template from_json<parse_stack_size>(json);
   }
 #elif DART_HAS_RAPIDJSON
   template <template <class> class RefCount>
-  template <unsigned flags>
+  template <unsigned flags, template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::from_json(shim::string_view json) {
     // Construct a reader class to parse this string.
     rapidjson::Reader reader;
@@ -141,7 +141,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <unsigned flags>
+  template <unsigned flags, template <class> class, class>
   basic_buffer<RefCount> basic_buffer<RefCount>::from_json(shim::string_view json) {
     // Duplicate the given string locally so we can use the RapidJSON in-situ parser.
     auto buf = std::make_unique<char[]>(json.size() + 1);
@@ -174,7 +174,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <unsigned flags>
+  template <unsigned flags, template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::from_json(shim::string_view json, bool finalized) {
     if (finalized) return basic_buffer<RefCount>::template from_json<flags>(json);
     else return basic_heap<RefCount>::template from_json<flags>(json);

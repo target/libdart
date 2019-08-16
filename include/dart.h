@@ -445,7 +445,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator ==(basic_object const& other) const noexcept;
+      template <class OtherObject>
+      bool operator ==(basic_object<OtherObject> const& other) const noexcept;
 
       /**
        *  @brief
@@ -461,7 +462,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_object const& other) const noexcept;
+      template <class OtherObject>
+      bool operator !=(basic_object<OtherObject> const& other) const noexcept;
 
       /**
        *  @brief
@@ -1769,7 +1771,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator ==(basic_array const& other) const noexcept;
+      template <class OtherArray>
+      bool operator ==(basic_array<OtherArray> const& other) const noexcept;
 
       /**
        *  @brief
@@ -1785,7 +1788,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_array const& other) const noexcept;
+      template <class OtherArray>
+      bool operator !=(basic_array<OtherArray> const& other) const noexcept;
 
       /**
        *  @brief
@@ -2834,7 +2838,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator ==(basic_string const& other) const noexcept;
+      template <class OtherString>
+      bool operator ==(basic_string<OtherString> const& other) const noexcept;
 
       /**
        *  @brief
@@ -2850,7 +2855,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_string const& other) const noexcept;
+      template <class OtherString>
+      bool operator !=(basic_string<OtherString> const& other) const noexcept;
 
       /**
        *  @brief
@@ -3308,7 +3314,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator ==(basic_number const& other) const noexcept;
+      template <class OtherNumber>
+      bool operator ==(basic_number<OtherNumber> const& other) const noexcept;
 
       /**
        *  @brief
@@ -3324,7 +3331,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_number const& other) const noexcept;
+      template <class OtherNumber>
+      bool operator !=(basic_number<OtherNumber> const& other) const noexcept;
 
       /**
        *  @brief
@@ -3757,7 +3765,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator ==(basic_flag const& other) const noexcept;
+      template <class OtherBoolean>
+      bool operator ==(basic_flag<OtherBoolean> const& other) const noexcept;
 
       /**
        *  @brief
@@ -3773,7 +3782,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_flag const& other) const noexcept;
+      template <class OtherBoolean>
+      bool operator !=(basic_flag<OtherBoolean> const& other) const noexcept;
 
       /**
        *  @brief
@@ -4133,7 +4143,8 @@ namespace dart {
        *  For strongly typed null packets, always returns true as all
        *  null instances are considered equal to each other.
        */
-      constexpr bool operator ==(basic_null const& other) const noexcept;
+      template <class OtherNull>
+      constexpr bool operator ==(basic_null<OtherNull> const& other) const noexcept;
 
       /**
        *  @brief
@@ -4143,7 +4154,8 @@ namespace dart {
        *  For strongly typed null packets, always returns true as all
        *  null instances are considered equal to each other.
        */
-      constexpr bool operator !=(basic_null const& other) const noexcept;
+      template <class OtherNull>
+      constexpr bool operator !=(basic_null<OtherNull> const& other) const noexcept;
 
       /**
        *  @brief
@@ -4416,11 +4428,11 @@ namespace dart {
 
           /*----- Private Lifecycle Functions -----*/
 
-          iterator(detail::dn_iterator<RefCount> it) : impl(std::move(it)) {}
+          iterator(detail::dynamic_iterator<RefCount> it) : impl(std::move(it)) {}
 
           /*----- Private Members -----*/
 
-          shim::optional<detail::dn_iterator<RefCount>> impl;
+          shim::optional<detail::dynamic_iterator<RefCount>> impl;
 
           /*----- Friends -----*/
 
@@ -4434,6 +4446,8 @@ namespace dart {
       using number = basic_number<basic_heap>;
       using flag = basic_flag<basic_heap>;
       using null = basic_null<basic_heap>;
+
+      using view = basic_heap<view_ptr_context<RefCount>::template view_ptr>;
 
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
@@ -4563,7 +4577,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator ==(basic_heap const& other) const noexcept;
+      template <template <class> class OtherRC>
+      bool operator ==(basic_heap<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -4577,7 +4592,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_heap const& other) const noexcept;
+      template <template <class> class OtherRC>
+      bool operator !=(basic_heap<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -4610,6 +4626,14 @@ namespace dart {
        *  Returns true in all other situations.
        */
       explicit operator bool() const noexcept;
+
+      /**
+       *  @brief
+       *  Operator allows for converting the current heap instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
 
       /**
        *  @brief
@@ -4667,6 +4691,8 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           sizeof...(Args) % 2 == 0
         >
       >
@@ -4682,6 +4708,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_object(gsl::span<basic_heap const> pairs);
 
       /**
@@ -4694,6 +4725,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_object(gsl::span<basic_buffer<RefCount> const> pairs);
 
       /**
@@ -4706,6 +4742,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_object(gsl::span<basic_packet<RefCount> const> pairs);
 
       /**
@@ -4715,11 +4756,15 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
-          (sizeof...(Args) > 1)
-          ||
-          !meta::is_span<
-            meta::first_type_t<std::decay_t<Args>...>
-          >::value
+          refcount::is_owner<RefCount>::value
+          &&
+          (
+            (sizeof...(Args) > 1)
+            ||
+            !meta::is_span<
+              meta::first_type_t<std::decay_t<Args>...>
+            >::value
+          )
         >
       >
       static basic_heap make_array(Args&&... elems);
@@ -4729,6 +4774,11 @@ namespace dart {
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_array(gsl::span<basic_heap const> elems);
 
       /**
@@ -4736,6 +4786,11 @@ namespace dart {
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_array(gsl::span<basic_buffer<RefCount> const> elems);
 
       /**
@@ -4743,6 +4798,11 @@ namespace dart {
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_array(gsl::span<basic_packet<RefCount> const> elems);
 
       /**
@@ -4756,6 +4816,11 @@ namespace dart {
        *  Otherwise, function will allocate the memory necessary to store the given
        *  string.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_string(shim::string_view val);
 
       /**
@@ -4763,6 +4828,11 @@ namespace dart {
        *  Integer factory function.
        *  Returns a new, non-finalized, integer with the given contents.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_integer(int64_t val) noexcept;
 
       /**
@@ -4770,6 +4840,11 @@ namespace dart {
        *  Decimal factory function.
        *  Returns a new, non-finalized, decimal with the given contents.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_decimal(double val) noexcept;
 
       /**
@@ -4777,6 +4852,11 @@ namespace dart {
        *  Boolean factory function.
        *  Returns a new, non-finalized, boolean with the given contents.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap make_boolean(bool val) noexcept;
 
       /**
@@ -4808,6 +4888,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_heap>::value
           &&
           convert::is_castable<ValueType, basic_heap>::value
@@ -4835,6 +4917,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_heap>::value
           &&
           convert::is_castable<ValueType, basic_heap>::value
@@ -4859,6 +4943,11 @@ namespace dart {
        *  auto nested = obj["nested"].remove_field("hello");
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap& remove_field(shim::string_view key) &;
 
       /**
@@ -4878,6 +4967,11 @@ namespace dart {
        *  auto nested = obj["nested"].remove_field("hello");
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       DART_NODISCARD basic_heap&& remove_field(shim::string_view key) &&;
 
       /**
@@ -4899,6 +4993,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -4923,6 +5019,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -4947,6 +5045,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_heap>::value
         >
       >
@@ -4971,6 +5071,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_heap>::value
         >
       >
@@ -4988,6 +5090,11 @@ namespace dart {
        *  auto nested = arr[0].pop_front().pop_front();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap& pop_front() &;
 
       /**
@@ -5002,6 +5109,11 @@ namespace dart {
        *  auto nested = arr[0].pop_front().pop_front();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       DART_NODISCARD basic_heap&& pop_front() &&;
 
       /**
@@ -5023,6 +5135,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_heap>::value
         >
       >
@@ -5047,6 +5161,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_heap>::value
         >
       >
@@ -5064,6 +5180,11 @@ namespace dart {
        *  auto nested = arr[0].pop_back().pop_back();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap& pop_back() &;
 
       /**
@@ -5078,6 +5199,11 @@ namespace dart {
        *  auto nested = arr[0].pop_back().pop_back();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap&& pop_back() &&;
 
       /**
@@ -5100,6 +5226,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_heap>::value
           &&
           convert::is_castable<ValueType, basic_heap>::value
@@ -5128,6 +5256,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_heap>::value
         >
       >
@@ -5146,6 +5276,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_heap>::value
           &&
           convert::is_castable<ValueType, basic_heap>::value
@@ -5166,6 +5298,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_heap>::value
         >
       >
@@ -5182,6 +5316,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -5196,6 +5332,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(iterator pos) -> iterator;
 
       /**
@@ -5207,7 +5348,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(basic_string<String> const& key) -> iterator;
       
       /**
@@ -5219,6 +5364,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(shim::string_view key) -> iterator;
 
       /**
@@ -5230,7 +5380,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(basic_number<Number> const& idx) -> iterator;
 
       /**
@@ -5242,6 +5396,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(size_type pos) -> iterator;
 
       /**
@@ -5251,6 +5410,11 @@ namespace dart {
        *  @details
        *  If this is object/array, will remove all subvalues.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       void clear();
 
       /**
@@ -5265,11 +5429,13 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
+          sizeof...(Args) % 2 == 0
+          &&
           meta::conjunction<
             convert::is_castable<Args, basic_heap>...
           >::value
-          &&
-          sizeof...(Args) % 2 == 0
         >
       >
       basic_heap inject(Args&&... pairs) const;
@@ -5284,6 +5450,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap inject(gsl::span<basic_heap const> pairs) const;
 
       /**
@@ -5296,6 +5467,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap inject(gsl::span<basic_buffer<RefCount> const> pairs) const;
 
       /**
@@ -5308,6 +5484,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap inject(gsl::span<basic_packet<RefCount> const> pairs) const;
 
       /**
@@ -5320,16 +5501,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
-      /**
-       *  @brief
-       *  Function "projects" a set of key-value pairs in the mathematical
-       *  sense that it creates a new packet containing the intersection of
-       *  the supplied keys, and those present in the original packet.
-       *
-       *  @details
-       *  Function provides a uniform interface for _efficient_ projection of
-       *  keys across the entire Dart API (also works for dart::buffer).
-       */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap project(std::initializer_list<shim::string_view> keys) const;
 
       /**
@@ -5342,6 +5518,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap project(gsl::span<std::string const> keys) const;
 
       /**
@@ -5354,6 +5535,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap project(gsl::span<shim::string_view const> keys) const;
 
       /*----- State Manipulation Functions -----*/
@@ -5367,6 +5553,11 @@ namespace dart {
        *  If used judiciously, can increase insertion performance.
        *  If used poorly, will definitely decrease insertion performance.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       void reserve(size_type count);
 
       /**
@@ -5380,6 +5571,8 @@ namespace dart {
        */
       template <class T = std::nullptr_t, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_heap>::value
         >
       >
@@ -5404,6 +5597,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap& definalize() &;
 
       /**
@@ -5425,6 +5623,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap const& definalize() const&;
 
       /**
@@ -5446,6 +5649,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap&& definalize() &&;
 
       /**
@@ -5467,6 +5675,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap const&& definalize() const&&;
 
       /**
@@ -5488,6 +5701,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap& lift() &;
 
       /**
@@ -5509,6 +5727,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap const& lift() const&;
 
       /**
@@ -5530,6 +5753,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap&& lift() &&;
 
       /**
@@ -5551,6 +5779,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap const&& lift() const&&;
 
       /**
@@ -5572,6 +5805,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer<RefCount> finalize() const;
 
       /**
@@ -5593,6 +5831,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer<RefCount> lower() const;
 
       /**
@@ -5631,7 +5874,11 @@ namespace dart {
        *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
        *  ```
        */
-      template <unsigned parse_stack_size = default_parse_stack_size>
+      template <unsigned parse_stack_size = default_parse_stack_size, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap from_json(shim::string_view json);
 #elif DART_HAS_RAPIDJSON
       /**
@@ -5651,7 +5898,11 @@ namespace dart {
        *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
        *  ```
        */
-      template <unsigned flags = parse_default>
+      template <unsigned flags = parse_default, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap from_json(shim::string_view json);
 #endif
 
@@ -5685,6 +5936,11 @@ namespace dart {
        *  At the time of this writing, parsing logic does not support YAML anchors, this will
        *  be added soon.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_heap from_yaml(shim::string_view yaml);
 #endif
 
@@ -5729,6 +5985,8 @@ namespace dart {
        */
       template <class Number, class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_heap>::value
         >
       >
@@ -5752,6 +6010,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_heap>::value
         >
       >
@@ -5796,6 +6056,8 @@ namespace dart {
        */
       template <class String, class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_heap>::value
         >
       >
@@ -5819,6 +6081,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_heap>::value
         >
       >
@@ -5862,6 +6126,8 @@ namespace dart {
        */
       template <class KeyType, class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
           &&
           convert::is_castable<T, basic_heap>::value
@@ -5974,6 +6240,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_heap>::value
         >
       >
@@ -6002,6 +6270,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_heap>::value
         >
       >
@@ -6536,6 +6806,25 @@ namespace dart {
        */
       auto rkvend() const -> std::tuple<reverse_iterator, reverse_iterator>;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          !refcount::is_owner<RC>::value
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Types -----*/
@@ -6558,8 +6847,11 @@ namespace dart {
       using packet_fields = detail::packet_fields<RefCount>;
       using packet_elements = detail::packet_elements<RefCount>;
 
-      using fields_type = shareable_ptr<RefCount<packet_fields>>;
-      using elements_type = shareable_ptr<RefCount<packet_elements>>;
+      using fields_rc_type = RefCount<packet_fields>;
+      using elements_rc_type = RefCount<packet_elements>;
+
+      using fields_type = shareable_ptr<fields_rc_type>;
+      using elements_type = shareable_ptr<elements_rc_type>;
 
       using type_data = shim::variant<
         shim::monostate,
@@ -6574,6 +6866,8 @@ namespace dart {
 
       /*----- Private Lifecycle Functions -----*/
 
+      template <class TypeData>
+      basic_heap(detail::view_tag, TypeData const& data);
       basic_heap(detail::object_tag) :
         data(make_shareable<RefCount<packet_fields>>())
       {}
@@ -6633,13 +6927,17 @@ namespace dart {
       friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
       friend struct convert::detail::caster_impl<convert::detail::string_tag>;
 
-      template <template <class> class RC>
-      friend bool operator ==(basic_buffer<RC> const&, basic_heap<RC> const&);
+      template <template <class> class LhsRC, template <class> class RhsRC>
+      friend bool operator ==(basic_buffer<LhsRC> const&, basic_heap<RhsRC> const&);
       friend size_t detail::sso_bytes<RefCount>();
       friend class detail::object<RefCount>;
       friend class detail::array<RefCount>;
+      
+      template <template <class> class RC>
+      friend class basic_heap;
       friend class basic_buffer<RefCount>;
-      friend class basic_packet<RefCount>;
+      template <template <class> class RC>
+      friend class basic_packet;
 
   };
 
@@ -6762,6 +7060,8 @@ namespace dart {
       using flag = basic_flag<basic_buffer>;
       using null = basic_null<basic_buffer>;
 
+      using view = basic_buffer<view_ptr_context<RefCount>::template view_ptr>;
+
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
 
@@ -6782,6 +7082,11 @@ namespace dart {
        *  Converting constructor.
        *  Explicitly converts a dart::heap into a dart::buffer.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_buffer(basic_heap<RefCount> const& heap);
 
       /**
@@ -6794,6 +7099,11 @@ namespace dart {
        *  Given buffer pointer need not be well aligned, function will
        *  internally handle alignment requirements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_buffer(gsl::span<gsl::byte const> buffer) :
         raw({detail::raw_type::object, buffer.data()}),
         buffer_ref(allocate_pointer(buffer))
@@ -6806,6 +7116,11 @@ namespace dart {
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_buffer(shareable_ptr<RefCount<gsl::byte const>> buffer) :
         raw({detail::raw_type::object, buffer.get()}),
         buffer_ref(validate_pointer(std::move(buffer)))
@@ -6822,7 +7137,11 @@ namespace dart {
        *  Function is so heavily overloaded because the portability of
        *  std::unique_ptr converting constructors has been pretty flakey in practice.
        */
-      template <class Del>
+      template <class Del, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_buffer(std::unique_ptr<gsl::byte const[], Del>&& buffer) :
         raw({detail::raw_type::object, buffer.get()}),
         buffer_ref(normalize(validate_pointer(std::move(buffer))))
@@ -6839,7 +7158,11 @@ namespace dart {
        *  Function is so heavily overloaded because the portability of
        *  std::unique_ptr converting constructors has been pretty flakey in practice.
        */
-      template <class Del>
+      template <class Del, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_buffer(std::unique_ptr<gsl::byte const, Del>&& buffer) :
         raw({detail::raw_type::object, buffer.get()}),
         buffer_ref(normalize(validate_pointer(std::move(buffer))))
@@ -6856,7 +7179,11 @@ namespace dart {
        *  Function is so heavily overloaded because the portability of
        *  std::unique_ptr converting constructors has been pretty flakey in practice.
        */
-      template <class Del>
+      template <class Del, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_buffer(std::unique_ptr<gsl::byte, Del>&& buffer) :
         raw({detail::raw_type::object, buffer.get()}),
         buffer_ref(normalize(validate_pointer(std::move(buffer))))
@@ -6936,7 +7263,11 @@ namespace dart {
        *  auto deep = arr[0][1][2];
        *  ```
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& operator [](basic_number<Number> const& idx) &&;
 
       /**
@@ -6967,6 +7298,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& operator [](size_type index) &&;
 
       /**
@@ -6998,7 +7334,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& operator [](basic_string<String> const& key) &&;
 
       /**
@@ -7029,6 +7369,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& operator [](shim::string_view key) &&;
 
       /**
@@ -7065,6 +7410,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -7083,7 +7430,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator ==(basic_buffer const& other) const noexcept;
+      template <template <class> class OtherRC>
+      bool operator ==(basic_buffer<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -7098,7 +7446,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_buffer const& other) const noexcept;
+      template <template <class> class OtherRC>
+      bool operator !=(basic_buffer<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -7131,6 +7480,14 @@ namespace dart {
        *  Returns true in all other situations.
        */
       explicit operator bool() const noexcept;
+
+      /**
+       *  @brief
+       *  Operator allows for converting the current buffer instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
 
       /**
        *  @brief
@@ -7199,6 +7556,8 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           sizeof...(Args) % 2 == 0
         >
       >
@@ -7214,6 +7573,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_buffer make_object(gsl::span<basic_heap<RefCount> const> pairs);
 
       /**
@@ -7226,6 +7590,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_buffer make_object(gsl::span<basic_buffer<RefCount> const> pairs);
 
       /**
@@ -7238,6 +7607,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_buffer make_object(gsl::span<basic_packet<RefCount> const> pairs);
 
       /**
@@ -7261,11 +7635,13 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
+          sizeof...(Args) % 2 == 0
+          &&
           meta::conjunction<
             convert::is_castable<Args, basic_packet<RefCount>>...
           >::value
-          &&
-          sizeof...(Args) % 2 == 0
         >
       >
       basic_buffer inject(Args&&... pairs) const;
@@ -7280,6 +7656,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer inject(gsl::span<basic_heap<RefCount> const> pairs) const;
 
       /**
@@ -7292,6 +7673,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer inject(gsl::span<basic_buffer const> pairs) const;
 
       /**
@@ -7304,6 +7690,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer inject(gsl::span<basic_packet<RefCount> const> pairs) const;
 
       /**
@@ -7316,6 +7707,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer project(std::initializer_list<shim::string_view> keys) const;
 
       /**
@@ -7328,6 +7724,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer project(gsl::span<std::string const> keys) const;
 
       /**
@@ -7340,6 +7741,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer project(gsl::span<shim::string_view const> keys) const;
 
       /*----- State Manipulation Functions -----*/
@@ -7363,6 +7769,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::buffer::finalize, the reverse can be accomplished using dart::buffer::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap<RefCount> definalize() const;
 
       /**
@@ -7384,6 +7795,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::buffer::finalize, the reverse can be accomplished using dart::buffer::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_heap<RefCount> lift() const;
 
       /**
@@ -7405,6 +7821,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer& finalize() &;
 
       /**
@@ -7426,6 +7847,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer const& finalize() const&;
 
       /**
@@ -7447,6 +7873,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& finalize() &&;
 
       /**
@@ -7468,6 +7899,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer const&& finalize() const&&;
 
       /**
@@ -7489,6 +7925,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer& lower() &;
 
       /**
@@ -7510,6 +7951,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer const& lower() const&;
 
       /**
@@ -7531,6 +7977,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& lower() &&;
 
       /**
@@ -7552,6 +8003,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::heap::finalize, the reverse can be accomplished using dart::heap::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer const&& lower() const&&;
 
       /**
@@ -7590,7 +8046,11 @@ namespace dart {
        *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
        *  ```
        */
-      template <unsigned parse_stack_size = default_parse_stack_size>
+      template <unsigned parse_stack_size = default_parse_stack_size, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_buffer from_json(shim::string_view json);
 #elif DART_HAS_RAPIDJSON
       /**
@@ -7610,7 +8070,11 @@ namespace dart {
        *  auto all_of_it = dart::buffer::from_json<dart::parse_permissive>(json);
        *  ```
        */
-      template <unsigned flags = parse_default>
+      template <unsigned flags = parse_default, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_buffer from_json(shim::string_view json);
 #endif
 
@@ -7644,6 +8108,11 @@ namespace dart {
        *  At the time of this writing, parsing logic does not support YAML anchors, this will
        *  be added soon.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_buffer from_yaml(shim::string_view yaml);
 #endif
 
@@ -7677,7 +8146,11 @@ namespace dart {
        *  auto deep = arr[0][1][2];
        *  ```
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& get(basic_number<Number> const& idx) &&;
 
       /**
@@ -7738,7 +8211,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& get(basic_string<String> const& key) &&;
 
       /**
@@ -7769,6 +8246,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& get(shim::string_view key) &&;
 
       /**
@@ -7807,6 +8289,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -7846,7 +8330,11 @@ namespace dart {
        *  auto deep = arr[0][1][2];
        *  ```
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& at(basic_number<Number> const& idx) &&;
 
       /**
@@ -7876,6 +8364,11 @@ namespace dart {
        *  auto deep = arr[0][1][2];
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& at(size_type index) &&;
 
       /**
@@ -7907,7 +8400,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& at(basic_string<String> const& key) &&;
 
       /**
@@ -7938,6 +8435,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& at(shim::string_view key) &&;
 
       /**
@@ -7976,6 +8478,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -8006,6 +8510,11 @@ namespace dart {
        *  auto deep = obj["first"]["second"]["third"];
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& at_front() &&;
 
       /**
@@ -8033,6 +8542,11 @@ namespace dart {
        *  auto deep = obj["first"]["second"]["third"];
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& at_back() &&;
 
       /**
@@ -8055,6 +8569,11 @@ namespace dart {
        *  returns the first element.
        *  Throws otherwise.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& front() &&;
 
       /**
@@ -8077,6 +8596,11 @@ namespace dart {
        *  returns the last element.
        *  Throws otherwise.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_buffer&& back() &&;
 
       /**
@@ -8666,11 +9190,31 @@ namespace dart {
        */
       auto rkvend() const -> std::tuple<reverse_iterator, reverse_iterator>;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          !refcount::is_owner<RC>::value
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Types -----*/
 
       using buffer_ref_type = detail::buffer_refcount_type<RefCount>;
+      using ref_type = typename buffer_ref_type::value_type;
 
       /*----- Private Lifecycle Functions -----*/
 
@@ -8692,10 +9236,13 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      friend class basic_packet<RefCount>;
-      friend struct detail::buffer_builder<RefCount>;
       template <template <class> class RC>
-      friend bool operator ==(basic_buffer<RC> const&, basic_heap<RC> const&);
+      friend class basic_buffer;
+      template <template <class> class RC>
+      friend class basic_packet;
+      friend struct detail::buffer_builder<RefCount>;
+      template <template <class> class LhsRC, template <class> class RhsRC>
+      friend bool operator ==(basic_buffer<LhsRC> const&, basic_heap<RhsRC> const&);
 
   };
 
@@ -8843,6 +9390,8 @@ namespace dart {
       using flag = basic_flag<basic_packet>;
       using null = basic_null<basic_packet>;
 
+      using view = basic_packet<view_ptr_context<RefCount>::template view_ptr>;
+
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
 
@@ -8887,6 +9436,11 @@ namespace dart {
        *  Given buffer pointer need not be well aligned, function will
        *  internally handle alignment requirements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_packet(gsl::span<gsl::byte const> buffer) :
         impl(basic_buffer<RefCount>(buffer))
       {}
@@ -8898,6 +9452,11 @@ namespace dart {
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_packet(shareable_ptr<RefCount<gsl::byte const>> buffer) :
         impl(basic_buffer<RefCount>(std::move(buffer)))
       {}
@@ -8909,7 +9468,11 @@ namespace dart {
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
        */
-      template <class Del>
+      template <class Del, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_packet(std::unique_ptr<gsl::byte const[], Del>&& buffer) :
         impl(basic_buffer<RefCount>(std::move(buffer)))
       {}
@@ -8921,7 +9484,11 @@ namespace dart {
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
        */
-      template <class Del>
+      template <class Del, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_packet(std::unique_ptr<gsl::byte const, Del>&& buffer) :
         impl(basic_buffer<RefCount>(std::move(buffer)))
       {}
@@ -8933,7 +9500,11 @@ namespace dart {
        *  @details
        *  Reconstitutes a previously finalized packet from a buffer of bytes.
        */
-      template <class Del>
+      template <class Del, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       explicit basic_packet(std::unique_ptr<gsl::byte, Del>&& buffer) :
         impl(basic_buffer<RefCount>(std::move(buffer)))
       {}
@@ -9013,7 +9584,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& operator [](basic_number<Number> const& idx) &&;
 
       /**
@@ -9044,6 +9619,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& operator [](size_type index) &&;
 
       /**
@@ -9075,7 +9655,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& operator [](basic_string<String> const& key) &&;
 
       /**
@@ -9106,6 +9690,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& operator [](shim::string_view key) &&;
 
       /**
@@ -9143,6 +9732,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -9161,8 +9752,49 @@ namespace dart {
        *  
        *  @remarks
        *  "Do as vector does"
+       *  Operator == is overloaded to ensure comparability with the rest of
+       *  the dart types.
+       *  We want comparability across refcounters, but conversions aren't
+       *  considered for template parameters.
        */
       bool operator ==(basic_packet const& other) const noexcept;
+
+      /**
+       *  @brief
+       *  Equality operator.
+       *  
+       *  @details
+       *  All packet types always return deep equality (aggregates included).
+       *  While idiomatic for C++, this means that non-finalized object comparisons
+       *  can be reasonably expensive.
+       *  Finalized comparisons, however, use memcmp to compare the underlying
+       *  byte buffers, and is _stupendously_ fast.
+       *  
+       *  @remarks
+       *  "Do as vector does"
+       */
+      template <template <class> class OtherRC>
+      bool operator ==(basic_packet<OtherRC> const& other) const noexcept;
+
+      /**
+       *  @brief
+       *  Equality operator.
+       *  
+       *  @details
+       *  All packet types always return deep equality (aggregates included).
+       *  While idiomatic for C++, this means that non-finalized object comparisons
+       *  can be reasonably expensive.
+       *  Finalized comparisons, however, use memcmp to compare the underlying
+       *  byte buffers, and is _stupendously_ fast.
+       *  
+       *  @remarks
+       *  "Do as vector does"
+       *  Operator == is overloaded to ensure comparability with the rest of
+       *  the dart types.
+       *  We want comparability across refcounters, but conversions aren't
+       *  considered for template parameters.
+       */
+      bool operator !=(basic_packet const& other) const noexcept;
 
       /**
        *  @brief
@@ -9178,7 +9810,8 @@ namespace dart {
        *  @remarks
        *  "Do as vector does"
        */
-      bool operator !=(basic_packet const& other) const noexcept;
+      template <template <class> class OtherRC>
+      bool operator !=(basic_packet<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -9211,6 +9844,14 @@ namespace dart {
        *  Returns true in all other situations.
        */
       explicit operator bool() const noexcept;
+
+      /**
+       *  @brief
+       *  Operator allows for converting the current packet instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
 
       /**
        *  @brief
@@ -9294,6 +9935,8 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           sizeof...(Args) % 2 == 0
         >
       >
@@ -9309,6 +9952,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_object(gsl::span<basic_heap<RefCount> const> pairs);
 
       /**
@@ -9321,6 +9969,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_object(gsl::span<basic_buffer<RefCount> const> pairs);
 
       /**
@@ -9333,6 +9986,11 @@ namespace dart {
        *  first of each pair is convertible to a dart::heap string, and the second of
        *  each pair is convertible into a dart::heap of any type.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_object(gsl::span<basic_packet<RefCount> const> pairs);
 
       /**
@@ -9340,7 +9998,19 @@ namespace dart {
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
-      template <class... Args>
+      template <class... Args, class =
+        std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
+          (
+            (sizeof...(Args) > 1)
+            ||
+            !meta::is_span<
+              meta::first_type_t<std::decay_t<Args>...>
+            >::value
+          )
+        >
+      >
       static basic_packet make_array(Args&&... elems);
 
       /**
@@ -9348,6 +10018,11 @@ namespace dart {
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_array(gsl::span<basic_heap<RefCount> const> elems);
 
       /**
@@ -9355,6 +10030,11 @@ namespace dart {
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_array(gsl::span<basic_buffer<RefCount> const> elems);
 
       /**
@@ -9362,6 +10042,11 @@ namespace dart {
        *  Array factory function.
        *  Returns a new, non-finalized, array with the given sequence of elements.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_array(gsl::span<basic_packet const> elems);
 
       /**
@@ -9375,6 +10060,11 @@ namespace dart {
        *  Otherwise, function will allocate the memory necessary to store the given
        *  string.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_string(shim::string_view val);
 
       /**
@@ -9382,6 +10072,11 @@ namespace dart {
        *  Integer factory function.
        *  Returns a new, non-finalized, integer with the given contents.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_integer(int64_t val) noexcept;
 
       /**
@@ -9389,6 +10084,11 @@ namespace dart {
        *  Decimal factory function.
        *  Returns a new, non-finalized, decimal with the given contents.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_decimal(double val) noexcept;
 
       /**
@@ -9396,6 +10096,11 @@ namespace dart {
        *  Boolean factory function.
        *  Returns a new, non-finalized, boolean with the given contents.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet make_boolean(bool val) noexcept;
 
       /**
@@ -9427,6 +10132,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_packet>::value
           &&
           convert::is_castable<ValueType, basic_packet>::value
@@ -9454,6 +10161,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_packet>::value
           &&
           convert::is_castable<ValueType, basic_packet>::value
@@ -9478,6 +10187,11 @@ namespace dart {
        *  auto nested = obj["nested"].remove_field("hello");
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet& remove_field(shim::string_view key) &;
 
       /**
@@ -9497,7 +10211,12 @@ namespace dart {
        *  auto nested = obj["nested"].remove_field("hello");
        *  ```
        */
-      basic_packet&& remove_field(shim::string_view key) &&;
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
+      DART_NODISCARD basic_packet&& remove_field(shim::string_view key) &&;
 
       /**
        *  @brief
@@ -9518,6 +10237,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -9542,6 +10263,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -9566,6 +10289,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_packet>::value
         >
       >
@@ -9590,6 +10315,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_packet>::value
         >
       >
@@ -9607,6 +10334,11 @@ namespace dart {
        *  auto nested = arr[0].pop_front().pop_front();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet& pop_front() &;
 
       /**
@@ -9621,6 +10353,11 @@ namespace dart {
        *  auto nested = arr[0].pop_front().pop_front();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       DART_NODISCARD basic_packet&& pop_front() &&;
 
       /**
@@ -9642,6 +10379,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_packet>::value
         >
       >
@@ -9666,6 +10405,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_packet>::value
         >
       >
@@ -9683,6 +10424,11 @@ namespace dart {
        *  auto nested = arr[0].pop_back().pop_back();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet& pop_back() &;
 
       /**
@@ -9697,6 +10443,11 @@ namespace dart {
        *  auto nested = arr[0].pop_back().pop_back();
        *  ```
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       DART_NODISCARD basic_packet&& pop_back() &&;
 
       /**
@@ -9719,6 +10470,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_packet>::value
           &&
           convert::is_castable<ValueType, basic_packet>::value
@@ -9747,6 +10500,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_packet>::value
         >
       >
@@ -9765,6 +10520,8 @@ namespace dart {
        */
       template <class KeyType, class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<KeyType, basic_packet>::value
           &&
           convert::is_castable<ValueType, basic_packet>::value
@@ -9785,6 +10542,8 @@ namespace dart {
        */
       template <class ValueType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<ValueType, basic_packet>::value
         >
       >
@@ -9801,6 +10560,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -9815,6 +10576,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(iterator pos) -> iterator;
 
       /**
@@ -9826,7 +10592,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(basic_string<String> const& key) -> iterator;
 
       /**
@@ -9838,6 +10608,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(shim::string_view key) -> iterator;
 
       /**
@@ -9849,7 +10624,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(basic_number<Number> const& idx) -> iterator;
 
       /**
@@ -9861,6 +10640,11 @@ namespace dart {
        *  returns the end iterator, otherwise it returns an iterator to one past the element
        *  removed.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       auto erase(size_type pos) -> iterator;
 
       /**
@@ -9870,6 +10654,11 @@ namespace dart {
        *  @details
        *  If this is a non-finalized object/array, function will remove all subvalues.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       void clear();
 
       /**
@@ -9884,11 +10673,13 @@ namespace dart {
        */
       template <class... Args, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
+          sizeof...(Args) % 2 == 0
+          &&
           meta::conjunction<
             convert::is_castable<Args, basic_packet>...
           >::value
-          &&
-          sizeof...(Args) % 2 == 0
         >
       >
       basic_packet inject(Args&&... pairs) const;
@@ -9903,6 +10694,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet inject(gsl::span<basic_heap<RefCount> const> pairs) const;
 
       /**
@@ -9915,6 +10711,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet inject(gsl::span<basic_buffer<RefCount> const> pairs) const;
 
       /**
@@ -9927,6 +10728,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ injection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet inject(gsl::span<basic_packet const> pairs) const;
 
       /**
@@ -9939,6 +10745,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet project(std::initializer_list<shim::string_view> keys) const;
 
       /**
@@ -9951,6 +10762,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet project(gsl::span<std::string const> keys) const;
 
       /**
@@ -9963,6 +10779,11 @@ namespace dart {
        *  Function provides a uniform interface for _efficient_ projection of
        *  keys across the entire Dart API (also works for dart::buffer).
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet project(gsl::span<shim::string_view const> keys) const;
 
       /*----- State Manipulation Functions -----*/
@@ -9976,6 +10797,11 @@ namespace dart {
        *  If used judiciously, can increase insertion performance.
        *  If used poorly, will definitely decrease insertion performance.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       void reserve(size_type count);
 
       /**
@@ -10012,6 +10838,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet& definalize() &;
 
       /**
@@ -10032,6 +10863,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& definalize() &&;
 
       /**
@@ -10052,6 +10888,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet& lift() &;
 
       /**
@@ -10072,6 +10913,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& lift() &&;
 
       /**
@@ -10092,6 +10938,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet& finalize() &;
 
       /**
@@ -10112,6 +10963,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& finalize() &&;
 
       /**
@@ -10132,6 +10988,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet& lower() &;
 
       /**
@@ -10152,6 +11013,11 @@ namespace dart {
        *  Switching from dynamic to finalized mode is accomplished via a call to
        *  dart::packet::finalize, the reverse can be accomplished using dart::packet::definalize.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& lower() &&;
 
       /**
@@ -10192,7 +11058,11 @@ namespace dart {
        *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
        *  ```
        */
-      template <unsigned parse_stack_size = default_parse_stack_size>
+      template <unsigned parse_stack_size = default_parse_stack_size, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet from_json(shim::string_view json, bool finalized = true);
 #elif DART_HAS_RAPIDJSON
       /**
@@ -10212,8 +11082,12 @@ namespace dart {
        *  auto all_of_it = dart::packet::from_json<dart::parse_permissive>(json);
        *  ```
        */
-      template <unsigned flags = parse_default>
-      static basic_packet from_json(shim::string_view json, bool finalize = true);
+      template <unsigned flags = parse_default, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
+      static basic_packet from_json(shim::string_view json, bool finalize = false);
 #endif
 
 #if DART_HAS_RAPIDJSON
@@ -10246,6 +11120,11 @@ namespace dart {
        *  At the time of this writing, parsing logic does not support YAML anchors, this will
        *  be added soon.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       static basic_packet from_yaml(shim::string_view yaml, bool finalized = true);
 #endif
 
@@ -10280,7 +11159,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& get(basic_number<Number> const& idx) &&;
 
       /**
@@ -10311,6 +11194,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& get(size_type index) &&;
 
       /**
@@ -10331,6 +11219,8 @@ namespace dart {
        */
       template <class Number, class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_packet>::value
         >
       >
@@ -10354,6 +11244,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_packet>::value
         >
       >
@@ -10388,7 +11280,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& get(basic_string<String> const& key) &&;
 
       /**
@@ -10419,6 +11315,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& get(shim::string_view key) &&;
 
       /**
@@ -10439,6 +11340,8 @@ namespace dart {
        */
       template <class String, class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_packet>::value
         >
       >
@@ -10462,6 +11365,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_packet>::value
         >
       >
@@ -10504,6 +11409,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -10531,6 +11438,8 @@ namespace dart {
        */
       template <class KeyType, class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
           &&
           convert::is_castable<T, basic_packet>::value
@@ -10573,7 +11482,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class Number>
+      template <class Number, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& at(basic_number<Number> const& idx) &&;
 
       /**
@@ -10604,6 +11517,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& at(size_type index) &&;
 
       /**
@@ -10635,7 +11553,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
-      template <class String>
+      template <class String, template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& at(basic_string<String> const& key) &&;
 
       /**
@@ -10666,6 +11588,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& at(shim::string_view key) &&;
 
       /**
@@ -10705,6 +11632,8 @@ namespace dart {
        */
       template <class KeyType, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           meta::is_dartlike<KeyType const&>::value
         >
       >
@@ -10736,6 +11665,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& at_front() &&;
 
       /**
@@ -10764,6 +11698,11 @@ namespace dart {
        *  ```
        *  and so all classes that can wrap dart::buffer also implement this overload.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& at_back() &&;
 
       /**
@@ -10786,6 +11725,11 @@ namespace dart {
        *  returns the first element.
        *  Throws otherwise.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& front() &&;
 
       /**
@@ -10800,6 +11744,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_packet>::value
         >
       >
@@ -10825,6 +11771,11 @@ namespace dart {
        *  returns the last element.
        *  Throws otherwise.
        */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          refcount::is_owner<RC>::value
+        >
+      >
       basic_packet&& back() &&;
 
       /**
@@ -10839,6 +11790,8 @@ namespace dart {
        */
       template <class T, class =
         std::enable_if_t<
+          refcount::is_owner<RefCount>::value
+          &&
           convert::is_castable<T, basic_packet>::value
         >
       >
@@ -11434,6 +12387,25 @@ namespace dart {
        */
       auto rkvend() const -> std::tuple<reverse_iterator, reverse_iterator>;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <template <class> class RC = RefCount, class =
+        std::enable_if_t<
+          !refcount::is_owner<RC>::value
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Types -----*/
@@ -11471,10 +12443,12 @@ namespace dart {
       friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
       friend struct convert::detail::caster_impl<convert::detail::string_tag>;
 
+      template <template <class> class LhsRC, template <class> class RhsRC>
+      friend bool operator ==(basic_buffer<LhsRC> const&, basic_packet<RhsRC> const&);
+      template <template <class> class LhsRC, template <class> class RhsRC>
+      friend bool operator ==(basic_heap<LhsRC> const&, basic_packet<RhsRC> const&);
       template <template <class> class RC>
-      friend bool operator ==(basic_buffer<RC> const&, basic_packet<RC> const&);
-      template <template <class> class RC>
-      friend bool operator ==(basic_heap<RC> const&, basic_packet<RC> const&);
+      friend class dart::basic_packet;
       friend class detail::object<RefCount>;
       friend struct detail::buffer_builder<RefCount>;
 
@@ -11519,7 +12493,7 @@ namespace dart {
    *  sajson.
    */
   template <unsigned parse_stack_size = default_parse_stack_size>
-  packet from_json(shim::string_view json, bool finalize = true) {
+  packet from_json(shim::string_view json, bool finalize = false) {
     return packet::from_json<parse_stack_size>(json, finalize);
   }
 
@@ -11532,7 +12506,7 @@ namespace dart {
    *  sajson.
    */
   template <unsigned parse_stack_size = default_parse_stack_size>
-  packet parse(shim::string_view json, bool finalize = true) {
+  packet parse(shim::string_view json, bool finalize = false) {
     return from_json<parse_stack_size>(json, finalize);
   }
 #elif DART_HAS_RAPIDJSON
@@ -11554,7 +12528,7 @@ namespace dart {
    *  ```
    */
   template <unsigned flags = parse_default>
-  packet from_json(shim::string_view json, bool finalize = true) {
+  packet from_json(shim::string_view json, bool finalize = false) {
     return packet::from_json<flags>(json, finalize);
   }
 
@@ -11576,7 +12550,7 @@ namespace dart {
    *  ```
    */
   template <unsigned flags = parse_default>
-  packet parse(shim::string_view json, bool finalize = true) {
+  packet parse(shim::string_view json, bool finalize = false) {
     return from_json<flags>(json, finalize);
   }
 #endif

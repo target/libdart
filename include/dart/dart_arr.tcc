@@ -30,12 +30,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class... Args>
+  template <class... Args, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_array(Args&&... elems) {
     return basic_heap<RefCount>::make_array(std::forward<Args>(elems)...);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_heap const> elems) {
     auto arr = basic_heap(detail::array_tag {});
     push_elems<false>(arr, elems);
@@ -43,11 +44,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_array(gsl::span<basic_heap<RefCount> const> elems) {
     return basic_heap<RefCount>::make_array(elems);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_buffer<RefCount> const> elems) {
     auto arr = basic_heap(detail::array_tag {});
     push_elems<false>(arr, elems);
@@ -55,11 +58,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_array(gsl::span<basic_buffer<RefCount> const> elems) {
     return basic_heap<RefCount>::make_array(elems);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_packet<RefCount> const> elems) {
     auto arr = basic_heap(detail::array_tag {});
     push_elems<false>(arr, elems);
@@ -67,6 +72,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount> basic_packet<RefCount>::make_array(gsl::span<basic_packet<RefCount> const> elems) {
     return basic_heap<RefCount>::make_array(elems);
   }
@@ -122,12 +128,14 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>& basic_heap<RefCount>::pop_front() & {
     erase(0);
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::pop_front() & {
     get_heap().pop_front();
     return *this;
@@ -142,12 +150,14 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>&& basic_heap<RefCount>::pop_front() && {
     pop_front();
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::pop_front() && {
     pop_front();
     return std::move(*this);
@@ -204,12 +214,14 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>& basic_heap<RefCount>::pop_back() & {
     erase(size() - 1);
     return *this;
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>& basic_packet<RefCount>::pop_back() & {
     get_heap().pop_back();
     return *this;
@@ -224,12 +236,14 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_heap<RefCount>&& basic_heap<RefCount>::pop_back() && {
     pop_back();
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::pop_back() && {
     pop_back();
     return std::move(*this);
@@ -254,18 +268,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   auto basic_heap<RefCount>::erase(basic_number<Number> const& idx) -> iterator {
     return erase(idx.integer());
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   auto basic_packet<RefCount>::erase(basic_number<Number> const& idx) -> iterator {
     return erase(idx.integer());
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_heap<RefCount>::erase(size_type pos) -> iterator {
     // Make sure we copy out if our heap is shared.
     copy_on_write();
@@ -274,10 +289,11 @@ namespace dart {
     auto& elements = get_elements();
     if (pos >= elements.size()) return end();
     auto new_it = elements.erase(elements.begin() + pos);
-    return detail::dn_iterator<RefCount> {new_it, [] (auto& it) { return *it; }};
+    return detail::dynamic_iterator<RefCount> {new_it, [] (auto& it) -> auto const& { return *it; }};
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   auto basic_packet<RefCount>::erase(size_type pos) -> iterator {
     return get_heap().erase(pos);
   }
@@ -301,6 +317,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   void basic_heap<RefCount>::reserve(size_type count) {
     get_elements().reserve(count);
   }
@@ -312,6 +329,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   void basic_packet<RefCount>::reserve(size_type count) {
     get_heap().reserve(count);
   }
@@ -353,13 +371,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](basic_number<Number> const& idx) && {
     return std::move(*this)[idx.integer()];
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::operator [](basic_number<Number> const& idx) && {
     return std::move(*this)[idx.integer()];
   }
@@ -380,11 +398,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](size_type index) && {
     return std::move(*this).get(index);
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::operator [](size_type index) && {
     return std::move(*this).get(index);
   }
@@ -414,7 +434,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::get(basic_number<Number> const& idx) && {
     return std::move(*this).get(idx.integer());
   }
@@ -426,7 +446,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::get(basic_number<Number> const& idx) && {
     return std::move(*this).get(idx.integer());
   }
@@ -455,6 +475,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::get(size_type index) && {
     shim::visit([&] (auto& v) { v = std::move(v).get(index); }, impl);
     return std::move(*this);
@@ -517,7 +538,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(basic_number<Number> const& idx) && {
     return std::move(*this).at(idx.integer());
   }
@@ -529,7 +550,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number>
+  template <class Number, template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::at(basic_number<Number> const& idx) && {
     return std::move(*this).at(idx.integer());
   }
@@ -551,6 +572,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(size_type index) && {
     raw = detail::get_array<RefCount>(raw)->at_elem(index);
     if (is_null()) buffer_ref = nullptr;
@@ -558,6 +580,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::at(size_type index) && {
     shim::visit([&] (auto& v) { v = std::move(v).at(index); }, impl);
     return std::move(*this);
@@ -586,17 +609,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::at_front() const& {
+    return shim::visit([] (auto& v) -> basic_packet { return v.at_front(); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at_front() && {
     if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at front");
     else return std::move(*this).front();
   }
 
   template <template <class> class RefCount>
-  basic_packet<RefCount> basic_packet<RefCount>::at_front() const& {
-    return shim::visit([] (auto& v) -> basic_packet { return v.at_front(); }, impl);
-  }
-
-  template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::at_front() && {
     shim::visit([] (auto& v) -> basic_packet { v = std::move(v).at_front(); }, impl);
     return std::move(*this);
@@ -625,17 +650,19 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::at_back() const& {
+    return shim::visit([] (auto& v) -> basic_packet { return v.at_back(); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at_back() && {
     if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at back");
     else return std::move(*this).back();
   }
 
   template <template <class> class RefCount>
-  basic_packet<RefCount> basic_packet<RefCount>::at_back() const& {
-    return shim::visit([] (auto& v) -> basic_packet { return v.at_back(); }, impl);
-  }
-
-  template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::at_back() && {
     shim::visit([] (auto& v) -> basic_packet { v = std::move(v).at_back(); }, impl);
     return std::move(*this);
@@ -666,6 +693,12 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  basic_packet<RefCount> basic_packet<RefCount>::front() const& {
+    return shim::visit([] (auto& v) -> basic_packet { return v.front(); }, impl);
+  }
+
+  template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::front() && {
     auto* arr = detail::get_array<RefCount>(raw);
     if (empty()) raw = {detail::raw_type::null, nullptr};
@@ -675,11 +708,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_packet<RefCount> basic_packet<RefCount>::front() const& {
-    return shim::visit([] (auto& v) -> basic_packet { return v.front(); }, impl);
-  }
-
-  template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::front() && {
     shim::visit([] (auto& v) { v = std::move(v).front(); }, impl);
     return std::move(*this);
@@ -729,6 +758,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::back() && {
     auto* arr = detail::get_array<RefCount>(raw);
     if (empty()) raw = {detail::raw_type::null, nullptr};
@@ -743,6 +773,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <template <class> class, class>
   basic_packet<RefCount>&& basic_packet<RefCount>::back() && {
     shim::visit([] (auto& v) { v = std::move(v).back(); }, impl);
     return std::move(*this);
@@ -804,7 +835,7 @@ namespace dart {
   template <template <class> class RefCount>
   auto basic_heap<RefCount>::iterator_index(iterator pos) const -> size_type {
     // Dig all the way down and get the underlying iterator layout.
-    using elements_layout = typename detail::dn_iterator<RefCount>::elements_layout;
+    using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
     return shim::visit(
       shim::compose_together(
         [] (elements_type const& elems, elements_layout& layout) -> size_type {

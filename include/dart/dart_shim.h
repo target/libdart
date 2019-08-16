@@ -69,6 +69,8 @@ namespace dart {
     using std::get_if;
     using std::launder;
     using std::holds_alternative;
+    using std::variant_alternative;
+    using std::variant_alternative_t;
 
     // Define a way to compose lambdas.
     template <class... Ls>
@@ -95,6 +97,8 @@ namespace dart {
     using mpark::visit;
     using mpark::get_if;
     using mpark::holds_alternative;
+    using mpark::variant_alternative;
+    using mpark::variant_alternative_t;
 
     // Pull in constants.
     static constexpr auto nullopt = dart::nullopt;
