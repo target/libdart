@@ -374,6 +374,101 @@ dart::heap unfinalized {finalized};
 dart::buffer refinalized {unfinalized};
 ```
 
+## Reference Counting, When You Want It
+Thread-safe reference counting is ideal for many applications. It strikes a nice
+balance between performance (predictable memory usage, no GC-pauses, etc) and safety,
+while also making it trivially easy to share data across threads. Nothing is for free,
+however, and there will always be use-cases that demand every last ounce of available
+performance; C++ has never been a "one size fits all" kind of language.
+
+As stated previously, **Dart** has a dedicated reference counter API that allows the
+user to generically customize every facet of how **Dart** implements reference counting
+(covered in-depth in the [advanced](ADVANCED.md) section), however, sometimes it's even
+useful to be able to selectively _disable_ reference counting for just a particular section
+of code; the **Dart** `view` API allows for this.
+
+All of the types mentioned previously (`dart::heap`, `dart::buffer`, and `dart::packet`)
+contain the nested type `view`, which is respectively interoperable, and exports a read-only
+subset of the associated API.
+
+As a motivating example:
+```c++
+#include <dart.h>
+#include <stdlib.h>
+
+// A short function that samples a couple values
+int64_t work_hard(dart::packet points, int samples = 10) {
+  // Sample some packets "randomly"
+  int64_t total = 0;
+  auto len = points.size();
+  for (int i = 0; i < samples; ++i) {
+    total += points[rand() % len].numeric();
+  }
+  return total;
+}
+
+// A computationally heavy function that frequently accesses keys
+int64_t work_really_hard(dart::packet::view points) {
+  int64_t total = 0;
+  auto end = std::end(points);
+  auto start = std::begin(points);
+  while (start != end) {
+    for (auto curr = start; curr != end; ++curr) {
+      total += curr->numeric_or(0);
+    }
+    ++start;
+  }
+  return total;
+}
+
+// Decides how important the data is and dispatches accordingly
+int64_t process_data(dart::packet data) {
+  auto points = data["points"];
+  if (data["really_important"]) {
+    return work_really_hard(points);
+  } else {
+    return work_hard(points);
+  }
+}
+```
+As you can see, we've added a new type, `dart::packet::view`, which is implicitly
+constructible from any instance of `dart::packet`.
+On the surface, `view` types appear to behave like any other **Dart** type, however,
+internally they do _**not**_ participate in reference counting, which, in the
+right circumstances, can be a huge performance win.
+
+Because we're using a `view` type, `work_really_hard` has become a pure function,
+spinning over its input without mutation and accumulating into a local (probably register backed)
+before returning; `work_hard`, by contrast, does a lot of unnecessary refcount manipulation
+for little clear benefit.
+
+Judicious use of `view` types can result in significant performance wins, however, as they
+do _**not**_ participate in reference counting, they can also dangle and corrupt memory very
+easily if not handled appropriately (`work_really_hard` caching `points` in a static/global
+variable would be trouble).
+A fairly safe pattern with `view` types is to exclusively pass them down the stack (returning
+a `view` requires thought) and think _very_ carefully before putting them in containers.
+
+Finally, a `view` type can be transitioned back into its fully-fledge counterpart at any point
+in time by calling `dart::packet::as_owner` like so:
+```c++
+#include <dart.h>
+#include <unordered_map>
+
+std::unordered_map<std::string, dart::packet> cache;
+
+dart::packet update_cache(dart::packet::view data) {
+  bool dummy;
+  auto found = cache.find(data["name"].str());
+  if (found == cache.end()) {
+    std::tie(found, dummy) = cache.emplace(data["name"].str(), data["values"].as_owner());
+  } else {
+    found->second = data["values"].as_owner();
+  }
+  return found->second;
+}
+```
+
 ## Type-Safe API
 **Dart** is first and foremost a dynamically typed library, for interacting with a
 dynamically typed notation language, but as C++ is a statically typed language, it
