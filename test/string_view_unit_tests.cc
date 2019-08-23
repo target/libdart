@@ -1,7 +1,7 @@
 /*----- Local Includes -----*/
 
 #include "dart_tests.h"
-#include "../include/dart/string_view.h"
+#include "../include/dart/support/string_view.h"
 
 /*----- System Includes -----*/
 

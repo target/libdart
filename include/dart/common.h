@@ -1,5 +1,5 @@
-#ifndef DART_INTERN_H
-#define DART_INTERN_H
+#ifndef DART_COMMON_H
+#define DART_COMMON_H
 
 // Automatically detect libraries if possible.
 #if defined(__has_include)
@@ -17,6 +17,7 @@
 #include <vector>
 #include <math.h>
 #include <gsl/gsl>
+#include <errno.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <stdarg.h>
@@ -30,12 +31,16 @@
 #include <rapidjson/error/en.h>
 #endif
 
+#if DART_HAS_YAML
+#include <yaml.h>
+#endif
+
 /*----- Local Includes -----*/
 
-#include "dart_shim.h"
-#include "dart_meta.h"
-#include "ordered.h"
-#include "ptrs.h"
+#include "shim.h"
+#include "meta.h"
+#include "support/ptrs.h"
+#include "support/ordered.h"
 
 /*----- System Includes with Compiler Flags -----*/
 
@@ -360,7 +365,6 @@ namespace dart {
 
         /*----- Lifecycle Functions -----*/
 
-        prefix_entry() noexcept = default;
         inline prefix_entry(detail::raw_type type, uint32_t offset, shim::string_view prefix) noexcept;
         prefix_entry(prefix_entry const&) = default;
 
@@ -1291,11 +1295,209 @@ namespace dart {
       }
     }
 
+#ifdef DART_USE_SAJSON
+    // FIXME: Find somewhere better to put these functions.
+    template <template <class> class RefCount>
+    raw_type json_identify(sajson::value curr_val) {
+      switch (curr_val.get_type()) {
+        case sajson::TYPE_OBJECT:
+          return raw_type::object;
+        case sajson::TYPE_ARRAY:
+          return raw_type::array;
+        case sajson::TYPE_STRING:
+          // Figure out what type of string we've been given.
+          return identify_string<RefCount>({curr_val.as_cstring(), curr_val.get_string_length()});
+        case sajson::TYPE_INTEGER:
+          return identify_integer(curr_val.get_integer_value());
+        case sajson::TYPE_DOUBLE:
+          return identify_decimal(curr_val.get_double_value());
+        case sajson::TYPE_FALSE:
+        case sajson::TYPE_TRUE:
+          return raw_type::boolean;
+        default:
+          DART_ASSERT(curr_val.get_type() == sajson::TYPE_NULL);
+          return raw_type::null;
+      }
+    }
+
+    template <template <class> class RefCount>
+    size_t json_lower(gsl::byte* buffer, sajson::value curr_val) {
+      auto raw = json_identify<RefCount>(curr_val);
+      switch (raw) {
+        case raw_type::object:
+          new(buffer) object<RefCount>(curr_val);
+          break;
+        case raw_type::array:
+          new(buffer) array<RefCount>(curr_val);
+          break;
+        case raw_type::small_string:
+        case raw_type::string:
+          new(buffer) string(curr_val.as_cstring(), curr_val.get_string_length());
+          break;
+        case raw_type::big_string:
+          new(buffer) big_string(curr_val.as_cstring(), curr_val.get_string_length());
+          break;
+        case raw_type::short_integer:
+          new(buffer) primitive<int16_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::integer:
+          new(buffer) primitive<int32_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::long_integer:
+          new(buffer) primitive<int64_t>(curr_val.get_integer_value());
+          break;
+        case raw_type::decimal:
+          new(buffer) primitive<float>(curr_val.get_double_value());
+          break;
+        case raw_type::long_decimal:
+          new(buffer) primitive<double>(curr_val.get_double_value());
+          break;
+        case raw_type::boolean:
+          new(buffer) detail::primitive<bool>((curr_val.get_type() == sajson::TYPE_TRUE) ? true : false);
+          break;
+        default:
+          DART_ASSERT(curr_val.get_type() == sajson::TYPE_NULL);
+          break;
+      }
+      return detail::find_sizeof<RefCount>({raw, buffer});
+    }
+#endif
+
+#if DART_HAS_RAPIDJSON
+    // FIXME: Find somewhere better to put these functions.
+    template <template <class> class RefCount>
+    raw_type json_identify(rapidjson::Value const& curr_val) {
+      switch (curr_val.GetType()) {
+        case rapidjson::kObjectType:
+          return raw_type::object;
+        case rapidjson::kArrayType:
+          return raw_type::array;
+        case rapidjson::kStringType:
+          // Figure out what type of string we've been given.
+          return identify_string<RefCount>({curr_val.GetString(), curr_val.GetStringLength()});
+        case rapidjson::kNumberType:
+          // Figure out what type of number we've been given.
+          if (curr_val.IsInt()) return identify_integer(curr_val.GetInt64());
+          else return identify_decimal(curr_val.GetDouble());
+        case rapidjson::kTrueType:
+        case rapidjson::kFalseType:
+          return raw_type::boolean;
+        default:
+          DART_ASSERT(curr_val.IsNull());
+          return raw_type::null;
+      }
+    }
+
+    template <template <class> class RefCount>
+    size_t json_lower(gsl::byte* buffer, rapidjson::Value const& curr_val) {
+      auto raw = json_identify<RefCount>(curr_val);
+      switch (raw) {
+        case raw_type::object:
+          new(buffer) object<RefCount>(curr_val);
+          break;
+        case raw_type::array:
+          new(buffer) array<RefCount>(curr_val);
+          break;
+        case raw_type::small_string:
+        case raw_type::string:
+          new(buffer) string(curr_val.GetString(), curr_val.GetStringLength());
+          break;
+        case raw_type::big_string:
+          new(buffer) big_string(curr_val.GetString(), curr_val.GetStringLength());
+          break;
+        case raw_type::short_integer:
+          new(buffer) primitive<int16_t>(curr_val.GetInt());
+          break;
+        case raw_type::integer:
+          new(buffer) primitive<int32_t>(curr_val.GetInt());
+          break;
+        case raw_type::long_integer:
+          new(buffer) primitive<int64_t>(curr_val.GetInt64());
+          break;
+        case raw_type::decimal:
+          new(buffer) primitive<float>(curr_val.GetFloat());
+          break;
+        case raw_type::long_decimal:
+          new(buffer) primitive<double>(curr_val.GetDouble());
+          break;
+        case raw_type::boolean:
+          new(buffer) detail::primitive<bool>(curr_val.GetBool());
+          break;
+        default:
+          DART_ASSERT(curr_val.IsNull());
+          break;
+      }
+      return detail::find_sizeof<RefCount>({raw, buffer});
+    }
+#endif
+
+    // Helper function handles the edge case where we're working with
+    // a view type, and we need to cast it back to an owner, ONLY IF
+    // we are an owner ourselves.
+    template <class MaybeView, class View>
+    decltype(auto) view_return_indirection(View&& view) {
+      return shim::compose_together(
+        [] (auto&& v, std::true_type) -> decltype(auto) {
+          return std::forward<decltype(v)>(v);
+        },
+        [] (auto&& v, std::false_type) -> decltype(auto) {
+          return std::forward<decltype(v)>(v).as_owner();
+        }
+      )(std::forward<View>(view), std::is_same<std::decay_t<MaybeView>, std::decay_t<View>> {});
+    }
+
+    template <class Packet>
+    Packet get_nested_impl(Packet haystack, shim::string_view needle, char separator) {
+      // Spin through the provided needle until we reach the end, or hit a leaf.
+      auto start = needle.begin();
+      typename Packet::view curr = haystack;
+      while (start < needle.end() && curr.is_object()) {
+        // Tokenize up the needle and drag the current packet through each one.
+        auto stop = std::find(start, needle.end(), separator);
+        curr = curr[needle.substr(start - needle.begin(), stop - start)];
+
+        // Prepare for next iteration.
+        stop == needle.end() ? start = stop : start = stop + 1;
+      }
+
+      // If we finished, find our final value, otherwise return null.
+      if (start < needle.end()) return Packet::make_null();
+      else return view_return_indirection<Packet>(curr);
+    }
+
+    template <class Packet>
+    std::vector<Packet> keys_impl(Packet const& that) {
+      std::vector<Packet> packets;
+      packets.reserve(that.size());
+      for (auto it = that.key_begin(); it != that.key_end(); ++it) {
+        packets.push_back(*it);
+      }
+      return packets;
+    }
+
+    template <class Packet>
+    std::vector<Packet> values_impl(Packet const& that) {
+      std::vector<Packet> packets;
+      packets.reserve(that.size());
+      for (auto entry : that) packets.push_back(std::move(entry));
+      return packets;
+    }
+
+    template <class T>
+    decltype(auto) maybe_dereference(T&& maybeptr, std::true_type) {
+      return *std::forward<T>(maybeptr);
+    }
+    template <class T>
+    decltype(auto) maybe_dereference(T&& maybeptr, std::false_type) {
+      return std::forward<T>(maybeptr);
+    }
+
   }
 
 }
 
 // Include main header file for all implementation files.
 #include "../dart.h"
+#include "common.tcc"
 
 #endif

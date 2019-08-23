@@ -3,9 +3,6 @@
 
 /*----- Local Includes -----*/
 
-// Yuck
-// Bad, but fixes the problem of some platforms including
-// the wrong thing if the library is already installed
 #include "../include/dart.h"
 #include "../include/extern/catch.h"
 

@@ -8,9 +8,9 @@
 
 /*----- Local Includes -----*/
 
-#include "dart_shim.h"
-#include "dart_meta.h"
-#include "dart_intern.h"
+#include "shim.h"
+#include "meta.h"
+#include "common.h"
 
 /*----- Type Declarations -----*/
 

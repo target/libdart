@@ -12,7 +12,7 @@
 
 /*----- System Includes -----*/
 
-#include "refcount_traits.h"
+#include "../refcount_traits.h"
 
 /*----- Type Declarations -----*/
 
@@ -427,7 +427,7 @@ namespace dart {
 
         explicit operator bool() const noexcept(refcount_traits<refcount_type>::is_nothrow_unwrappable::value);
 
-        explicit operator refcount_type() const;
+        operator refcount_type const&() const;
 
         /*----- Public API -----*/
 
@@ -479,43 +479,6 @@ namespace dart {
 
   template <class T, class... Args>
   std::enable_if_t<!std::is_array<T>::value, skinny_ptr<T>> make_skinny(Args&&... the_args);
-
-  namespace refcount {
-
-    namespace detail {
-      template <class T>
-      using nonowning_t = typename T::is_nonowning;
-
-      template <bool, template <template <class> class> class Tmp, template <class> class RefCount>
-      struct owner_indirection_impl {
-        using type = Tmp<RefCount>;
-      };
-      template <template <template <class> class> class Tmp, template <class> class RefCount>
-      struct owner_indirection_impl<false, Tmp, RefCount> {
-        template <template <class> class Owner>
-        struct rebinder {
-          using type = Tmp<Owner>;
-        };
-
-        using type = typename RefCount<gsl::byte>::template refcount_rebind<rebinder>::type;
-      };
-    }
-
-    template <template <class> class Owner>
-    struct is_owner : meta::negation<meta::is_detected<detail::nonowning_t, Owner<gsl::byte>>> {};
-
-    template <template <template <class> class> class Tmp, template <class> class RefCount>
-    struct owner_indirection {
-      using type = typename detail::owner_indirection_impl<
-        is_owner<RefCount>::value,
-        Tmp,
-        RefCount
-      >::type;
-    };
-    template <template <template <class> class> class Tmp, template <class> class RefCount>
-    using owner_indirection_t = typename owner_indirection<Tmp, RefCount>::type;
-
-  }
 
 }
 
