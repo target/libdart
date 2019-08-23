@@ -1,15 +1,16 @@
-#ifndef DART_OPERATORS_IMPL_H
-#define DART_OPERATORS_IMPL_H
+#ifndef DART_OPERATORS_H
+#define DART_OPERATORS_H
 
 /*----- Local Includes -----*/
 
-#include "../dart.h"
+#include "common.h"
 
 /*----- Function Definitions -----*/
 
 // I apologize for this whole file.
 // I'm not usually a macro kind of guy, but this is one of those rare
 // situations where the code would actually be WORSE without the macros.
+// It doesn't help that the Dart API surface is so large
 namespace dart {
 
   /*----- Wrapper Equality Operations -----*/

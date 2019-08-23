@@ -558,7 +558,7 @@ namespace dart {
 
   template <template <class> class RefCount>
   template <class T>
-  view_ptr_context<RefCount>::view_ptr<T>::operator refcount_type() const {
+  view_ptr_context<RefCount>::view_ptr<T>::operator refcount_type const&() const {
     return raw();
   }
 

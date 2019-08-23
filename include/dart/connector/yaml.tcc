@@ -1,18 +1,13 @@
 #ifndef DART_YAML_IMPL_H
 #define DART_YAML_IMPL_H
-#if DART_HAS_YAML
-
-/*----- System Includes -----*/
-
-#include <yaml.h>
-#include <errno.h>
 
 /*----- Local Includes -----*/
 
-#include "dart_intern.h"
+#include "../common.h"
 
 /*----- Function Implementations -----*/
 
+#if DART_HAS_YAML
 namespace dart {
 
   namespace detail {
@@ -235,6 +230,6 @@ namespace dart {
   }
 
 }
-
 #endif
+
 #endif

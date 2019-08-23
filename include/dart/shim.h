@@ -44,9 +44,9 @@
 #include <string_view>
 #else
 #define DART_HAS_CPP14 1
-#include "variant.h"
-#include "optional.h"
-#include "string_view.h"
+#include "support/variant.h"
+#include "support/optional.h"
+#include "support/string_view.h"
 #endif
 
 // Conditionally pull each of those types into our namespace.

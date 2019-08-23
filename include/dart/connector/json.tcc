@@ -3,7 +3,7 @@
 
 /*----- Local Includes -----*/
 
-#include "dart_intern.h"
+#include "../common.h"
 
 /*----- Type Declarations -----*/
 

@@ -24,8 +24,8 @@
  *  5/1/19
  */
 
-#ifndef DART_PACKET_H
-#define DART_PACKET_H
+#ifndef DART_H
+#define DART_H
 
 // Check to make sure we have at least c++14.
 #if __cplusplus < 201402L
@@ -48,7 +48,8 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 
 /*----- Local Includes -----*/
 
-#include "dart/dart_intern.h"
+#include "dart/common.h"
+#include "dart/refcount_traits.h"
 #include "dart/conversion_traits.h"
 
 /*----- Macro Definitions -----*/
@@ -4447,7 +4448,12 @@ namespace dart {
       using flag = basic_flag<basic_heap>;
       using null = basic_null<basic_heap>;
 
-      using view = basic_heap<view_ptr_context<RefCount>::template view_ptr>;
+      // Views of views don't work, so prevent infinite recursion
+      using view = std::conditional_t<
+        refcount::is_owner<RefCount>::value,
+        basic_heap<view_ptr_context<RefCount>::template view_ptr>,
+        basic_heap
+      >;
 
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
@@ -7060,7 +7066,12 @@ namespace dart {
       using flag = basic_flag<basic_buffer>;
       using null = basic_null<basic_buffer>;
 
-      using view = basic_buffer<view_ptr_context<RefCount>::template view_ptr>;
+      // Views of views don't work, so prevent infinite recursion
+      using view = std::conditional_t<
+        refcount::is_owner<RefCount>::value,
+        basic_buffer<view_ptr_context<RefCount>::template view_ptr>,
+        basic_buffer
+      >;
 
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
@@ -9390,7 +9401,12 @@ namespace dart {
       using flag = basic_flag<basic_packet>;
       using null = basic_null<basic_packet>;
 
-      using view = basic_packet<view_ptr_context<RefCount>::template view_ptr>;
+      // Views of views don't work, so prevent infinite recursion
+      using view = std::conditional_t<
+        refcount::is_owner<RefCount>::value,
+        basic_packet<view_ptr_context<RefCount>::template view_ptr>,
+        basic_packet
+      >;
 
       using size_type = size_t;
       using reverse_iterator = std::reverse_iterator<iterator>;
@@ -12559,16 +12575,17 @@ namespace dart {
 
 /*----- Function Template Implementations -----*/
 
-#include "dart/dart_meta.h"
-#include "dart/dart_intern.tcc"
-#include "dart/dart_operators.tcc"
-#include "dart/dart_api.tcc"
-#include "dart/dart_arr.tcc"
-#include "dart/dart_iterator.tcc"
-#include "dart/dart_json.tcc"
-#include "dart/dart_obj.tcc"
-#include "dart/dart_primitive.tcc"
-#include "dart/dart_str.tcc"
-#include "dart/dart_yaml.tcc"
+#include "dart/api.tcc"
+#include "dart/array.tcc"
+#include "dart/iterator.tcc"
+#include "dart/object.tcc"
+#include "dart/operators.tcc"
+#include "dart/primitive.tcc"
+#include "dart/string.tcc"
+#include "dart/heap/heap.h"
+#include "dart/buffer/buffer.h"
+#include "dart/packet/packet.h"
+#include "dart/connector/json.tcc"
+#include "dart/connector/yaml.tcc"
 
 #endif
