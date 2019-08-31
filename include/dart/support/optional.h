@@ -217,7 +217,7 @@ namespace dart {
       optional& operator =(non_copy_assignable_t const&) = delete;
       optional& operator =(move_assignable_t&& other) noexcept(detail::safely_assignable<T>::value);
       optional& operator =(non_move_assignable_t&& other) = delete;
-      template <class U, class =
+      template <class U, class EnableIf =
         std::enable_if_t<
           !std::is_same<
             optional,
@@ -230,7 +230,7 @@ namespace dart {
         >
       >
       optional& operator =(U&& val);
-      template <class U, class =
+      template <class U, class EnableIf =
         std::enable_if_t<
           detail::assignment_conversion_check<T, U>::value
           &&
@@ -240,7 +240,7 @@ namespace dart {
         >
       >
       optional& operator =(optional<U> const& other);
-      template <class U, class =
+      template <class U, class EnableIf =
         std::enable_if_t<
           detail::assignment_conversion_check<T, U>::value
           &&
@@ -271,7 +271,7 @@ namespace dart {
       auto value() && -> value_type&&;
       auto value() const&& -> value_type const&&;
 
-      template <class U, class =
+      template <class U, class EnableIf =
         std::enable_if_t<
           std::is_convertible<U, T>::value
           &&
@@ -279,7 +279,7 @@ namespace dart {
         >
       >
       auto value_or(U&& def) const& -> value_type;
-      template <class U, class =
+      template <class U, class EnableIf =
         std::enable_if_t<
           std::is_convertible<U, T>::value
           &&

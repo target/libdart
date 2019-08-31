@@ -10,19 +10,19 @@
 namespace dart {
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::make_integer(int64_t val) noexcept {
     return basic_heap<RefCount>::make_integer(val);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::make_decimal(double val) noexcept {
     return basic_heap<RefCount>::make_decimal(val);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::make_boolean(bool val) noexcept {
     return basic_heap<RefCount>::make_boolean(val);
   }

@@ -257,26 +257,26 @@ namespace dart {
   }
 
   template <class Object>
-  template <class, class>
+  template <class Obj, class EnableIf>
   auto basic_object<Object>::get_bytes() const {
     return val.get_bytes();
   }
 
   template <class Object>
-  template <class RC, class>
+  template <class RC, class EnableIf>
   auto basic_object<Object>::share_bytes(RC& bytes) const {
     return val.share_bytes(bytes);
   }
 
   template <class Object>
-  template <class, class>
+  template <class Obj, class EnableIf>
   auto basic_object<Object>::dup_bytes() const {
     size_type dummy;
     return val.dup_bytes(dummy);
   }
 
   template <class Object>
-  template <class, class>
+  template <class Obj, class EnableIf>
   auto basic_object<Object>::dup_bytes(size_type& len) const {
     return val.dup_bytes(len);
   }

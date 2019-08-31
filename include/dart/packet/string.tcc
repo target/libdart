@@ -10,7 +10,7 @@
 namespace dart {
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::make_string(shim::string_view val) {
     return basic_heap<RefCount>::make_string(val);
   }

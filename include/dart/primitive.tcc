@@ -10,7 +10,7 @@
 namespace dart {
 
   template <class Number>
-  template <class Num, class>
+  template <class Num, class EnableIf>
   basic_number<Number>::basic_number(Num&& val) {
     if (!val.is_numeric()) {
       throw type_error("dart::packet::number can only be constructed from a numeric value");
@@ -19,7 +19,7 @@ namespace dart {
   }
 
   template <class Boolean>
-  template <class Bool, class>
+  template <class Bool, class EnableIf>
   basic_flag<Boolean>::basic_flag(Bool&& val) {
     if (!val.is_boolean()) {
       throw type_error("dart::packet::flag can only be constructed from a boolean value");

@@ -154,7 +154,7 @@ namespace dart {
   }
 
   template <class T>
-  template <class U, class>
+  template <class U, class EnableIf>
   optional<T>& optional<T>::operator =(U&& val) {
     if (*this) assign(std::forward<U>(val));
     else construct(std::forward<U>(val));
@@ -162,7 +162,7 @@ namespace dart {
   }
 
   template <class T>
-  template <class U, class>
+  template <class U, class EnableIf>
   optional<T>& optional<T>::operator =(optional<U> const& other) {
     if (other && *this) assign(*other);
     else if (other) construct(*other);
@@ -171,7 +171,7 @@ namespace dart {
   }
 
   template <class T>
-  template <class U, class>
+  template <class U, class EnableIf>
   optional<T>& optional<T>::operator =(optional<U>&& other) {
     if (other && *this) assign(std::move(*other));
     else if (other) construct(std::move(*other));
@@ -244,13 +244,13 @@ namespace dart {
   }
 
   template <class T>
-  template <class U, class>
+  template <class U, class EnableIf>
   auto optional<T>::value_or(U&& def) const& -> value_type {
     return (*this) ? **this : std::forward<U>(def);
   }
 
   template <class T>
-  template <class U, class>
+  template <class U, class EnableIf>
   auto optional<T>::value_or(U&& def) && -> value_type {
     return (*this) ? std::move(**this) : std::forward<U>(def);
   }

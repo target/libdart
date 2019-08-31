@@ -10,7 +10,7 @@
 namespace dart {
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>::basic_buffer(basic_heap<RefCount> const& heap) {
     if (!heap.is_object()) {
       throw type_error("dart::buffer can only be constructed from an object heap");
@@ -48,13 +48,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::operator [](KeyType const& identifier) const& {
     return get(identifier);
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](KeyType const& identifier) && {
     return std::move(*this).get(identifier);
   }
@@ -139,61 +139,61 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount> basic_buffer<RefCount>::definalize() const {
     return basic_heap<RefCount> {*this};
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount> basic_buffer<RefCount>::lift() const {
     return definalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>& basic_buffer<RefCount>::finalize() & {
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> const& basic_buffer<RefCount>::finalize() const& {
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::finalize() && {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> const&& basic_buffer<RefCount>::finalize() const&& {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>& basic_buffer<RefCount>::lower() & {
     return finalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> const& basic_buffer<RefCount>::lower() const& {
     return finalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::lower() && {
     return std::move(*this).finalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> const&& basic_buffer<RefCount>::lower() const&& {
     return std::move(*this).finalize();
   }
@@ -205,7 +205,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::get(KeyType const& identifier) const& {
     switch (identifier.get_type()) {
       case type::string:
@@ -218,7 +218,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::get(KeyType const& identifier) && {
     switch (identifier.get_type()) {
       case type::string:
@@ -231,7 +231,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::at(KeyType const& identifier) const& {
     switch (identifier.at_type()) {
       case type::string:
@@ -244,7 +244,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(KeyType const& identifier) && {
     switch (identifier.at_type()) {
       case type::string:
@@ -461,7 +461,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   auto basic_buffer<RefCount>::as_owner() const noexcept {
     refcount::owner_indirection_t<dart::basic_buffer, RefCount> tmp;
     tmp.raw = raw;

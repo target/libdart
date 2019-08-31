@@ -10,7 +10,7 @@
 namespace dart {
 
   template <template <class> class RefCount>
-  template <class... Args, class>
+  template <class... Args, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(Args&&... elems) {
     auto arr = basic_heap(detail::array_tag {});
     convert::as_span<basic_heap>([&] (auto args) {
@@ -22,7 +22,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_heap const> elems) {
     auto arr = basic_heap(detail::array_tag {});
     push_elems<false>(arr, elems);
@@ -30,7 +30,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_buffer<RefCount> const> elems) {
     auto arr = basic_heap(detail::array_tag {});
     push_elems<false>(arr, elems);
@@ -38,7 +38,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::make_array(gsl::span<basic_packet<RefCount> const> elems) {
     auto arr = basic_heap(detail::array_tag {});
     push_elems<false>(arr, elems);
@@ -46,69 +46,69 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_heap<RefCount>& basic_heap<RefCount>::push_front(ValueType&& value) & {
     insert(0, std::forward<ValueType>(value));
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_heap<RefCount>&& basic_heap<RefCount>::push_front(ValueType&& value) && {
     push_front(std::forward<ValueType>(value));
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>& basic_heap<RefCount>::pop_front() & {
     erase(0);
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>&& basic_heap<RefCount>::pop_front() && {
     pop_front();
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_heap<RefCount>& basic_heap<RefCount>::push_back(ValueType&& value) & {
     insert(size(), std::forward<ValueType>(value));
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_heap<RefCount>&& basic_heap<RefCount>::push_back(ValueType&& value) && {
     push_back(std::forward<ValueType>(value));
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>& basic_heap<RefCount>::pop_back() & {
     erase(size() - 1);
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>&& basic_heap<RefCount>::pop_back() && {
     pop_back();
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <class Number, template <class> class, class>
+  template <class Number, bool enabled, class EnableIf>
   auto basic_heap<RefCount>::erase(basic_number<Number> const& idx) -> iterator {
     return erase(idx.integer());
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   auto basic_heap<RefCount>::erase(size_type pos) -> iterator {
     // Make sure we copy out if our heap is shared.
     copy_on_write();
@@ -121,13 +121,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   void basic_heap<RefCount>::reserve(size_type count) {
     get_elements().reserve(count);
   }
 
   template <template <class> class RefCount>
-  template <class T, class>
+  template <class T, class EnableIf>
   void basic_heap<RefCount>::resize(size_type count, T const& def) {
     get_elements().resize(count, convert::cast<basic_heap>(def));
   }
@@ -156,13 +156,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number, class T, class>
+  template <class Number, class T, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::get_or(basic_number<Number> const& idx, T&& opt) const {
     return get_or(idx.integer(), std::forward<T>(opt));
   }
 
   template <template <class> class RefCount>
-  template <class T, class>
+  template <class T, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::get_or(size_type index, T&& opt) const {
     if (is_array() && size() > static_cast<size_t>(index)) return get(index);
     else return convert::cast<basic_heap>(std::forward<T>(opt));
@@ -200,7 +200,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class T, class>
+  template <class T, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::front_or(T&& opt) const {
     if (is_array() && !empty()) return front();
     else return convert::cast<basic_heap>(std::forward<T>(opt));
@@ -214,7 +214,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class T, class>
+  template <class T, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::back_or(T&& opt) const {
     if (is_array() && !empty()) return back();
     else return convert::cast<basic_heap>(std::forward<T>(opt));

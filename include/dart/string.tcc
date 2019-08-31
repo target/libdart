@@ -10,7 +10,7 @@
 namespace dart {
 
   template <class String>
-  template <class Str, class>
+  template <class Str, class EnableIf>
   basic_string<String>::basic_string(Str&& val) {
     if (!val.is_str()) throw type_error("dart::packet::string can only be constructed from a string");
     this->val = std::forward<Str>(val);

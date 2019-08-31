@@ -10,13 +10,13 @@
 namespace dart {
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::operator [](KeyType const& identifier) const& {
     return get(identifier);
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_packet<RefCount>&& basic_packet<RefCount>::operator [](KeyType const& identifier) && {
     return std::move(*this).get(identifier);
   }
@@ -96,13 +96,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   auto basic_packet<RefCount>::insert(KeyType&& key, ValueType&& value) -> iterator {
     return get_heap().insert(std::forward<KeyType>(key), std::forward<ValueType>(value));
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   auto basic_packet<RefCount>::insert(iterator pos, ValueType&& value) -> iterator {
     if (!pos) throw std::invalid_argument("dart::packet cannot insert from a valueless iterator");
     auto* it = shim::get_if<typename basic_heap<RefCount>::iterator>(&pos.impl);
@@ -111,13 +111,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   auto basic_packet<RefCount>::set(KeyType&& key, ValueType&& value) -> iterator {
     return get_heap().set(std::forward<KeyType>(key), std::forward<ValueType>(value));
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   auto basic_packet<RefCount>::set(iterator pos, ValueType&& value) -> iterator {
     if (!pos) throw std::invalid_argument("dart::packet cannot set from a valueless iterator");
     auto* it = shim::get_if<typename basic_heap<RefCount>::iterator>(&pos.impl);
@@ -126,7 +126,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_packet<RefCount>::erase(KeyType const& identifier) -> iterator {
     switch (identifier.get_type()) {
       case type::string:
@@ -139,7 +139,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   auto basic_packet<RefCount>::erase(iterator pos) -> iterator {
     if (!pos) throw std::invalid_argument("dart::packet cannot erase from a valueless iterator");
     auto* it = shim::get_if<typename basic_heap<RefCount>::iterator>(&pos.impl);
@@ -148,59 +148,59 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   void basic_packet<RefCount>::clear() {
     get_heap().clear();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>& basic_packet<RefCount>::definalize() & {
     if (is_finalized()) impl = basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>&& basic_packet<RefCount>::definalize() && {
     definalize();
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>& basic_packet<RefCount>::lift() & {
     return definalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>&& basic_packet<RefCount>::lift() && {
     return std::move(*this).definalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>& basic_packet<RefCount>::finalize() & {
     if (!is_finalized()) impl = basic_buffer<RefCount> {shim::get<basic_heap<RefCount>>(impl)};
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>&& basic_packet<RefCount>::finalize() && {
     finalize();
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>& basic_packet<RefCount>::lower() & {
     return finalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_packet<RefCount>&& basic_packet<RefCount>::lower() && {
     return std::move(*this).finalize();
   }
@@ -215,20 +215,20 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::get(KeyType const& identifier) const& {
     return shim::visit([&] (auto& v) -> basic_packet { return v.get(identifier); }, impl);
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_packet<RefCount>&& basic_packet<RefCount>::get(KeyType const& identifier) && {
     shim::visit([&] (auto& v) { v = std::move(v).get(identifier); }, impl);
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class T, class>
+  template <class KeyType, class T, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::get_or(KeyType const& identifier, T&& opt) const {
     if (is_object() && has_key(identifier)) {
       return get(identifier);
@@ -240,13 +240,13 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_packet<RefCount> basic_packet<RefCount>::at(KeyType const& identifier) const& {
     return shim::visit([&] (auto& v) -> basic_packet { return v.at(identifier); }, impl);
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_packet<RefCount>&& basic_packet<RefCount>::at(KeyType const& identifier) && {
     shim::visit([&] (auto& v) { v = std::move(v).at(identifier); }, impl);
     return std::move(*this);
@@ -434,7 +434,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   auto basic_packet<RefCount>::as_owner() const noexcept {
     return shim::visit([] (auto& impl) -> refcount::owner_indirection_t<dart::basic_packet, RefCount> {
       return impl.as_owner();

@@ -19,7 +19,6 @@
 #include <gsl/gsl>
 #include <errno.h>
 #include <cstdlib>
-#include <unistd.h>
 #include <stdarg.h>
 #include <limits.h>
 #include <algorithm>
@@ -65,37 +64,6 @@
 
 #define DART_FROM_THIS_MUT                                                                                    \
   reinterpret_cast<gsl::byte*>(this)
-
-#define DART_STRINGIFY_IMPL(x) #x
-#define DART_STRINGIFY(x) DART_STRINGIFY_IMPL(x)
-
-#ifndef NDEBUG
-
-/**
- *  @brief
- *  Macro customizes functionality usually provided by assert().
- *
- *  @details
- *  Not strictly necessary, but tries to provide a bit more context and
- *  information as to why I just murdered the user's program (in production, no doubt).
- *
- *  @remarks
- *  Don't actually know if Doxygen lets you document macros, guess we'll see.
- */
-#define DART_ASSERT(cond)                                                                                     \
-  if (__builtin_expect(!(cond), 0)) {                                                                         \
-    auto& msg = "dart::packet has detected fatal memory corruption and cannot continue execution.\n"          \
-      "\"" DART_STRINGIFY(cond) "\" violated.\nSee " __FILE__ ":" DART_STRINGIFY(__LINE__);                   \
-    int spins {0}, written {0}, total {sizeof(msg)};                                                          \
-    do {                                                                                                      \
-      ssize_t ret = write(STDERR_FILENO, msg + written, total - written);                                     \
-      if (ret >= 0) written += ret;                                                                           \
-    } while (written != total && spins++ < 16);                                                               \
-    std::abort();                                                                                             \
-  }
-#else
-#define DART_ASSERT(cond) 
-#endif
 
 /*----- Global Declarations -----*/
 
@@ -1258,11 +1226,11 @@ namespace dart {
     Owner aligned_alloc(size_t bytes, raw_type type, Callback&& cb) {
       // Make an aligned allocation.
       gsl::byte* tmp;
-      int retval = posix_memalign(reinterpret_cast<void**>(&tmp), alignment_of<RefCount>(type), bytes);
+      int retval = shim::aligned_alloc(reinterpret_cast<void**>(&tmp), alignment_of<RefCount>(type), bytes);
       if (retval) throw std::bad_alloc();
 
       // Associate it with an owner in case anything goes wrong.
-      Owner ref {tmp, +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); }};
+      Owner ref {tmp, +[] (gsl::byte const* ptr) { shim::aligned_free(const_cast<gsl::byte*>(ptr)); }};
 
       // Hand out mutable access and return.
       cb(tmp);

@@ -118,6 +118,11 @@ namespace dart {
       else return lhs.key.strv() < rhs.key.strv();
     }
 
+#if DART_USING_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4805)
+#endif
+
     template <class Lhs, class Rhs>
     bool typeless_comparator::operator ()(Lhs&& lhs, Rhs&& rhs) const noexcept {
       // if constexpr!
@@ -131,6 +136,10 @@ namespace dart {
         }
       )(std::forward<Lhs>(lhs), std::forward<Rhs>(rhs), meta::are_comparable<Lhs, Rhs> {});
     }
+
+#if DART_USING_MSVC
+#pragma warning(pop)
+#endif
 
     template <class T>
     vtable_entry<T>::vtable_entry(detail::raw_type type, uint32_t offset) {

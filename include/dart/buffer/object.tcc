@@ -10,7 +10,7 @@
 namespace dart {
 
   template <template <class> class RefCount>
-  template <class... Args, class>
+  template <class... Args, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(Args&&... pairs) {
     // XXX: This HAS to check the parameter pack size using Args instead of pairs
     // because using pairs segfaults gcc 5.1.0 for some reason
@@ -29,25 +29,25 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_heap<RefCount> const> pairs) {
     return dynamic_make_object(pairs);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_buffer const> pairs) {
     return dynamic_make_object(pairs);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_object(gsl::span<basic_packet<RefCount> const> pairs) {
     return dynamic_make_object(pairs);
   }
 
   template <template <class> class RefCount>
-  template <class... Args, class>
+  template <class... Args, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::inject(Args&&... pairs) const {
     // Forward the given arguments into a temporary object.
     auto tmp = make_object(std::forward<Args>(pairs)...);
@@ -57,37 +57,37 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_heap<RefCount> const> pairs) const {
     return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_buffer const> pairs) const {
     return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::inject(gsl::span<basic_packet<RefCount> const> pairs) const {
     return detail::buffer_builder<RefCount>::merge_buffers(*this, make_object(pairs));
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::project(std::initializer_list<shim::string_view> keys) const {
     return detail::buffer_builder<RefCount>::project_keys(*this, keys);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<std::string const> keys) const {
     return detail::buffer_builder<RefCount>::project_keys(*this, keys);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_buffer<RefCount>::project(gsl::span<shim::string_view const> keys) const {
     return detail::buffer_builder<RefCount>::project_keys(*this, keys);
   }
@@ -99,7 +99,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String, template <class> class, class>
+  template <class String, bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](basic_string<String> const& key) && {
     return std::move(*this)[key.strv()];
   }
@@ -110,7 +110,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](shim::string_view key) && {
     return std::move(*this).get(key);
   }
@@ -122,7 +122,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String, template <class> class, class>
+  template <class String, bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::get(basic_string<String> const& key) && {
     return std::move(*this).get(key.strv());
   }
@@ -133,7 +133,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::get(shim::string_view key) && {
     raw = detail::get_object<RefCount>(raw)->get_value(key);
     if (is_null()) buffer_ref = nullptr;
@@ -152,7 +152,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class String, template <class> class, class>
+  template <class String, bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(basic_string<String> const& key) && {
     return std::move(*this).at(key.strv());
   }
@@ -163,7 +163,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(shim::string_view key) && {
     raw = detail::get_object<RefCount>(raw)->at_value(key);
     if (is_null()) buffer_ref = nullptr;
@@ -210,7 +210,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   bool basic_buffer<RefCount>::has_key(KeyType const& key) const {
     if (key.get_type() == type::string) return has_key(key.strv());
     else return false;
