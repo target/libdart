@@ -21,6 +21,12 @@
 #endif
 #endif
 
+// MSVC doesn't have a signed size type, obviously
+#if DART_USING_MSVC
+#include <BaseTsd.h>
+using ssize_t = SSIZE_T;
+#endif
+
 // Make sure we have a fallback for compilers that don't support attributes at all.
 #ifndef __has_cpp_attribute
 #define __has_cpp_attribute(name) 0
@@ -34,6 +40,54 @@
 #else
 #define DART_NODISCARD
 #endif
+
+#define DART_STRINGIFY_IMPL(x) #x
+#define DART_STRINGIFY(x) DART_STRINGIFY_IMPL(x)
+
+#if DART_USING_MSVC
+#define DART_UNLIKELY(x) !!(x)
+#else
+#define DART_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#endif
+
+#ifndef NDEBUG
+
+#if DART_USING_MSVC
+#include <io.h>
+#define DART_WRITE(fd, ptr, bytes) _write(fd, ptr, bytes)
+#define DART_STDERR_FILENO _fileno(stderr)
+#else
+#include <unistd.h>
+#define DART_WRITE(fd, ptr, bytes) write(fd, ptr, bytes)
+#define DART_STDERR_FILENO STDERR_FILENO
+#endif
+
+/**
+ *  @brief
+ *  Macro customizes functionality usually provided by assert().
+ *
+ *  @details
+ *  Not strictly necessary, but tries to provide a bit more context and
+ *  information as to why I just murdered the user's program (in production, no doubt).
+ *
+ *  @remarks
+ *  Don't actually know if Doxygen lets you document macros, guess we'll see.
+ */
+#define DART_ASSERT(cond)                                                                                     \
+  if (DART_UNLIKELY(!(cond))) {                                                                               \
+    auto& msg = "dart::packet has detected fatal memory corruption and cannot continue execution.\n"          \
+      "\"" DART_STRINGIFY(cond) "\" violated.\nSee " __FILE__ ":" DART_STRINGIFY(__LINE__);                   \
+    int spins {0}, written {0}, total {sizeof(msg)}, errfd = DART_STDERR_FILENO;                              \
+    do {                                                                                                      \
+      ssize_t ret = DART_WRITE(errfd, msg + written, total - written);                                        \
+      if (ret >= 0) written += ret;                                                                           \
+    } while (written != total && spins++ < 16);                                                               \
+    std::abort();                                                                                             \
+  }
+#else
+#define DART_ASSERT(cond) 
+#endif
+
 
 // Conditionally include different implementations of different data structures
 // depending on what standard we have access to.
@@ -52,6 +106,31 @@
 // Conditionally pull each of those types into our namespace.
 namespace dart {
   namespace shim {
+
+#if DART_USING_MSVC
+    inline int aligned_alloc(void** memptr, size_t alignment, size_t size) {
+      void* ret = _aligned_malloc(size, alignment);
+      if (ret) {
+        *memptr = ret;
+        return 0;
+      } else {
+        return -1;
+      }
+    }
+
+    inline void aligned_free(void* ptr) {
+      _aligned_free(ptr);
+    }
+#else
+    inline int aligned_alloc(void** memptr, size_t alignment, size_t size) {
+      return posix_memalign(memptr, alignment, size);
+    }
+
+    inline void aligned_free(void* ptr) {
+      free(ptr);
+    }
+#endif
+
 #ifdef DART_HAS_CPP17
     // Pull in names of types.
     using std::optional;

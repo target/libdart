@@ -79,19 +79,19 @@ namespace dart {
         counted_ptr_base(ptr_type<T> ptr, Deleter&& deleter) :
           value(new managed_ptr_eraser<counter_type, ptr_type<T>, Deleter>(ptr, 1, std::move(deleter)))
         {}
-        template <class U, class =
+        template <class U, class EnableIf =
           std::enable_if_t<
             std::is_convertible<ptr_type<U>, ptr_type<T>>::value
           >
         >
         counted_ptr_base(counted_ptr_base<U, counter_type> const& other) noexcept;
-        template <class U, class =
+        template <class U, class EnableIf =
           std::enable_if_t<
             std::is_convertible<ptr_type<U>, ptr_type<T>>::value
           >
         >
         counted_ptr_base(counted_ptr_base<U, counter_type>&& other) noexcept;
-        template <class U, class Deleter, class =
+        template <class U, class Deleter, class EnableIf =
           std::enable_if_t<
             std::is_same<ptr_type<U>, ptr_type<T>>::value
             ||
@@ -106,13 +106,13 @@ namespace dart {
         /*----- Operators -----*/
 
         // Assignment.
-        template <class U, class =
+        template <class U, class EnableIf =
           std::enable_if_t<
             std::is_convertible<ptr_type<U>, ptr_type<T>>::value
           >
         >
         counted_ptr_base& operator =(counted_ptr_base<U, counter_type> const& other) noexcept;
-        template <class U, class =
+        template <class U, class EnableIf =
           std::enable_if_t<
             std::is_convertible<ptr_type<U>, ptr_type<T>>::value
           >
@@ -120,7 +120,7 @@ namespace dart {
         counted_ptr_base& operator =(counted_ptr_base<U, counter_type>&& other) noexcept;
         counted_ptr_base& operator =(counted_ptr_base const& other) noexcept;
         counted_ptr_base& operator =(counted_ptr_base&& other) noexcept;
-        template <class U, class Deleter, class =
+        template <class U, class Deleter, class EnableIf =
           std::enable_if_t<
             std::is_convertible<ptr_type<U>, ptr_type<T>>::value
           >
@@ -148,13 +148,13 @@ namespace dart {
 
         // Mutators.
         void reset() noexcept;
-        template <class U, class =
+        template <class U, class EnableIf =
           std::enable_if_t<
             std::is_convertible<U, ptr_type<T>>::value
           >
         >
         void reset(U ptr);
-        template <class U, class Deleter, class =
+        template <class U, class Deleter, class EnableIf =
           std::enable_if_t<
             std::is_convertible<U, ptr_type<T>>::value
           >
@@ -235,13 +235,6 @@ namespace dart {
   template <class T>
   class shareable_ptr {
 
-    struct is_nothrow_assignable :
-      meta::conjunction<
-        typename refcount_traits<T>::is_nothrow_copyable,
-        typename refcount_traits<T>::is_nothrow_moveable
-      >
-    {};
-
     public:
 
       /*----- Public Types -----*/
@@ -249,14 +242,32 @@ namespace dart {
       using value_type = T;
       using element_type = typename refcount_traits<T>::element_type;
 
+    private:
+
+      struct is_nothrow_assignable :
+        meta::conjunction<
+          typename refcount_traits<T>::is_nothrow_copyable,
+          typename refcount_traits<T>::is_nothrow_moveable
+        >
+      {};
+
+      // XXX: MSVC gets confused if this is used directly in a noexcept specification.
+      struct is_nothrow_default_constructible :
+        std::integral_constant<bool,
+          refcount_traits<T>::template can_nothrow_take<element_type*, std::default_delete<element_type>>::value
+        >
+      {};
+    
+    public:
+
       /*----- Lifecycle Functions -----*/
 
       // Converting constructors.
       shareable_ptr(std::nullptr_t)
-          noexcept(refcount_traits<T>::template can_nothrow_take<element_type*, std::default_delete<element_type>>::value) :
+          noexcept(is_nothrow_default_constructible::value) :
         shareable_ptr()
       {}
-      template <class U, class D, class =
+      template <class U, class D, class EnableIf =
         std::enable_if_t<
           refcount::can_take<T, U*, D>::value
         >
@@ -276,7 +287,7 @@ namespace dart {
           noexcept(refcount_traits<T>::template can_nothrow_take<U*, std::default_delete<U>>::value) :
         shareable_ptr(owner, std::default_delete<U> {})
       {}
-      template <class U, class D, class =
+      template <class U, class D, class EnableIf =
         std::enable_if_t<
           refcount::can_take<T, U*, D>::value
         >
@@ -285,8 +296,7 @@ namespace dart {
           noexcept(refcount_traits<T>::template can_nothrow_take<U*, D>::value);
 
       // Special Constructors.
-      shareable_ptr()
-          noexcept(refcount_traits<T>::template can_nothrow_take<element_type*, std::default_delete<element_type>>::value);
+      shareable_ptr() noexcept(is_nothrow_default_constructible::value);
       shareable_ptr(shareable_ptr const& other) noexcept(refcount_traits<T>::is_nothrow_copyable::value);
       shareable_ptr(shareable_ptr&& other) noexcept(refcount_traits<T>::is_nothrow_moveable::value);
       ~shareable_ptr() noexcept;
@@ -294,7 +304,7 @@ namespace dart {
       /*----- Operators -----*/
 
       // Assignment.
-      template <class U, class D, class =
+      template <class U, class D, class EnableIf =
         std::enable_if_t<
           refcount::can_take<T, U*, D>::value
         >
@@ -303,8 +313,7 @@ namespace dart {
           noexcept(refcount_traits<T>::template can_nothrow_take<U*, D>::value);
       shareable_ptr& operator =(T const& other) noexcept(is_nothrow_assignable::value);
       shareable_ptr& operator =(T&& other) noexcept;
-      shareable_ptr& operator =(std::nullptr_t)
-          noexcept(refcount_traits<T>::template can_nothrow_take<element_type*, std::default_delete<element_type>>::value);
+      shareable_ptr& operator =(std::nullptr_t) noexcept(is_nothrow_default_constructible::value);
       shareable_ptr& operator =(shareable_ptr const& other) noexcept(is_nothrow_assignable::value);
       shareable_ptr& operator =(shareable_ptr&& other) noexcept;
 
@@ -458,7 +467,11 @@ namespace dart {
     detail::counted_array_ptr_impl<T, int64_t>
   >;
 
-  template <class T, class = std::enable_if_t<std::is_array<T>::value>>
+  template <class T, class EnableIf =
+    std::enable_if_t<
+      std::is_array<T>::value
+    >
+  >
   unsafe_ptr<T> make_unsafe(size_t idx);
 
   template <class T, class... Args>
@@ -474,7 +487,11 @@ namespace dart {
     detail::counted_array_ptr_impl<T, std::atomic<int64_t>>
   >;
 
-  template <class T, class = std::enable_if_t<std::is_array<T>::value>>
+  template <class T, class EnableIf =
+    std::enable_if_t<
+      std::is_array<T>::value
+    >
+  >
   skinny_ptr<T> make_skinny(size_t idx);
 
   template <class T, class... Args>

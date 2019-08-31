@@ -9,6 +9,21 @@
 /*----- Local Includes -----*/
 
 #include "../meta.h"
+#include "../shim.h"
+
+/*----- Macro Definitions -----*/
+
+// MSVC doesn't have any endian checks because apparently
+// Windows only supports little endian targets.
+#if DART_USING_MSVC
+#define DART_LITTLE_ENDIAN 1234
+#define DART_BIG_ENDIAN 4321
+#define DART_BYTE_ORDER 1234
+#else
+#define DART_LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
+#define DART_BIG_ENDIAN __ORDER_BIG_ENDIAN__
+#define DART_BYTE_ORDER __BYTE_ORDER__
+#endif
 
 /*----- Type Declarations -----*/
 
@@ -27,10 +42,10 @@ namespace dart {
     };
 
     struct little_endian_tag {
-      static constexpr auto value = __ORDER_LITTLE_ENDIAN__;
+      static constexpr auto value = DART_LITTLE_ENDIAN;
     };
     struct big_endian_tag {
-      static constexpr auto value = __ORDER_BIG_ENDIAN__;
+      static constexpr auto value = DART_BIG_ENDIAN;
     };
 
     template <class T, class O>
@@ -62,7 +77,7 @@ namespace dart {
         ordered& operator =(ordered const&) = default;
         ordered& operator =(ordered&&) = default;
 
-        template <class U, class V, class =
+        template <class U, class V, class EnableIf =
           std::enable_if_t<
             std::is_convertible<value_type, U>::value
             &&
@@ -70,7 +85,7 @@ namespace dart {
           >
         >
         bool operator ==(ordered<U, V> const& other) const noexcept;
-        template <class U, class V, class =
+        template <class U, class V, class EnableIf =
           std::enable_if_t<
             std::is_convertible<value_type, U>::value
             &&
@@ -79,7 +94,7 @@ namespace dart {
         >
         bool operator !=(ordered<U, V> const& other) const noexcept;
 
-        template <class Operand, class =
+        template <class Operand, class EnableIf =
           std::enable_if_t<
             std::is_arithmetic<Operand>::value
             &&
@@ -87,7 +102,7 @@ namespace dart {
           >
         >
         auto operator +=(Operand op) noexcept -> ordered&;
-        template <class Operand, class =
+        template <class Operand, class EnableIf =
           std::enable_if_t<
             std::is_arithmetic<Operand>::value
             &&
@@ -95,69 +110,69 @@ namespace dart {
           >
         >
         auto operator -=(Operand op) noexcept -> ordered&;
-        template <class Operand, class =
+        template <class Operand, class EnableIf =
           std::enable_if_t<
             detail::both_are_arithmetic<value_type, Operand>::value
           >
         >
         auto operator *=(Operand op) noexcept -> ordered&;
-        template <class Operand, class =
+        template <class Operand, class EnableIf =
           std::enable_if_t<
             detail::both_are_arithmetic<value_type, Operand>::value
           >
         >
         auto operator /=(Operand op) noexcept -> ordered&;
-        template <class Operand, class =
+        template <class Operand, class EnableIf =
           std::enable_if_t<
             detail::both_are_arithmetic<value_type, Operand>::value
           >
         >
         auto operator &=(Operand op) noexcept -> ordered&;
-        template <class Operand, class =
+        template <class Operand, class EnableIf =
           std::enable_if_t<
             detail::both_are_arithmetic<value_type, Operand>::value
           >
         >
         auto operator |=(Operand op) noexcept -> ordered&;
-        template <class Operand, class =
+        template <class Operand, class EnableIf =
           std::enable_if_t<
             detail::both_are_arithmetic<value_type, Operand>::value
           >
         >
         auto operator ^=(Operand op) noexcept -> ordered&;
 
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             detail::is_arithmeticish<Value>::value
           >
         >
         auto operator ++() noexcept -> ordered&;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             detail::is_arithmeticish<Value>::value
           >
         >
         auto operator --() noexcept -> ordered&;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             detail::is_arithmeticish<Value>::value
           >
         >
         auto operator ++(int) noexcept -> value_type;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             detail::is_arithmeticish<Value>::value
           >
         >
         auto operator --(int) noexcept -> value_type;
 
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             std::is_pointer<Value>::value
           >
         >
         auto operator *() const noexcept -> std::remove_pointer_t<Value>;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             std::is_pointer<Value>::value
           >
@@ -173,7 +188,7 @@ namespace dart {
         auto set(value_type val) noexcept -> value_type;
 
         // Available for arithmetic-ish types.
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             detail::is_arithmeticish<Value>::value
           >
@@ -181,31 +196,31 @@ namespace dart {
         auto increment(value_type val) noexcept -> value_type;
 
         // Available for arithmetic types.
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             std::is_arithmetic<Value>::value
           >
         >
         auto scale(value_type val) noexcept -> value_type;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             std::is_arithmetic<Value>::value
           >
         >
         auto shrink(value_type val) noexcept -> value_type;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             std::is_arithmetic<Value>::value
           >
         >
         auto mask(value_type val) noexcept -> value_type;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             std::is_arithmetic<Value>::value
           >
         >
         auto fill(value_type val) noexcept -> value_type;
-        template <class Value = value_type, class =
+        template <class Value = value_type, class EnableIf =
           std::enable_if_t<
             std::is_arithmetic<Value>::value
           >

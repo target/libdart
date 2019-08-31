@@ -238,196 +238,199 @@ namespace dart {
 
   /*----- String Comparison -----*/
 
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(Packet<RefCount> const& dart, shim::string_view str) noexcept {
-    if (!dart.is_str() || dart.size() != static_cast<size_t>(str.size())) return false;
-    return str == dart.str();
+#define DART_DEFINE_PACKET_STRING_EQUALITY_OPERATORS(packet)                                                    \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(packet<RefCount> const& dart, shim::string_view str) noexcept {                              \
+    if (!dart.is_str() || dart.size() != static_cast<size_t>(str.size())) return false;                         \
+    return str == dart.str();                                                                                   \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(shim::string_view str, packet<RefCount> const& dart) noexcept {                              \
+    return dart == str;                                                                                         \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(packet<RefCount> const& dart, char const* str) noexcept {                                    \
+    return dart == shim::string_view(str);                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(char const* str, packet<RefCount> const& dart) noexcept {                                    \
+    return shim::string_view(str) == dart;                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(packet<RefCount> const& dart, shim::string_view str) noexcept {                              \
+    return !(dart == str);                                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(shim::string_view str, packet<RefCount> const& dart) noexcept {                              \
+    return !(str == dart);                                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(packet<RefCount> const& dart, char const* str) noexcept {                                    \
+    return !(dart == shim::string_view(str));                                                                   \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(char const* str, packet<RefCount> const& dart) noexcept {                                    \
+    return !(shim::string_view(str) == dart);                                                                   \
   }
 
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(shim::string_view str, Packet<RefCount> const& dart) noexcept {
-    return dart == str;
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(Packet<RefCount> const& dart, char const* str) noexcept {
-    return dart == shim::string_view(str);
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(char const* str, Packet<RefCount> const& dart) noexcept {
-    return shim::string_view(str) == dart;
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(Packet<RefCount> const& dart, shim::string_view str) noexcept {
-    return !(dart == str);
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(shim::string_view str, Packet<RefCount> const& dart) noexcept {
-    return !(str == dart);
-  }
-  
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(Packet<RefCount> const& dart, char const* str) noexcept {
-    return !(dart == shim::string_view(str));
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(char const* str, Packet<RefCount> const& dart) noexcept {
-    return !(shim::string_view(str) == dart);
-  }
+  DART_DEFINE_PACKET_STRING_EQUALITY_OPERATORS(basic_heap);
+  DART_DEFINE_PACKET_STRING_EQUALITY_OPERATORS(basic_buffer);
+  DART_DEFINE_PACKET_STRING_EQUALITY_OPERATORS(basic_packet);
+#undef DART_DEFINE_PACKET_STRING_EQUALITY_OPERATORS
 
   /*----- Decimal Comparison -----*/
 
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_floating_point<T>::value
-    >
-  >
-  bool operator ==(Packet<RefCount> const& dart, T val) noexcept {
-    return dart.is_decimal() ? dart.decimal() == val : false;
+#define DART_DEFINE_PACKET_DCM_EQUALITY_OPERATORS(packet)                                                       \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      std::is_floating_point<T>::value                                                                          \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator ==(packet<RefCount> const& dart, T val) noexcept {                                              \
+    return dart.is_decimal() ? dart.decimal() == val : false;                                                   \
+  }                                                                                                             \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      std::is_floating_point<T>::value                                                                          \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator ==(T val, packet<RefCount> const& dart) noexcept {                                              \
+    return dart == val;                                                                                         \
+  }                                                                                                             \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      std::is_floating_point<T>::value                                                                          \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator !=(packet<RefCount> const& dart, T val) noexcept {                                              \
+    return !(dart == val);                                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      std::is_floating_point<T>::value                                                                          \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator !=(T val, packet<RefCount> const& dart) noexcept {                                              \
+    return !(val == dart);                                                                                      \
   }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_floating_point<T>::value
-    >
-  >
-  bool operator ==(T val, Packet<RefCount> const& dart) noexcept {
-    return dart == val;
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_floating_point<T>::value
-    >
-  >
-  bool operator !=(Packet<RefCount> const& dart, T val) noexcept {
-    return !(dart == val);
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_floating_point<T>::value
-    >
-  >
-  bool operator !=(T val, Packet<RefCount> const& dart) noexcept {
-    return !(val == dart);
-  }
+  
+  DART_DEFINE_PACKET_DCM_EQUALITY_OPERATORS(basic_heap);
+  DART_DEFINE_PACKET_DCM_EQUALITY_OPERATORS(basic_buffer);
+  DART_DEFINE_PACKET_DCM_EQUALITY_OPERATORS(basic_packet);
+#undef DART_DEFINE_PACKET_DCM_EQUALITY_OPERATORS
 
   /*----- Integer Comparison -----*/
 
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_integral<T>::value
-      &&
-      !std::is_same<
-        std::decay_t<T>,
-        bool
-      >::value
-    >
-  >
-  bool operator ==(Packet<RefCount> const& dart, T const& val) noexcept {
-    // Oh C++, the things you make me do to avoid a single warning.
-    return dart::shim::compose_together(
-      [] (auto& d, auto v, std::true_type) {
-        return d.is_integer() ? static_cast<uint64_t>(d.integer()) == v : false;
-      },
-      [] (auto& d, auto v, std::false_type) {
-        return d.is_integer() ? d.integer() == v : false;
-      }
-    )(dart, val, std::is_unsigned<T> {});
+  namespace detail {
+    template <class T>
+    struct is_integral_num :
+      meta::conjunction<
+        std::is_integral<T>,
+        meta::negation<
+          std::is_same<
+            std::decay_t<T>,
+            bool
+          >
+        >
+      >
+    {};
   }
 
-  // Some unfortunate template machinery to allow integers and booleans
-  // to coexist in peace.
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_integral<T>::value
-      &&
-      !std::is_same<
-        std::decay_t<T>,
-        bool
-      >::value
-    >
-  >
-  bool operator ==(T const& val, Packet<RefCount> const& dart) noexcept {
-    return dart == val;
+#define DART_DEFINE_PACKET_INT_EQUALITY_OPERATORS(packet)                                                       \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      detail::is_integral_num<T>::value                                                                         \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator ==(packet<RefCount> const& dart, T const& val) noexcept {                                       \
+    return dart::shim::compose_together(                                                                        \
+      [] (auto& d, auto v, std::true_type) {                                                                    \
+        return d.is_integer() ? static_cast<uint64_t>(d.integer()) == v : false;                                \
+      },                                                                                                        \
+      [] (auto& d, auto v, std::false_type) {                                                                   \
+        return d.is_integer() ? d.integer() == v : false;                                                       \
+      }                                                                                                         \
+    )(dart, val, std::is_unsigned<T> {});                                                                       \
+  }                                                                                                             \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      detail::is_integral_num<T>::value                                                                         \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator ==(T const& val, packet<RefCount> const& dart) noexcept {                                       \
+    return dart == val;                                                                                         \
+  }                                                                                                             \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      detail::is_integral_num<T>::value                                                                         \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator !=(packet<RefCount> const& dart, T const& val) noexcept {                                       \
+    return !(dart == val);                                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount, class T, class =                                                   \
+    std::enable_if_t<                                                                                           \
+      detail::is_integral_num<T>::value                                                                         \
+    >                                                                                                           \
+  >                                                                                                             \
+  bool operator !=(T const& val, packet<RefCount> const& dart) noexcept {                                       \
+    return !(val == dart);                                                                                      \
   }
 
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_integral<T>::value
-      &&
-      !std::is_same<
-        std::decay_t<T>,
-        bool
-      >::value
-    >
-  >
-  bool operator !=(Packet<RefCount> const& dart, T const& val) noexcept {
-    return !(dart == val);
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount, class T, class =
-    std::enable_if_t<
-      std::is_integral<T>::value
-      &&
-      !std::is_same<
-        std::decay_t<T>,
-        bool
-      >::value
-    >
-  >
-  bool operator !=(T const& val, Packet<RefCount> const& dart) noexcept {
-    return !(val == dart);
-  }
+  DART_DEFINE_PACKET_INT_EQUALITY_OPERATORS(basic_heap);
+  DART_DEFINE_PACKET_INT_EQUALITY_OPERATORS(basic_buffer);
+  DART_DEFINE_PACKET_INT_EQUALITY_OPERATORS(basic_packet);
+#undef DART_DEFINE_PACKET_INT_EQUALITY_OPERATORS
 
   /*----- Boolean Comparison -----*/
 
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(Packet<RefCount> const& dart, bool val) noexcept {
-    return dart.is_boolean() ? dart.boolean() == val : false;
+#define DART_DEFINE_PACKET_BOOL_EQUALITY_OPERATORS(packet)                                                      \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(packet<RefCount> const& dart, bool val) noexcept {                                           \
+    return dart.is_boolean() ? dart.boolean() == val : false;                                                   \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(bool val, packet<RefCount> const& dart) noexcept {                                           \
+    return dart == val;                                                                                         \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(packet<RefCount> const& dart, bool val) noexcept {                                           \
+    return !(dart == val);                                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(bool val, packet<RefCount> const& dart) noexcept {                                           \
+    return !(val == dart);                                                                                      \
   }
 
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(bool val, Packet<RefCount> const& dart) noexcept {
-    return dart == val;
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(Packet<RefCount> const& dart, bool val) noexcept {
-    return !(dart == val);
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(bool val, Packet<RefCount> const& dart) noexcept {
-    return !(val == dart);
-  }
+  DART_DEFINE_PACKET_BOOL_EQUALITY_OPERATORS(basic_heap);
+  DART_DEFINE_PACKET_BOOL_EQUALITY_OPERATORS(basic_buffer);
+  DART_DEFINE_PACKET_BOOL_EQUALITY_OPERATORS(basic_packet);
+#undef DART_DEFINE_PACKET_BOOL_EQUALITY_OPERATORS
 
   /*----- Null Comparison -----*/
 
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(Packet<RefCount> const& dart, std::nullptr_t) noexcept {
-    return dart.is_null();
+#define DART_DEFINE_PACKET_NULL_EQUALITY_OPERATORS(packet)                                                      \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(packet<RefCount> const& dart, std::nullptr_t) noexcept {                                     \
+    return dart.is_null();                                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator ==(std::nullptr_t, packet<RefCount> const& dart) noexcept {                                     \
+    return dart.is_null();                                                                                      \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(packet<RefCount> const& dart, std::nullptr_t) noexcept {                                     \
+    return !dart.is_null();                                                                                     \
+  }                                                                                                             \
+  template <template <class> class RefCount>                                                                    \
+  bool operator !=(std::nullptr_t, packet<RefCount> const& dart) noexcept {                                     \
+    return !dart.is_null();                                                                                     \
   }
 
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator ==(std::nullptr_t, Packet<RefCount> const& dart) noexcept {
-    return dart.is_null();
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(Packet<RefCount> const& dart, std::nullptr_t) noexcept {
-    return !dart.is_null();
-  }
-
-  template <template <template <class> class> class Packet, template <class> class RefCount>
-  bool operator !=(std::nullptr_t, Packet<RefCount> const& dart) noexcept {
-    return !dart.is_null();
-  }
+  DART_DEFINE_PACKET_NULL_EQUALITY_OPERATORS(basic_heap);
+  DART_DEFINE_PACKET_NULL_EQUALITY_OPERATORS(basic_buffer);
+  DART_DEFINE_PACKET_NULL_EQUALITY_OPERATORS(basic_packet);
+#undef DART_DEFINE_PACKET_NULL_EQUALITY_OPERATORS
 
   // Lazy, but effective.
 #if DART_HAS_RAPIDJSON

@@ -26,7 +26,7 @@ namespace dart {
         Object,
         Arg
       >::value
-    >*
+    >* EnableIf
   >
   basic_object<Object>::basic_object(Arg&& arg) : val(std::forward<Arg>(arg)) {
     ensure_object("dart::packet::object can only be constructed as an object");
@@ -44,21 +44,21 @@ namespace dart {
         Arg,
         Object
       >::value
-    >*
+    >* EnableIf
   >
   basic_object<Object>::basic_object(Arg&& arg) : val(std::forward<Arg>(arg)) {
     ensure_object("dart::packet::object can only be constructed as an object");
   }
 
   template <class Object>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   basic_object<Object>& basic_object<Object>::add_field(KeyType&& key, ValueType&& value) & {
     val.add_field(std::forward<KeyType>(key), std::forward<ValueType>(value));
     return *this;
   }
 
   template <class Object>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   basic_object<Object>&& basic_object<Object>::add_field(KeyType&& key, ValueType&& value) && {
     auto&& tmp = std::move(val).add_field(std::forward<KeyType>(key), std::forward<ValueType>(value));
     (void) tmp;
@@ -66,14 +66,14 @@ namespace dart {
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_object<Object>& basic_object<Object>::remove_field(KeyType const& key) & {
     val.remove_field(key);
     return *this;
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_object<Object>&& basic_object<Object>::remove_field(KeyType const& key) && {
     auto&& tmp = std::move(val).remove_field(key);
     (void) tmp;
@@ -81,31 +81,31 @@ namespace dart {
   }
 
   template <class Object>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   auto basic_object<Object>::insert(KeyType&& key, ValueType&& value) -> iterator {
     return val.insert(std::forward<KeyType>(key), std::forward<ValueType>(value));
   }
 
   template <class Object>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   auto basic_object<Object>::set(KeyType&& key, ValueType&& value) -> iterator {
     return val.set(std::forward<KeyType>(key), std::forward<ValueType>(value));
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_object<Object>::erase(KeyType const& key) -> iterator {
     return val.erase(key);
   }
 
   template <class Object>
-  template <class, class>
+  template <class Obj, class EnableIf>
   void basic_object<Object>::clear() {
     val.clear();
   }
 
   template <class Object>
-  template <class... Args, class>
+  template <class... Args, class EnableIf>
   basic_object<Object> basic_object<Object>::inject(Args&&... the_args) const {
     return basic_object {val.inject(std::forward<Args>(the_args)...)};
   }
@@ -116,37 +116,37 @@ namespace dart {
   }
 
   template <class Object>
-  template <class StringSpan, class>
+  template <class StringSpan, class EnableIf>
   basic_object<Object> basic_object<Object>::project(StringSpan const& keys) const {
     return val.project(keys);
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_object<Object>::operator [](KeyType const& key) const& -> value_type {
     return val[key];
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   decltype(auto) basic_object<Object>::operator [](KeyType const& key) && {
     return std::move(val)[key];
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_object<Object>::get(KeyType const& key) const& -> value_type {
     return val.get(key);
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   decltype(auto) basic_object<Object>::get(KeyType const& key) && {
     return std::move(val).get(key);
   }
 
   template <class Object>
-  template <class KeyType, class T, class>
+  template <class KeyType, class T, class EnableIf>
   auto basic_object<Object>::get_or(KeyType const& key, T&& opt) const -> value_type {
     return val.get_or(key, std::forward<T>(opt));
   }
@@ -157,25 +157,25 @@ namespace dart {
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_object<Object>::at(KeyType const& key) const& -> value_type {
     return val.at(key);
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   decltype(auto) basic_object<Object>::at(KeyType const& key) && {
     return std::move(val).at(key);
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_object<Object>::find(KeyType const& key) const -> iterator {
     return val.find(key);
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_object<Object>::find_key(KeyType const& key) const -> iterator {
     return val.find_key(key);
   }
@@ -186,7 +186,7 @@ namespace dart {
   }
 
   template <class Object>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   bool basic_object<Object>::has_key(KeyType const& key) const noexcept {
     return val.has_key(key);
   }

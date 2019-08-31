@@ -16,7 +16,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number, template <class> class, class>
+  template <class Number, bool, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](basic_number<Number> const& idx) && {
     return std::move(*this)[idx.integer()];
   }
@@ -27,7 +27,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::operator [](size_type index) && {
     return std::move(*this).get(index);
   }
@@ -39,7 +39,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number, template <class> class, class>
+  template <class Number, bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::get(basic_number<Number> const& idx) && {
     return std::move(*this).get(idx.integer());
   }
@@ -63,7 +63,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class Number, template <class> class, class>
+  template <class Number, bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(basic_number<Number> const& idx) && {
     return std::move(*this).at(idx.integer());
   }
@@ -74,7 +74,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at(size_type index) && {
     raw = detail::get_array<RefCount>(raw)->at_elem(index);
     if (is_null()) buffer_ref = nullptr;
@@ -88,7 +88,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at_front() && {
     if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at front");
     else return std::move(*this).front();
@@ -101,7 +101,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::at_back() && {
     if (empty()) throw std::out_of_range("dart::buffer is empty and has no value at back");
     else return std::move(*this).back();
@@ -115,7 +115,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::front() && {
     auto* arr = detail::get_array<RefCount>(raw);
     if (empty()) raw = {detail::raw_type::null, nullptr};
@@ -132,7 +132,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount>&& basic_buffer<RefCount>::back() && {
     auto* arr = detail::get_array<RefCount>(raw);
     if (empty()) raw = {detail::raw_type::null, nullptr};

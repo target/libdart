@@ -12,7 +12,19 @@
 // conversions and truncating floating point values,
 // but there's that nasty strict-aliasing rule, so this.
 // C++, ladies and gentlemen.
+
+// GCC and Clang agree on how to do this, MSVC doesn't
+#if DART_USING_MSVC
+#define DART_PUNNED_PTR auto*
+#define DART_BSWAP16(bytes) _byteswap_ushort(bytes)
+#define DART_BSWAP32(bytes) _byteswap_ulong(bytes)
+#define DART_BSWAP64(bytes) _byteswap_uint64(bytes)
+#else
 #define DART_PUNNED_PTR auto* __attribute__ ((__may_alias__))
+#define DART_BSWAP16(bytes) __builtin_bswap16(bytes)
+#define DART_BSWAP32(bytes) __builtin_bswap32(bytes)
+#define DART_BSWAP64(bytes) __builtin_bswap64(bytes)
+#endif
 
 #define DART_COPY_IN(ptr, bits)                                                                     \
   [&] {                                                                                             \
@@ -29,12 +41,12 @@
 #define DART_SWAP_IN(ptr, bits)                                                                     \
   [&] {                                                                                             \
     DART_PUNNED_PTR punned = reinterpret_cast<uint##bits##_t*>(ptr);                                \
-    return __builtin_bswap##bits(*punned);                                                          \
+    return DART_BSWAP##bits(*punned);                                                               \
   }()
 
 #define DART_SWAP_OUT(ptr, bits)                                                                    \
   [&] {                                                                                             \
-    auto tmp = __builtin_bswap##bits(*ptr);                                                         \
+    auto tmp = DART_BSWAP##bits(*ptr);                                                              \
     DART_PUNNED_PTR punned = reinterpret_cast<T*>(&tmp);                                            \
     return *punned;                                                                                 \
   }()
@@ -56,82 +68,82 @@ namespace dart {
     }
 
     template <class T, class O>
-    template <class U, class V, class>
+    template <class U, class V, class EnableIf>
     bool ordered<T, O>::operator ==(ordered<U, V> const& other) const noexcept {
       return get() == other.get();
     }
 
     template <class T, class O>
-    template <class U, class V, class>
+    template <class U, class V, class EnableIf>
     bool ordered<T, O>::operator !=(ordered<U, V> const& other) const noexcept {
       return !(*this == other);
     }
 
     template <class T, class O>
-    template <class Operand, class>
+    template <class Operand, class EnableIf>
     auto ordered<T, O>::operator +=(Operand op) noexcept -> ordered& {
       increment(op);
       return *this;
     }
 
     template <class T, class O>
-    template <class Operand, class>
+    template <class Operand, class EnableIf>
     auto ordered<T, O>::operator -=(Operand op) noexcept -> ordered& {
       increment(-op);
       return *this;
     }
 
     template <class T, class O>
-    template <class Operand, class>
+    template <class Operand, class EnableIf>
     auto ordered<T, O>::operator *=(Operand op) noexcept -> ordered& {
       scale(op);
       return *this;
     }
 
     template <class T, class O>
-    template <class Operand, class>
+    template <class Operand, class EnableIf>
     auto ordered<T, O>::operator /=(Operand op) noexcept -> ordered& {
       shrink(op);
       return *this;
     }
 
     template <class T, class O>
-    template <class Operand, class>
+    template <class Operand, class EnableIf>
     auto ordered<T, O>::operator &=(Operand op) noexcept -> ordered& {
       mask(op);
       return *this;
     }
 
     template <class T, class O>
-    template <class Operand, class>
+    template <class Operand, class EnableIf>
     auto ordered<T, O>::operator |=(Operand op) noexcept -> ordered& {
       fill(op);
       return *this;
     }
 
     template <class T, class O>
-    template <class Operand, class>
+    template <class Operand, class EnableIf>
     auto ordered<T, O>::operator ^=(Operand op) noexcept -> ordered& {
       flip(op);
       return *this;
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::operator ++() noexcept -> ordered& {
       increment(1);
       return *this;
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::operator --() noexcept -> ordered& {
       increment(-1);
       return *this;
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::operator ++(int) noexcept -> value_type {
       auto that = get();
       increment(1);
@@ -139,7 +151,7 @@ namespace dart {
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::operator --(int) noexcept -> value_type {
       auto that = get();
       increment(-1);
@@ -147,13 +159,13 @@ namespace dart {
     }
 
     template <class T, class O>
-    template <class Value, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::operator *() const noexcept -> std::remove_pointer_t<Value> {
       return *get();
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::operator ->() const noexcept -> value_type {
       return get();
     }
@@ -176,37 +188,37 @@ namespace dart {
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::increment(value_type val) noexcept -> value_type {
       return mutate([&] (auto v) { return v + val; });
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::scale(value_type val) noexcept -> value_type {
       return mutate([&] (auto v) { return v * val; });
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::shrink(value_type val) noexcept -> value_type {
       return mutate([&] (auto v) { return v / val; });
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::mask(value_type val) noexcept -> value_type {
       return mutate([&] (auto v) { return v & val; });
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::fill(value_type val) noexcept -> value_type {
       return mutate([&] (auto v) { return v | val; });
     }
 
     template <class T, class O>
-    template <class, class>
+    template <class Value, class EnableIf>
     auto ordered<T, O>::flip(value_type val) noexcept -> value_type {
       return mutate([&] (auto v) { return v ^ val; });
     }
@@ -219,7 +231,7 @@ namespace dart {
 
     template <class T, class O>
     constexpr bool ordered<T, O>::should_swap() noexcept {
-      return order_type::value != __BYTE_ORDER__;
+      return order_type::value != DART_BYTE_ORDER;
     }
 
     template <class T, class O>

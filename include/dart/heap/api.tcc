@@ -26,7 +26,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::operator [](KeyType const& identifier) const {
     return get(identifier);
   }
@@ -152,7 +152,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   auto basic_heap<RefCount>::insert(KeyType&& key, ValueType&& value) -> iterator {
     // Perform our copy on write if our heap is shared.
     copy_on_write();
@@ -190,7 +190,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   auto basic_heap<RefCount>::insert(iterator pos, ValueType&& value) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
     using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
@@ -204,7 +204,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class ValueType, class>
+  template <class KeyType, class ValueType, class EnableIf>
   auto basic_heap<RefCount>::set(KeyType&& key, ValueType&& value) -> iterator {
     // Perform our copy on write if our heap is shared.
     copy_on_write();
@@ -238,7 +238,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   auto basic_heap<RefCount>::set(iterator pos, ValueType&& value) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
     using elements_layout = typename detail::dynamic_iterator<RefCount>::elements_layout;
@@ -252,7 +252,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   auto basic_heap<RefCount>::erase(KeyType const& identifier) -> iterator {
     switch (identifier.get_type()) {
       case type::string:
@@ -265,7 +265,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   auto basic_heap<RefCount>::erase(iterator pos) -> iterator {
     // Dig all the way down and get the underlying iterator layout.
     using fields_layout = typename detail::dynamic_iterator<RefCount>::fields_layout;
@@ -289,7 +289,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   void basic_heap<RefCount>::clear() {
     if (is_object()) get_fields().clear();
     else if (is_array()) get_elements().clear();
@@ -297,61 +297,61 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>& basic_heap<RefCount>::definalize() & {
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount> const& basic_heap<RefCount>::definalize() const& {
     return *this;
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>&& basic_heap<RefCount>::definalize() && {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount> const&& basic_heap<RefCount>::definalize() const&& {
     return std::move(*this);
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>& basic_heap<RefCount>::lift() & {
     return definalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount> const& basic_heap<RefCount>::lift() const& {
     return definalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount>&& basic_heap<RefCount>::lift() && {
     return std::move(*this).definalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_heap<RefCount> const&& basic_heap<RefCount>::lift() const&& {
     return std::move(*this).definalize();
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_heap<RefCount>::finalize() const {
     return basic_buffer<RefCount> {*this};
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   basic_buffer<RefCount> basic_heap<RefCount>::lower() const {
     return finalize();
   }
@@ -392,7 +392,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::get(KeyType const& identifier) const {
     switch (identifier.get_type()) {
       case type::string:
@@ -405,7 +405,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class T, class>
+  template <class KeyType, class T, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::get_or(KeyType const& identifier, T&& opt) const {
     // Need an extra check for objects because objects return null if the key is missing.
     // Array access with throw if the identifier isn't within or range, or isn't an integer.
@@ -419,7 +419,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <class KeyType, class>
+  template <class KeyType, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::at(KeyType const& identifier) const {
     switch (identifier.at_type()) {
       case type::string:
@@ -650,7 +650,7 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class, class>
+  template <bool enabled, class EnableIf>
   auto basic_heap<RefCount>::as_owner() const noexcept {
     return refcount::owner_indirection_t<dart::basic_heap, RefCount> {detail::view_tag {}, data};
   }

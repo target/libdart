@@ -10,7 +10,7 @@
 namespace dart {
 
   template <class Array>
-  template <class Arr, class>
+  template <class Arr, class EnableIf>
   basic_array<Array>::basic_array(Arr&& arr) : val(std::forward<Arr>(arr)) {
     if (!val.is_array()) {
       throw type_error("dart::packet::array can only be constructed as an array.");
@@ -18,14 +18,14 @@ namespace dart {
   }
 
   template <class Array>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_array<Array>& basic_array<Array>::push_front(ValueType&& value) & {
     val.push_front(std::forward<ValueType>(value));
     return *this;
   }
 
   template <class Array>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_array<Array>&& basic_array<Array>::push_front(ValueType&& value) && {
     auto&& tmp = std::move(val).push_front(std::forward<ValueType>(value));
     (void) tmp;
@@ -33,14 +33,14 @@ namespace dart {
   }
 
   template <class Array>
-  template <class, class>
+  template <class Arr, class EnableIf>
   basic_array<Array>& basic_array<Array>::pop_front() & {
     val.pop_front();
     return *this;
   }
 
   template <class Array>
-  template <class, class>
+  template <class Arr, class EnableIf>
   basic_array<Array>&& basic_array<Array>::pop_front() && {
     auto&& tmp = std::move(val).pop_front();
     (void) tmp;
@@ -48,14 +48,14 @@ namespace dart {
   }
 
   template <class Array>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_array<Array>& basic_array<Array>::push_back(ValueType&& value) & {
     val.push_back(std::forward<ValueType>(value));
     return *this;
   }
 
   template <class Array>
-  template <class ValueType, class>
+  template <class ValueType, class EnableIf>
   basic_array<Array>&& basic_array<Array>::push_back(ValueType&& value) && {
     auto&& tmp = std::move(val).push_back(std::forward<ValueType>(value));
     (void) tmp;
@@ -63,14 +63,14 @@ namespace dart {
   }
 
   template <class Array>
-  template <class, class>
+  template <class Arr, class EnableIf>
   basic_array<Array>& basic_array<Array>::pop_back() & {
     val.pop_back();
     return *this;
   }
 
   template <class Array>
-  template <class, class>
+  template <class Arr, class EnableIf>
   basic_array<Array>&& basic_array<Array>::pop_back() && {
     auto&& tmp = std::move(val).pop_back();
     (void) tmp;
@@ -78,79 +78,79 @@ namespace dart {
   }
 
   template <class Array>
-  template <class Index, class ValueType, class>
+  template <class Index, class ValueType, class EnableIf>
   auto basic_array<Array>::insert(Index&& idx, ValueType&& value) -> iterator {
     return val.insert(std::forward<Index>(idx), std::forward<ValueType>(value));
   }
 
   template <class Array>
-  template <class Index, class ValueType, class>
+  template <class Index, class ValueType, class EnableIf>
   auto basic_array<Array>::set(Index&& idx, ValueType&& value) -> iterator {
     return val.set(std::forward<Index>(idx), std::forward<ValueType>(value));
   }
 
   template <class Array>
-  template <class Index, class>
+  template <class Index, class EnableIf>
   auto basic_array<Array>::erase(Index const& idx) -> iterator {
     return val.erase(idx);
   }
 
   template <class Array>
-  template <class, class>
+  template <class Arr, class EnableIf>
   void basic_array<Array>::clear() {
     val.clear();
   }
 
   template <class Array>
-  template <class, class>
+  template <class Arr, class EnableIf>
   void basic_array<Array>::reserve(size_type count) {
     val.reserve(count);
   }
 
   template <class Array>
-  template <class T, class>
+  template <class T, class EnableIf>
   void basic_array<Array>::resize(size_type count, T const& def) {
     val.resize(count, def);
   }
 
   template <class Array>
-  template <class Index, class>
+  template <class Index, class EnableIf>
   auto basic_array<Array>::operator [](Index const& idx) const& -> value_type {
     return val[idx];
   }
 
   template <class Array>
-  template <class Index, class>
+  template <class Index, class EnableIf>
   decltype(auto) basic_array<Array>::operator [](Index const& idx) && {
     return std::move(val)[idx];
   }
 
   template <class Array>
-  template <class Index, class>
+  template <class Index, class EnableIf>
   auto basic_array<Array>::get(Index const& idx) const& -> value_type {
     return val.get(idx);
   }
 
   template <class Array>
-  template <class Index, class>
+  template <class Index, class EnableIf>
   decltype(auto) basic_array<Array>::get(Index const& idx) && {
     return std::move(val).get(idx);
   }
 
   template <class Array>
-  template <class KeyType, class T, class>
-  auto basic_array<Array>::get_or(KeyType const& idx, T&& opt) const -> value_type {
+  template <class Index, class T, class EnableIf>
+  auto basic_array<Array>::get_or(Index const& idx, T&& opt) const -> value_type {
     return val.get_or(idx, std::forward<T>(opt));
   }
 
   template <class Array>
-  template <class Index, class>
+  template <class Index, class EnableIf>
   auto basic_array<Array>::at(Index const& idx) const& -> value_type {
     return val.at(idx);
   }
 
   template <class Array>
-  template <class Index, class>
+  template <class Index, class EnableIf>
   decltype(auto) basic_array<Array>::at(Index const& idx) && {
     return std::move(val).at(idx);
   }
@@ -186,7 +186,7 @@ namespace dart {
   }
 
   template <class Array>
-  template <class T, class>
+  template <class T, class EnableIf>
   auto basic_array<Array>::front_or(T&& opt) const -> value_type {
     return val.front_or(std::forward<T>(opt));
   }
@@ -202,7 +202,7 @@ namespace dart {
   }
 
   template <class Array>
-  template <class T, class>
+  template <class T, class EnableIf>
   auto basic_array<Array>::back_or(T&& opt) const -> value_type {
     return val.back_or(std::forward<T>(opt));
   }
