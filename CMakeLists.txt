@@ -105,11 +105,23 @@ endif ()
 
 # Find our headers.
 file(GLOB global_header include/dart.h)
-file(GLOB headers include/dart/*.h include/dart/*.tcc include/extern/variant.h)
+file(GLOB generic_headers include/dart/*.h include/dart/*.tcc)
+file(GLOB heap_headers include/dart/heap/heap.h include/dart/heap/*.tcc)
+file(GLOB buffer_headers include/dart/buffer/buffer.h include/dart/buffer/*.tcc)
+file(GLOB packet_headers include/dart/packet/packet.h include/dart/packet/*.tcc)
+file(GLOB support_headers include/dart/support/*.h include/dart/support/*.tcc)
+file(GLOB connector_headers include/dart/connector/*.h include/dart/connector/*.tcc)
+
+file(GLOB extern_headers include/extern/*.h)
 
 # Install our headers/abi
 install(FILES ${global_header} DESTINATION include)
-install(FILES ${headers} DESTINATION include/dart)
+install(FILES ${generic_headers} DESTINATION include/dart)
+install(FILES ${heap_headers} DESTINATION include/dart/heap)
+install(FILES ${buffer_headers} DESTINATION include/dart/buffer)
+install(FILES ${packet_headers} DESTINATION include/dart/packet)
+install(FILES ${support_headers} DESTINATION include/dart/support)
+install(FILES ${connector_headers} DESTINATION include/dart/connector)
 if (build_abi)
   install(TARGETS dart_abi LIBRARY DESTINATION lib)
   install(TARGETS dart_abi_static ARCHIVE DESTINATION lib)
