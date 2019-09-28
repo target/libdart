@@ -632,7 +632,7 @@ SCENARIO("all objects can inject additional keys", "[type unit]") {
   GIVEN("a dynamically built object") {
     constexpr auto num_keys = 1024;
 
-    dart::object_api_test([] (auto tag, auto idx) {
+    dart::object_api_test([num_keys] (auto tag, auto idx) {
       using object = typename decltype(tag)::type;
       using packet = typename object::value_type;
 
@@ -641,7 +641,7 @@ SCENARIO("all objects can inject additional keys", "[type unit]") {
       std::unordered_set<std::string> keys;
       while (keys.size() < num_keys) keys.insert(dart::rand_string());
 
-      auto get_arr = [] (auto& set) {
+      auto get_arr = [num_keys] (auto& set) {
         // Generate the pairs.
         std::vector<packet> pairs;
         pairs.reserve(num_keys * 2);

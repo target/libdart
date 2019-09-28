@@ -8,6 +8,7 @@ find_library(libflatbuffers flatbuffers)
 if (NOT libbenchmark)
   message(FATAL_ERROR "Google benchmark must be installed")
 endif (NOT libbenchmark)
+find_path(libbenchmark_include benchmark/benchmark.h)
 
 # Setup our threading library
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -20,10 +21,12 @@ if (librj)
 endif ()
 
 # Setup global flags
-target_compile_options(static_bench PUBLIC -O3 -DNDEBUG)
+target_compile_options(static_bench PUBLIC -O3 -DNDEBUG ${dart_default_compile_options})
+target_include_directories(static_bench PUBLIC ${libbenchmark_include})
 target_link_libraries(static_bench Threads::Threads ${libbenchmark})
 if (librj)
-  target_compile_options(configurable_bench PUBLIC -O3 -DNDEBUG)
+  target_compile_options(configurable_bench PUBLIC -O3 -DNDEBUG ${dart_default_compile_options})
+  target_include_directories(configurable_bench PUBLIC ${libbenchmark_include})
   target_link_libraries(configurable_bench Threads::Threads ${libbenchmark})
 endif ()
 

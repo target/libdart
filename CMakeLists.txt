@@ -7,6 +7,15 @@ project(libdart VERSION 0.9)
 cmake_minimum_required(VERSION 3.1.0)
 include(CheckIncludeFileCXX)
 
+# Get all of our user supplied compile switches
+option(test "Building tests..." ON)
+option(build_abi "Building libdart C interface")
+option(32bit "Building for a 32-bit target..." OFF)
+option(static_test "Statically linking tests..." OFF)
+option(extended_test "Building extended tests..." OFF)
+option(force_cxx17 "Assuming c++17 is available, and using it" OFF)
+option(use_sajson "Assuming sajson is installed, and using it" OFF)
+
 # Check which dependencies are installed.
 find_path(libgsl gsl/gsl)
 find_library(libyaml yaml)
@@ -19,77 +28,73 @@ endif ()
 if (NOT libgsl)
   message(FATAL_ERROR "Microsoft GSL must be installed")
 endif ()
-include_directories(${libgsl})
 
 # Decide if we can build the YAML features or not.
 if (libyaml AND librj)
   set(can_build_yaml ON)
 endif ()
 
-# Figure out what toolchain we're using.
-option(force_build "Proceeding with unsupported compilation...")
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "[cC][lL][aA][nN][gG]")
-  set(using_clang ON)
-  if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "AppleClang")
-    set(using_mac ON)
-  endif ()
-elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "[gG][nN][uU]")
-  set(using_gcc ON)
-elseif (force_build)
-  set(using_gcc ON)
+# Set our standard version.
+if (force_cxx17)
+  set(DART_CXX_STANDARD "17" CACHE STRING "Use c++ standard")
 else ()
-  message(FATAL_ERROR "Unsupported toolchain detected, you can proceed regardless by setting the \"force_build\" flag")
+  set(DART_CXX_STANDARD "14" CACHE STRING "Use c++ standard")
 endif ()
 
-if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.2 AND using_gcc)
-  set(using_cxx17 ON)
-elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9 AND using_clang AND NOT using_mac)
-  set(using_cxx17 ON)
-elseif (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.9 AND using_clang AND using_mac)
-  try_compile(using_cxx17 ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/test/macos_feature_check.cc)
-endif ()
-
-# Explicitly disable C++17 for whatever reason.
-option(no_cxx17 "Disabling c++17" OFF)
-
-# Explicitly enable sajson for whatever reason.
-option(use_sajson "Assuming sajson is installed, and using it" OFF)
-option(build_abi "Building libdart C interface")
-
-# Define an option for our tests.
-option(test "Building tests..." ON)
-option(32bit "Building for a 32-bit target..." OFF)
-option(static_test "Statically linking tests..." OFF)
-option(extended_test "Building extended tests..." OFF)
-
-# Define global compiler flags.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-implicit-fallthrough -Wno-unused-local-typedefs")
-if (using_cxx17 AND NOT no_cxx17)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+# Set our compiler standard flags
+if (MSVC)
+  set(DART_CXX_STD_OPT "-std:c++${DART_CXX_STANDARD}")
 else ()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-endif ()
-if (use_sajson)
-  add_definitions("-DDART_USE_SAJSON")
-endif ()
-if (librj)
-  add_definitions("-DDART_HAS_RAPIDJSON")
-endif ()
-if (can_build_yaml)
-  add_definitions("-DDART_HAS_YAML")
+  set(DART_CXX_STD_OPT "-std=c++${DART_CXX_STANDARD}")
 endif ()
 
-# Define our source files.
-include_directories(include)
+# Check to see if our compiler supports the chosen standard.
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("${DART_CXX_STD_OPT}" COMPILER_SUPPORTS_CXX_STANDARD)
+if (NOT COMPILER_SUPPORTS_CXX_STANDARD)
+  message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no c++${dart_CXX_STANDARD} support.")
+endif ()
+
+if (MSVC)
+  set(dart_default_compile_options "${DART_CXX_STD_OPT};/EHsc;/Zc:__cplusplus;/permissive-;/bigobj")
+else ()
+  set(dart_default_compile_options "${DART_CXX_STD_OPT};-Wall;-Wextra;-Wno-implicit-fallthrough;-Wno-unused-local-typedefs")
+endif ()
 
 # Build the ABI if we were asked to.
 if (build_abi)
+  # Define the ABI build targets
   set(abi_sources src/heap.cc src/buffer.cc src/generic.cc)
   add_library(dart_abi SHARED ${abi_sources})
   add_library(dart_abi_static STATIC ${abi_sources})
+
+  # Setup include directories
+  target_include_directories(dart_abi PUBLIC include ${libgsl})
+  target_include_directories(dart_abi_static PUBLIC include ${libgsl})
   set_target_properties(dart_abi PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION})
-  target_compile_options(dart_abi PUBLIC "-O3")
-  target_compile_options(dart_abi_static PUBLIC "-O3")
+
+  # Set compile switches based on what's installed
+  if (use_sajson)
+    set_property(TARGET dart_abi APPEND PROPERTY COMPILE_DEFINITIONS DART_USE_SAJSON)
+    set_property(TARGET dart_abi_static APPEND PROPERTY COMPILE_DEFINITIONS DART_USE_SAJSON)
+  endif ()
+  if (librj)
+    set_property(TARGET dart_abi APPEND PROPERTY COMPILE_DEFINITIONS DART_HAS_RAPIDJSON)
+    set_property(TARGET dart_abi_static APPEND PROPERTY COMPILE_DEFINITIONS DART_HAS_RAPIDJSON)
+  endif ()
+  if (can_build_yaml)
+    set_property(TARGET dart_abi APPEND PROPERTY COMPILE_DEFINITIONS DART_HAS_YAML)
+    set_property(TARGET dart_abi_static APPEND PROPERTY COMPILE_DEFINITIONS DART_HAS_YAML)
+  endif ()
+
+  # Setup optimization flags.
+  if (MSVC)
+    target_compile_options(dart_abi PUBLIC /O2 ${dart_default_compile_options})
+    target_compile_options(dart_abi_static PUBLIC /O2 ${dart_default_compile_options})
+  else ()
+    target_compile_options(dart_abi PUBLIC -O3 ${dart_default_compile_options})
+    target_compile_options(dart_abi_static PUBLIC -O3 ${dart_default_compile_options})
+  endif ()
 endif ()
 
 # Conditionally setup our tests.
@@ -103,25 +108,9 @@ if (benchmark)
   add_subdirectory(benchmark)
 endif ()
 
-# Find our headers.
-file(GLOB global_header include/dart.h)
-file(GLOB generic_headers include/dart/*.h include/dart/*.tcc)
-file(GLOB heap_headers include/dart/heap/heap.h include/dart/heap/*.tcc)
-file(GLOB buffer_headers include/dart/buffer/buffer.h include/dart/buffer/*.tcc)
-file(GLOB packet_headers include/dart/packet/packet.h include/dart/packet/*.tcc)
-file(GLOB support_headers include/dart/support/*.h include/dart/support/*.tcc)
-file(GLOB connector_headers include/dart/connector/*.h include/dart/connector/*.tcc)
-
-file(GLOB extern_headers include/extern/*.h)
-
 # Install our headers/abi
-install(FILES ${global_header} DESTINATION include)
-install(FILES ${generic_headers} DESTINATION include/dart)
-install(FILES ${heap_headers} DESTINATION include/dart/heap)
-install(FILES ${buffer_headers} DESTINATION include/dart/buffer)
-install(FILES ${packet_headers} DESTINATION include/dart/packet)
-install(FILES ${support_headers} DESTINATION include/dart/support)
-install(FILES ${connector_headers} DESTINATION include/dart/connector)
+install(FILES include/dart.h DESTINATION include)
+install(DIRECTORY include/dart DESTINATION include)
 if (build_abi)
   install(TARGETS dart_abi LIBRARY DESTINATION lib)
   install(TARGETS dart_abi_static ARCHIVE DESTINATION lib)

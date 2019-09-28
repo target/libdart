@@ -72,7 +72,10 @@ namespace dart {
 
           // Terminate the string and set the number of remaining bytes.
           // These two operations may touch the same byte.
-          layout.buffer[val.size()] = '\0';
+          // XXX: Have to access through std::array::data member as writing the null terminator
+          // is intentionally allowed to access 1 byte out of range if the string is the max
+          // SSO length, and MSVC asserts on out of bounds accesses in std::array.
+          layout.buffer.data()[val.size()] = '\0';
           layout.left = sso_bytes - val.size();
           data = layout;
         }
