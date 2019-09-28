@@ -1043,7 +1043,7 @@ SCENARIO("objects can inject additional keys", "[object unit]") {
   GIVEN("a dynamically built object") {
     constexpr auto num_keys = 1024;
 
-    dart::api_test([] (auto tag, auto idx) {
+    dart::api_test([num_keys] (auto tag, auto idx) {
       using pkt = typename decltype(tag)::type;
 
       // Helper lambda to generate a random vector of injectable strings.
@@ -1051,7 +1051,7 @@ SCENARIO("objects can inject additional keys", "[object unit]") {
       std::unordered_set<std::string> keys;
       while (keys.size() < num_keys) keys.insert(dart::rand_string());
 
-      auto get_arr = [] (auto& set) {
+      auto get_arr = [num_keys] (auto& set) {
         // Generate the pairs.
         std::vector<pkt> pairs;
         pairs.reserve(num_keys * 2);

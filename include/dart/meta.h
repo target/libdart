@@ -159,14 +159,14 @@ namespace dart {
         && is_detected<decimal_t, T>::value && is_detected<boolean_t, T>::value && is_detected<get_type_t, T>::value;
     };
 
-    template <class T, template <class...> class Template>
+    template <class T, template <class> class Template>
     struct is_specialization_of : std::false_type {};
-    template <class... Args, template <class...> class Template>
+    template <class... Args, template <class> class Template>
     struct is_specialization_of<Template<Args...>, Template> : std::true_type {};
 
-    template <class T, template <template <class...> class> class Compound>
+    template <class T, template <template <class> class> class Compound>
     struct is_higher_specialization_of : std::false_type {};
-    template <template <class...> class Inner, template <template <class...> class> class Outer>
+    template <template <class> class Inner, template <template <class> class> class Outer>
     struct is_higher_specialization_of<Outer<Inner>, Outer> : std::true_type {};
 
     template <class T>

@@ -937,7 +937,7 @@ namespace dart {
   }
 
   inline std::string rand_string(size_t len = rand_int<0, 32>(), dart::shim::string_view prefix = "") {
-    constexpr int low = 0, high = 25;
+    static constexpr int low = 0, high = 25;
     static std::vector<char> alpha {
       'a', 'b', 'c', 'd', 'e', 'f', 'g',
       'h', 'i', 'j', 'k', 'l', 'm', 'n',
