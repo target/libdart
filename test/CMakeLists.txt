@@ -52,7 +52,7 @@ endif ()
 # Setup targets for JSON tests.
 if (librj)
   add_executable(json_test json_test.cc $<TARGET_OBJECTS:catch>)
-  target_include_directories(json_test PUBLIC ../include ${libgsl})
+  target_include_directories(json_test PUBLIC ../include ${libgsl} ${librj})
   target_compile_options(json_test PUBLIC ${dart_default_compile_options} ${dart_test_compile_options})
   if (extended_test)
     set_property(TARGET json_test APPEND PROPERTY COMPILE_DEFINITIONS DART_EXTENDED_TESTS)
@@ -68,7 +68,10 @@ if (can_build_yaml)
   # Define the yaml test
   add_executable(yaml_test yaml_test.cc $<TARGET_OBJECTS:catch>)
   target_link_libraries(yaml_test ${libyaml})
-  target_include_directories(yaml_test PUBLIC ../include ${libgsl})
+  target_include_directories(yaml_test PUBLIC ../include ${libgsl} ${libyaml})
+  if (librj)
+    target_include_directories(yaml_test PUBLIC ${librj})
+  endif ()
 
   # Set its compile options and definitions
   set_property(TARGET yaml_test APPEND PROPERTY COMPILE_DEFINITIONS DART_HAS_YAML)
