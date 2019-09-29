@@ -8,6 +8,15 @@
 
 /*----- Macros ------*/
 
+// Get our declspec nonsense in place for windows.
+#if defined(_MSC_VER) && defined(DART_EXPORTS)
+#define DART_ABI_EXPORT __declspec(dllexport)
+#elif defined(_MSC_VER)
+#define DART_ABI_EXPORT __declspec(dllimport)
+#else
+#define DART_ABI_EXPORT
+#endif
+
 #define DART_BUFFER_MAX_SIZE      (1U << 5U)
 #define DART_HEAP_MAX_SIZE        (1U << 6U)
 #define DART_PACKET_MAX_SIZE      DART_HEAP_MAX_SIZE
@@ -131,495 +140,495 @@ extern "C" {
   /*----- dart_heap functions -----*/
 
   // dart::heap lifecycle functions.
-  dart_heap_t dart_heap_init();
-  dart_err_t dart_heap_init_err(dart_heap_t* pkt);
-  dart_heap_t dart_heap_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_heap_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
-  dart_heap_t dart_heap_copy(dart_heap_t const* src);
-  dart_err_t dart_heap_copy_err(dart_heap_t* dst, dart_heap_t const* src);
-  dart_heap_t dart_heap_move(dart_heap_t* src);
-  dart_err_t dart_heap_move_err(dart_heap_t* dst, dart_heap_t* src);
-  dart_err_t dart_heap_destroy(dart_heap_t* pkt);
+  DART_ABI_EXPORT dart_heap_t dart_heap_init();
+  DART_ABI_EXPORT dart_err_t dart_heap_init_err(dart_heap_t* pkt);
+  DART_ABI_EXPORT dart_heap_t dart_heap_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_heap_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_heap_t dart_heap_copy(dart_heap_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_heap_copy_err(dart_heap_t* dst, dart_heap_t const* src);
+  DART_ABI_EXPORT dart_heap_t dart_heap_move(dart_heap_t* src);
+  DART_ABI_EXPORT dart_err_t dart_heap_move_err(dart_heap_t* dst, dart_heap_t* src);
+  DART_ABI_EXPORT dart_err_t dart_heap_destroy(dart_heap_t* pkt);
 
   // dart::heap object constructors.
-  dart_heap_t dart_heap_obj_init();
-  dart_err_t dart_heap_obj_init_err(dart_heap_t* pkt);
-  dart_heap_t dart_heap_obj_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_heap_obj_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
-  dart_heap_t dart_heap_obj_init_va(char const* format, ...);
-  dart_err_t dart_heap_obj_init_va_err(dart_heap_t* pkt, char const* format, ...);
-  dart_heap_t dart_heap_obj_init_va_rc(dart_rc_type_t rc, char const* format, ...);
-  dart_err_t dart_heap_obj_init_va_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_heap_t dart_heap_obj_init();
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_init_err(dart_heap_t* pkt);
+  DART_ABI_EXPORT dart_heap_t dart_heap_obj_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_heap_t dart_heap_obj_init_va(char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_init_va_err(dart_heap_t* pkt, char const* format, ...);
+  DART_ABI_EXPORT dart_heap_t dart_heap_obj_init_va_rc(dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_init_va_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, ...);
 
   // dart::heap array constructors.
-  dart_heap_t dart_heap_arr_init();
-  dart_err_t dart_heap_arr_init_err(dart_heap_t* pkt);
-  dart_heap_t dart_heap_arr_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_heap_arr_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
-  dart_heap_t dart_heap_arr_init_va(char const* format, ...);
-  dart_err_t dart_heap_arr_init_va_err(dart_heap_t* pkt, char const* format, ...);
-  dart_heap_t dart_heap_arr_init_va_rc(dart_rc_type_t rc, char const* format, ...);
-  dart_err_t dart_heap_arr_init_va_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_heap_t dart_heap_arr_init();
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_init_err(dart_heap_t* pkt);
+  DART_ABI_EXPORT dart_heap_t dart_heap_arr_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_heap_t dart_heap_arr_init_va(char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_init_va_err(dart_heap_t* pkt, char const* format, ...);
+  DART_ABI_EXPORT dart_heap_t dart_heap_arr_init_va_rc(dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_init_va_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* format, ...);
 
   // dart::heap string constructors.
-  dart_heap_t dart_heap_str_init(char const* str);
-  dart_err_t dart_heap_str_init_err(dart_heap_t* pkt, char const* str);
-  dart_heap_t dart_heap_str_init_len(char const* str, size_t len);
-  dart_err_t dart_heap_str_init_len_err(dart_heap_t* pkt, char const* str, size_t len);
-  dart_heap_t dart_heap_str_init_rc(dart_rc_type_t rc, char const* str);
-  dart_err_t dart_heap_str_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str);
-  dart_heap_t dart_heap_str_init_rc_len(dart_rc_type_t rc, char const* str, size_t len);
-  dart_err_t dart_heap_str_init_rc_len_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT dart_heap_t dart_heap_str_init(char const* str);
+  DART_ABI_EXPORT dart_err_t dart_heap_str_init_err(dart_heap_t* pkt, char const* str);
+  DART_ABI_EXPORT dart_heap_t dart_heap_str_init_len(char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_str_init_len_err(dart_heap_t* pkt, char const* str, size_t len);
+  DART_ABI_EXPORT dart_heap_t dart_heap_str_init_rc(dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_err_t dart_heap_str_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_heap_t dart_heap_str_init_rc_len(dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_str_init_rc_len_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
 
   // dart::heap integer constructors.
-  dart_heap_t dart_heap_int_init(int64_t val);
-  dart_err_t dart_heap_int_init_err(dart_heap_t* pkt, int64_t val);
-  dart_heap_t dart_heap_int_init_rc(dart_rc_type_t rc, int64_t val);
-  dart_err_t dart_heap_int_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, int64_t val);
+  DART_ABI_EXPORT dart_heap_t dart_heap_int_init(int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_int_init_err(dart_heap_t* pkt, int64_t val);
+  DART_ABI_EXPORT dart_heap_t dart_heap_int_init_rc(dart_rc_type_t rc, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_int_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, int64_t val);
 
   // dart::heap decimal constructors.
-  dart_heap_t dart_heap_dcm_init(double val);
-  dart_err_t dart_heap_dcm_init_err(dart_heap_t* pkt, double val);
-  dart_heap_t dart_heap_dcm_init_rc(dart_rc_type_t rc, double val);
-  dart_err_t dart_heap_dcm_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, double val);
+  DART_ABI_EXPORT dart_heap_t dart_heap_dcm_init(double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_dcm_init_err(dart_heap_t* pkt, double val);
+  DART_ABI_EXPORT dart_heap_t dart_heap_dcm_init_rc(dart_rc_type_t rc, double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_dcm_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, double val);
 
   // dart::heap boolean constructors.
-  dart_heap_t dart_heap_bool_init(int val);
-  dart_err_t dart_heap_bool_init_err(dart_heap_t* pkt, int val);
-  dart_heap_t dart_heap_bool_init_rc(dart_rc_type_t rc, int val);
-  dart_err_t dart_heap_bool_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, int val);
+  DART_ABI_EXPORT dart_heap_t dart_heap_bool_init(int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_bool_init_err(dart_heap_t* pkt, int val);
+  DART_ABI_EXPORT dart_heap_t dart_heap_bool_init_rc(dart_rc_type_t rc, int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_bool_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, int val);
 
   // dart::heap null constructors.
-  dart_heap_t dart_heap_null_init();
-  dart_err_t dart_heap_null_init_err(dart_heap_t* pkt);
-  dart_heap_t dart_heap_null_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_heap_null_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_heap_t dart_heap_null_init();
+  DART_ABI_EXPORT dart_err_t dart_heap_null_init_err(dart_heap_t* pkt);
+  DART_ABI_EXPORT dart_heap_t dart_heap_null_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_heap_null_init_rc_err(dart_heap_t* pkt, dart_rc_type_t rc);
 
   // dart::heap object insert operations.
-  dart_err_t dart_heap_obj_insert_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
-  dart_err_t dart_heap_obj_insert_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
-  dart_err_t dart_heap_obj_insert_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
-  dart_err_t dart_heap_obj_insert_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
-  dart_err_t dart_heap_obj_insert_str(dart_heap_t* pkt, char const* key, char const* val);
-  dart_err_t dart_heap_obj_insert_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
-  dart_err_t dart_heap_obj_insert_int(dart_heap_t* pkt, char const* key, int64_t val);
-  dart_err_t dart_heap_obj_insert_int_len(dart_heap_t* pkt, char const* key, size_t len, int64_t val);
-  dart_err_t dart_heap_obj_insert_dcm(dart_heap_t* pkt, char const* key, double val);
-  dart_err_t dart_heap_obj_insert_dcm_len(dart_heap_t* pkt, char const* key, size_t len, double val);
-  dart_err_t dart_heap_obj_insert_bool(dart_heap_t* pkt, char const* key, int val);
-  dart_err_t dart_heap_obj_insert_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val);
-  dart_err_t dart_heap_obj_insert_null(dart_heap_t* pkt, char const* key);
-  dart_err_t dart_heap_obj_insert_null_len(dart_heap_t* pkt, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_str(dart_heap_t* pkt, char const* key, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_int(dart_heap_t* pkt, char const* key, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_int_len(dart_heap_t* pkt, char const* key, size_t len, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_dcm(dart_heap_t* pkt, char const* key, double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_dcm_len(dart_heap_t* pkt, char const* key, size_t len, double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_bool(dart_heap_t* pkt, char const* key, int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_null(dart_heap_t* pkt, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_insert_null_len(dart_heap_t* pkt, char const* key, size_t len);
 
   // dart::heap object set operations.
-  dart_err_t dart_heap_obj_set_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
-  dart_err_t dart_heap_obj_set_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
-  dart_err_t dart_heap_obj_set_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
-  dart_err_t dart_heap_obj_set_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
-  dart_err_t dart_heap_obj_set_str(dart_heap_t* pkt, char const* key, char const* val);
-  dart_err_t dart_heap_obj_set_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
-  dart_err_t dart_heap_obj_set_int(dart_heap_t* pkt, char const* key, int64_t val);
-  dart_err_t dart_heap_obj_set_int_len(dart_heap_t* pkt, char const* key, size_t len, int64_t val);
-  dart_err_t dart_heap_obj_set_dcm(dart_heap_t* pkt, char const* key, double val);
-  dart_err_t dart_heap_obj_set_dcm_len(dart_heap_t* pkt, char const* key, size_t len, double val);
-  dart_err_t dart_heap_obj_set_bool(dart_heap_t* pkt, char const* key, int val);
-  dart_err_t dart_heap_obj_set_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val);
-  dart_err_t dart_heap_obj_set_null(dart_heap_t* pkt, char const* key);
-  dart_err_t dart_heap_obj_set_null_len(dart_heap_t* pkt, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_heap(dart_heap_t* pkt, char const* key, dart_heap_t const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_take_heap(dart_heap_t* pkt, char const* key, dart_heap_t* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_take_heap_len(dart_heap_t* pkt, char const* key, size_t len, dart_heap_t* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_str(dart_heap_t* pkt, char const* key, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_str_len(dart_heap_t* pkt, char const* key, size_t len, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_int(dart_heap_t* pkt, char const* key, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_int_len(dart_heap_t* pkt, char const* key, size_t len, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_dcm(dart_heap_t* pkt, char const* key, double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_dcm_len(dart_heap_t* pkt, char const* key, size_t len, double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_bool(dart_heap_t* pkt, char const* key, int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_bool_len(dart_heap_t* pkt, char const* key, size_t len, int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_null(dart_heap_t* pkt, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_set_null_len(dart_heap_t* pkt, char const* key, size_t len);
 
   // dart::heap object erase operations.
-  dart_err_t dart_heap_obj_clear(dart_heap_t* pkt);
-  dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key);
-  dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_clear(dart_heap_t* pkt);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_erase(dart_heap_t* pkt, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_erase_len(dart_heap_t* pkt, char const* key, size_t len);
 
   // dart::heap array insert operations.
-  dart_err_t dart_heap_arr_insert_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
-  dart_err_t dart_heap_arr_insert_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
-  dart_err_t dart_heap_arr_insert_str(dart_heap_t* pkt, size_t idx, char const* val);
-  dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
-  dart_err_t dart_heap_arr_insert_int(dart_heap_t* pkt, size_t idx, int64_t val);
-  dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* pkt, size_t idx, double val);
-  dart_err_t dart_heap_arr_insert_bool(dart_heap_t* pkt, size_t idx, int val);
-  dart_err_t dart_heap_arr_insert_null(dart_heap_t* pkt, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_str(dart_heap_t* pkt, size_t idx, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_int(dart_heap_t* pkt, size_t idx, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_dcm(dart_heap_t* pkt, size_t idx, double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_bool(dart_heap_t* pkt, size_t idx, int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_insert_null(dart_heap_t* pkt, size_t idx);
 
   // dart::heap array set operations.
-  dart_err_t dart_heap_arr_set_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
-  dart_err_t dart_heap_arr_set_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
-  dart_err_t dart_heap_arr_set_str(dart_heap_t* pkt, size_t idx, char const* val);
-  dart_err_t dart_heap_arr_set_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
-  dart_err_t dart_heap_arr_set_int(dart_heap_t* pkt, size_t idx, int64_t val);
-  dart_err_t dart_heap_arr_set_dcm(dart_heap_t* pkt, size_t idx, double val);
-  dart_err_t dart_heap_arr_set_bool(dart_heap_t* pkt, size_t idx, int val);
-  dart_err_t dart_heap_arr_set_null(dart_heap_t* pkt, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_heap(dart_heap_t* pkt, size_t idx, dart_heap_t const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_take_heap(dart_heap_t* pkt, size_t idx, dart_heap_t* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_str(dart_heap_t* pkt, size_t idx, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_str_len(dart_heap_t* pkt, size_t idx, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_int(dart_heap_t* pkt, size_t idx, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_dcm(dart_heap_t* pkt, size_t idx, double val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_bool(dart_heap_t* pkt, size_t idx, int val);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_set_null(dart_heap_t* pkt, size_t idx);
 
   // dart::heap array erase operations.
-  dart_err_t dart_heap_arr_clear(dart_heap_t* pkt);
-  dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_clear(dart_heap_t* pkt);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_erase(dart_heap_t* pkt, size_t idx);
 
   // dart::heap array resize operations.
-  dart_err_t dart_heap_arr_resize(dart_heap_t* dst, size_t len);
-  dart_err_t dart_heap_arr_reserve(dart_heap_t* dst, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_resize(dart_heap_t* dst, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_reserve(dart_heap_t* dst, size_t len);
 
   // dart::heap object retrieval operations.
-  int dart_heap_obj_has_key(dart_heap_t const* src, char const* key);
-  int dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len);
-  dart_heap_t dart_heap_obj_get(dart_heap_t const* src, char const* key);
-  dart_err_t dart_heap_obj_get_err(dart_heap_t* dst, dart_heap_t const* src, char const* key);
-  dart_heap_t dart_heap_obj_get_len(dart_heap_t const* src, char const* key, size_t len);
-  dart_err_t dart_heap_obj_get_len_err(dart_heap_t* dst, dart_heap_t const* src, char const* key, size_t len);
+  DART_ABI_EXPORT int dart_heap_obj_has_key(dart_heap_t const* src, char const* key);
+  DART_ABI_EXPORT int dart_heap_obj_has_key_len(dart_heap_t const* src, char const* key, size_t len);
+  DART_ABI_EXPORT dart_heap_t dart_heap_obj_get(dart_heap_t const* src, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_get_err(dart_heap_t* dst, dart_heap_t const* src, char const* key);
+  DART_ABI_EXPORT dart_heap_t dart_heap_obj_get_len(dart_heap_t const* src, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_obj_get_len_err(dart_heap_t* dst, dart_heap_t const* src, char const* key, size_t len);
 
   // dart::heap array retrieval operations.
-  dart_heap_t dart_heap_arr_get(dart_heap_t const* src, size_t idx);
-  dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, size_t idx);
+  DART_ABI_EXPORT dart_heap_t dart_heap_arr_get(dart_heap_t const* src, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_heap_arr_get_err(dart_heap_t* dst, dart_heap_t const* src, size_t idx);
 
   // dart::heap string retrieval operations.
-  char const* dart_heap_str_get(dart_heap_t const* src);
-  char const* dart_heap_str_get_len(dart_heap_t const* src, size_t* len);
+  DART_ABI_EXPORT char const* dart_heap_str_get(dart_heap_t const* src);
+  DART_ABI_EXPORT char const* dart_heap_str_get_len(dart_heap_t const* src, size_t* len);
 
   // dart::heap integer retrieval operations.
-  int64_t dart_heap_int_get(dart_heap_t const* src);
-  dart_err_t dart_heap_int_get_err(dart_heap_t const* src, int64_t* val);
+  DART_ABI_EXPORT int64_t dart_heap_int_get(dart_heap_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_heap_int_get_err(dart_heap_t const* src, int64_t* val);
 
   // dart::heap decimal retrieval operations.
-  double dart_heap_dcm_get(dart_heap_t const* src);
-  dart_err_t dart_heap_dcm_get_err(dart_heap_t const* src, double* val);
+  DART_ABI_EXPORT double dart_heap_dcm_get(dart_heap_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_heap_dcm_get_err(dart_heap_t const* src, double* val);
 
   // dart::heap boolean retrieval operations.
-  int dart_heap_bool_get(dart_heap_t const* src);
-  dart_err_t dart_heap_bool_get_err(dart_heap_t const* src, int* val);
+  DART_ABI_EXPORT int dart_heap_bool_get(dart_heap_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_heap_bool_get_err(dart_heap_t const* src, int* val);
 
   // dart::heap introspection operations.
-  size_t dart_heap_size(dart_heap_t const* src);
-  int dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs);
-  int dart_heap_is_obj(dart_heap_t const* src);
-  int dart_heap_is_arr(dart_heap_t const* src);
-  int dart_heap_is_str(dart_heap_t const* src);
-  int dart_heap_is_int(dart_heap_t const* src);
-  int dart_heap_is_dcm(dart_heap_t const* src);
-  int dart_heap_is_bool(dart_heap_t const* src);
-  int dart_heap_is_null(dart_heap_t const* src);
-  dart_type_t dart_heap_get_type(dart_heap_t const* src);
+  DART_ABI_EXPORT size_t dart_heap_size(dart_heap_t const* src);
+  DART_ABI_EXPORT int dart_heap_equal(dart_heap_t const* lhs, dart_heap_t const* rhs);
+  DART_ABI_EXPORT int dart_heap_is_obj(dart_heap_t const* src);
+  DART_ABI_EXPORT int dart_heap_is_arr(dart_heap_t const* src);
+  DART_ABI_EXPORT int dart_heap_is_str(dart_heap_t const* src);
+  DART_ABI_EXPORT int dart_heap_is_int(dart_heap_t const* src);
+  DART_ABI_EXPORT int dart_heap_is_dcm(dart_heap_t const* src);
+  DART_ABI_EXPORT int dart_heap_is_bool(dart_heap_t const* src);
+  DART_ABI_EXPORT int dart_heap_is_null(dart_heap_t const* src);
+  DART_ABI_EXPORT dart_type_t dart_heap_get_type(dart_heap_t const* src);
 
   // dart::heap json operations.
-  dart_heap_t dart_heap_from_json(char const* str);
-  dart_err_t dart_heap_from_json_err(dart_heap_t* pkt, char const* str);
-  dart_heap_t dart_heap_from_json_rc(dart_rc_type_t rc, char const* str);
-  dart_err_t dart_heap_from_json_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str);
-  dart_heap_t dart_heap_from_json_len(char const* str, size_t len);
-  dart_err_t dart_heap_from_json_len_err(dart_heap_t* pkt, char const* str, size_t len);
-  dart_heap_t dart_heap_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
-  dart_err_t dart_heap_from_json_len_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
-  char* dart_heap_to_json(dart_heap_t const* pkt, size_t* len);
+  DART_ABI_EXPORT dart_heap_t dart_heap_from_json(char const* str);
+  DART_ABI_EXPORT dart_err_t dart_heap_from_json_err(dart_heap_t* pkt, char const* str);
+  DART_ABI_EXPORT dart_heap_t dart_heap_from_json_rc(dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_err_t dart_heap_from_json_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_heap_t dart_heap_from_json_len(char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_from_json_len_err(dart_heap_t* pkt, char const* str, size_t len);
+  DART_ABI_EXPORT dart_heap_t dart_heap_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_heap_from_json_len_rc_err(dart_heap_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT char* dart_heap_to_json(dart_heap_t const* pkt, size_t* len);
 
   // dart::heap transition operations.
-  dart_buffer_t dart_heap_lower(dart_heap_t const* pkt);
-  dart_buffer_t dart_heap_finalize(dart_heap_t const* pkt);
-  dart_err_t dart_heap_lower_err(dart_buffer_t* dst, dart_heap_t const* pkt);
-  dart_err_t dart_heap_finalize_err(dart_buffer_t* dst, dart_heap_t const* pkt);
+  DART_ABI_EXPORT dart_buffer_t dart_heap_lower(dart_heap_t const* pkt);
+  DART_ABI_EXPORT dart_buffer_t dart_heap_finalize(dart_heap_t const* pkt);
+  DART_ABI_EXPORT dart_err_t dart_heap_lower_err(dart_buffer_t* dst, dart_heap_t const* pkt);
+  DART_ABI_EXPORT dart_err_t dart_heap_finalize_err(dart_buffer_t* dst, dart_heap_t const* pkt);
 
   // dart::buffer lifecycle functions.
-  dart_buffer_t dart_buffer_init();
-  dart_err_t dart_buffer_init_err(dart_buffer_t* pkt);
-  dart_buffer_t dart_buffer_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_buffer_init_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc);
-  dart_buffer_t dart_buffer_copy(dart_buffer_t const* src);
-  dart_err_t dart_buffer_copy_err(dart_buffer_t* dst, dart_buffer_t const* src);
-  dart_buffer_t dart_buffer_move(dart_buffer_t* src);
-  dart_err_t dart_buffer_move_err(dart_buffer_t* dst, dart_buffer_t* src);
-  dart_err_t dart_buffer_destroy(dart_buffer_t* pkt);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_init();
+  DART_ABI_EXPORT dart_err_t dart_buffer_init_err(dart_buffer_t* pkt);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_buffer_init_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_copy(dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_copy_err(dart_buffer_t* dst, dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_move(dart_buffer_t* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_move_err(dart_buffer_t* dst, dart_buffer_t* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_destroy(dart_buffer_t* pkt);
 
   // dart::buffer object retrieval operations.
-  int dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key);
-  int dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len);
-  dart_buffer_t dart_buffer_obj_get(dart_buffer_t const* src, char const* key);
-  dart_err_t dart_buffer_obj_get_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key);
-  dart_buffer_t dart_buffer_obj_get_len(dart_buffer_t const* src, char const* key, size_t len);
-  dart_err_t dart_buffer_obj_get_len_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key, size_t len);
+  DART_ABI_EXPORT int dart_buffer_obj_has_key(dart_buffer_t const* src, char const* key);
+  DART_ABI_EXPORT int dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_obj_get(dart_buffer_t const* src, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_buffer_obj_get_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_obj_get_len(dart_buffer_t const* src, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_buffer_obj_get_len_err(dart_buffer_t* dst, dart_buffer_t const* src, char const* key, size_t len);
 
   // dart::buffer array retrieval operations.
-  dart_buffer_t dart_buffer_arr_get(dart_buffer_t const* src, size_t idx);
-  dart_err_t dart_buffer_arr_get_err(dart_buffer_t* dst, dart_buffer_t const* src, size_t idx);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_arr_get(dart_buffer_t const* src, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_buffer_arr_get_err(dart_buffer_t* dst, dart_buffer_t const* src, size_t idx);
 
   // dart::buffer string retrieval operations.
-  char const* dart_buffer_str_get(dart_buffer_t const* src);
-  char const* dart_buffer_str_get_len(dart_buffer_t const* src, size_t* len);
+  DART_ABI_EXPORT char const* dart_buffer_str_get(dart_buffer_t const* src);
+  DART_ABI_EXPORT char const* dart_buffer_str_get_len(dart_buffer_t const* src, size_t* len);
 
   // dart::buffer integer retrieval operations.
-  int64_t dart_buffer_int_get(dart_buffer_t const* src);
-  dart_err_t dart_buffer_int_get_err(dart_buffer_t const* src, int64_t* val);
+  DART_ABI_EXPORT int64_t dart_buffer_int_get(dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_int_get_err(dart_buffer_t const* src, int64_t* val);
 
   // dart::buffer decimal retrieval operations.
-  double dart_buffer_dcm_get(dart_buffer_t const* src);
-  dart_err_t dart_buffer_dcm_get_err(dart_buffer_t const* src, double* val);
+  DART_ABI_EXPORT double dart_buffer_dcm_get(dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_dcm_get_err(dart_buffer_t const* src, double* val);
 
   // dart::buffer boolean retrieval operations.
-  int dart_buffer_bool_get(dart_buffer_t const* src);
-  dart_err_t dart_buffer_bool_get_err(dart_buffer_t const* src, int* val);
+  DART_ABI_EXPORT int dart_buffer_bool_get(dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_bool_get_err(dart_buffer_t const* src, int* val);
 
   // dart::buffer introspection operations.
-  size_t dart_buffer_size(dart_buffer_t const* src);
-  int dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs);
-  int dart_buffer_is_obj(dart_buffer_t const* src);
-  int dart_buffer_is_arr(dart_buffer_t const* src);
-  int dart_buffer_is_str(dart_buffer_t const* src);
-  int dart_buffer_is_int(dart_buffer_t const* src);
-  int dart_buffer_is_dcm(dart_buffer_t const* src);
-  int dart_buffer_is_bool(dart_buffer_t const* src);
-  int dart_buffer_is_null(dart_buffer_t const* src);
-  dart_type_t dart_buffer_get_type(dart_buffer_t const* src);
+  DART_ABI_EXPORT size_t dart_buffer_size(dart_buffer_t const* src);
+  DART_ABI_EXPORT int dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs);
+  DART_ABI_EXPORT int dart_buffer_is_obj(dart_buffer_t const* src);
+  DART_ABI_EXPORT int dart_buffer_is_arr(dart_buffer_t const* src);
+  DART_ABI_EXPORT int dart_buffer_is_str(dart_buffer_t const* src);
+  DART_ABI_EXPORT int dart_buffer_is_int(dart_buffer_t const* src);
+  DART_ABI_EXPORT int dart_buffer_is_dcm(dart_buffer_t const* src);
+  DART_ABI_EXPORT int dart_buffer_is_bool(dart_buffer_t const* src);
+  DART_ABI_EXPORT int dart_buffer_is_null(dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_type_t dart_buffer_get_type(dart_buffer_t const* src);
 
   // dart::buffer json operations.
-  dart_buffer_t dart_buffer_from_json(char const* str);
-  dart_err_t dart_buffer_from_json_err(dart_buffer_t* pkt, char const* str);
-  dart_buffer_t dart_buffer_from_json_rc(dart_rc_type_t rc, char const* str);
-  dart_err_t dart_buffer_from_json_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str);
-  dart_buffer_t dart_buffer_from_json_len(char const* str, size_t len);
-  dart_err_t dart_buffer_from_json_len_err(dart_buffer_t* pkt, char const* str, size_t len);
-  dart_buffer_t dart_buffer_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
-  dart_err_t dart_buffer_from_json_len_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
-  char* dart_buffer_to_json(dart_buffer_t const* pkt, size_t* len);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_from_json(char const* str);
+  DART_ABI_EXPORT dart_err_t dart_buffer_from_json_err(dart_buffer_t* pkt, char const* str);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_from_json_rc(dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_err_t dart_buffer_from_json_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_from_json_len(char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_buffer_from_json_len_err(dart_buffer_t* pkt, char const* str, size_t len);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_buffer_from_json_len_rc_err(dart_buffer_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT char* dart_buffer_to_json(dart_buffer_t const* pkt, size_t* len);
 
   // dart::buffer transition functions.
-  dart_heap_t dart_buffer_lift(dart_buffer_t const* src);
-  dart_err_t dart_buffer_lift_err(dart_heap_t* dst, dart_buffer_t const* src);
-  dart_heap_t dart_buffer_definalize(dart_buffer_t const* src);
-  dart_err_t dart_buffer_definalize_err(dart_heap_t* dst, dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_heap_t dart_buffer_lift(dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_lift_err(dart_heap_t* dst, dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_heap_t dart_buffer_definalize(dart_buffer_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_buffer_definalize_err(dart_heap_t* dst, dart_buffer_t const* src);
 
   // dart::buffer network functions.
-  void const* dart_buffer_get_bytes(dart_buffer_t const* src, size_t* len);
-  void* dart_buffer_dup_bytes(dart_buffer_t const* src, size_t* len);
-  dart_buffer_t dart_buffer_from_bytes(void const* bytes, size_t len);
-  dart_err_t dart_buffer_from_bytes_err(dart_buffer_t* dst, void const* bytes, size_t len);
-  dart_buffer_t dart_buffer_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len);
-  dart_err_t dart_buffer_from_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void const* bytes, size_t len);
-  dart_buffer_t dart_buffer_take_bytes(void* bytes);
-  dart_err_t dart_buffer_take_bytes_err(dart_buffer_t* dst, void* bytes);
-  dart_buffer_t dart_buffer_take_bytes_rc(void* bytes, dart_rc_type_t rc);
-  dart_err_t dart_buffer_take_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void* bytes);
+  DART_ABI_EXPORT void const* dart_buffer_get_bytes(dart_buffer_t const* src, size_t* len);
+  DART_ABI_EXPORT void* dart_buffer_dup_bytes(dart_buffer_t const* src, size_t* len);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_from_bytes(void const* bytes, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_buffer_from_bytes_err(dart_buffer_t* dst, void const* bytes, size_t len);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_buffer_from_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void const* bytes, size_t len);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_take_bytes(void* bytes);
+  DART_ABI_EXPORT dart_err_t dart_buffer_take_bytes_err(dart_buffer_t* dst, void* bytes);
+  DART_ABI_EXPORT dart_buffer_t dart_buffer_take_bytes_rc(void* bytes, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_buffer_take_bytes_rc_err(dart_buffer_t* dst, dart_rc_type_t rc, void* bytes);
 
   // generic lifecycle functions.
-  dart_packet_t dart_init();
-  dart_err_t dart_init_err(dart_packet_t* dst);
-  dart_packet_t dart_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc);
-  dart_packet_t dart_copy(void const* src);
-  dart_err_t dart_copy_err(void* dst, void const* src);
-  dart_packet_t dart_move(void* src);
-  dart_err_t dart_move_err(void* dst, void* src);
-  dart_err_t dart_destroy(void* pkt);
+  DART_ABI_EXPORT dart_packet_t dart_init();
+  DART_ABI_EXPORT dart_err_t dart_init_err(dart_packet_t* dst);
+  DART_ABI_EXPORT dart_packet_t dart_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_packet_t dart_copy(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_copy_err(void* dst, void const* src);
+  DART_ABI_EXPORT dart_packet_t dart_move(void* src);
+  DART_ABI_EXPORT dart_err_t dart_move_err(void* dst, void* src);
+  DART_ABI_EXPORT dart_err_t dart_destroy(void* pkt);
 
   // generic object constructors.
-  dart_packet_t dart_obj_init();
-  dart_err_t dart_obj_init_err(dart_packet_t* dst);
-  dart_packet_t dart_obj_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_obj_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc);
-  dart_packet_t dart_obj_init_va(char const* format, ...);
-  dart_err_t dart_obj_init_va_err(dart_packet_t* dst, char const* format, ...);
-  dart_packet_t dart_obj_init_va_rc(dart_rc_type_t rc, char const* format, ...);
-  dart_err_t dart_obj_init_va_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_packet_t dart_obj_init();
+  DART_ABI_EXPORT dart_err_t dart_obj_init_err(dart_packet_t* dst);
+  DART_ABI_EXPORT dart_packet_t dart_obj_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_obj_init_rc_err(dart_packet_t* dst, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_packet_t dart_obj_init_va(char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_obj_init_va_err(dart_packet_t* dst, char const* format, ...);
+  DART_ABI_EXPORT dart_packet_t dart_obj_init_va_rc(dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_obj_init_va_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* format, ...);
 
   // generic array constructors.
-  dart_packet_t dart_arr_init();
-  dart_err_t dart_arr_init_err(dart_packet_t* pkt);
-  dart_packet_t dart_arr_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_arr_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc);
-  dart_packet_t dart_arr_init_va(char const* format, ...);
-  dart_err_t dart_arr_init_va_err(dart_packet_t* pkt, char const* format, ...);
-  dart_packet_t dart_arr_init_va_rc(dart_rc_type_t rc, char const* format, ...);
-  dart_err_t dart_arr_init_va_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_packet_t dart_arr_init();
+  DART_ABI_EXPORT dart_err_t dart_arr_init_err(dart_packet_t* pkt);
+  DART_ABI_EXPORT dart_packet_t dart_arr_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_arr_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_packet_t dart_arr_init_va(char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_arr_init_va_err(dart_packet_t* pkt, char const* format, ...);
+  DART_ABI_EXPORT dart_packet_t dart_arr_init_va_rc(dart_rc_type_t rc, char const* format, ...);
+  DART_ABI_EXPORT dart_err_t dart_arr_init_va_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, char const* format, ...);
 
   // generic string constructors.
-  dart_packet_t dart_str_init(char const* str);
-  dart_err_t dart_str_init_err(dart_packet_t* pkt, char const* str);
-  dart_packet_t dart_str_init_len(char const* str, size_t len);
-  dart_err_t dart_str_init_len_err(dart_packet_t* pkt, char const* str, size_t len);
-  dart_packet_t dart_str_init_rc(dart_rc_type_t rc, char const* str);
-  dart_err_t dart_str_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, char const* str);
-  dart_packet_t dart_str_init_rc_len(dart_rc_type_t rc, char const* str, size_t len);
-  dart_err_t dart_str_init_rc_len_err(dart_packet_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT dart_packet_t dart_str_init(char const* str);
+  DART_ABI_EXPORT dart_err_t dart_str_init_err(dart_packet_t* pkt, char const* str);
+  DART_ABI_EXPORT dart_packet_t dart_str_init_len(char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_str_init_len_err(dart_packet_t* pkt, char const* str, size_t len);
+  DART_ABI_EXPORT dart_packet_t dart_str_init_rc(dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_err_t dart_str_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_packet_t dart_str_init_rc_len(dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_str_init_rc_len_err(dart_packet_t* pkt, dart_rc_type_t rc, char const* str, size_t len);
 
   // generic integer constructors.
-  dart_packet_t dart_int_init(int64_t val);
-  dart_err_t dart_int_init_err(dart_packet_t* pkt, int64_t val);
-  dart_packet_t dart_int_init_rc(dart_rc_type_t rc, int64_t val);
-  dart_err_t dart_int_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, int64_t val);
+  DART_ABI_EXPORT dart_packet_t dart_int_init(int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_int_init_err(dart_packet_t* pkt, int64_t val);
+  DART_ABI_EXPORT dart_packet_t dart_int_init_rc(dart_rc_type_t rc, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_int_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, int64_t val);
 
   // generic decimal constructors.
-  dart_packet_t dart_dcm_init(double val);
-  dart_err_t dart_dcm_init_err(dart_packet_t* pkt, double val);
-  dart_packet_t dart_dcm_init_rc(dart_rc_type_t rc, double val);
-  dart_err_t dart_dcm_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, double val);
+  DART_ABI_EXPORT dart_packet_t dart_dcm_init(double val);
+  DART_ABI_EXPORT dart_err_t dart_dcm_init_err(dart_packet_t* pkt, double val);
+  DART_ABI_EXPORT dart_packet_t dart_dcm_init_rc(dart_rc_type_t rc, double val);
+  DART_ABI_EXPORT dart_err_t dart_dcm_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, double val);
 
   // generic boolean constructors.
-  dart_packet_t dart_bool_init(int val);
-  dart_err_t dart_bool_init_err(dart_packet_t* pkt, int val);
-  dart_packet_t dart_bool_init_rc(dart_rc_type_t rc, int val);
-  dart_err_t dart_bool_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, int val);
+  DART_ABI_EXPORT dart_packet_t dart_bool_init(int val);
+  DART_ABI_EXPORT dart_err_t dart_bool_init_err(dart_packet_t* pkt, int val);
+  DART_ABI_EXPORT dart_packet_t dart_bool_init_rc(dart_rc_type_t rc, int val);
+  DART_ABI_EXPORT dart_err_t dart_bool_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc, int val);
 
   // generic null constructors.
-  dart_packet_t dart_null_init();
-  dart_err_t dart_null_init_err(dart_packet_t* pkt);
-  dart_packet_t dart_null_init_rc(dart_rc_type_t rc);
-  dart_err_t dart_null_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_packet_t dart_null_init();
+  DART_ABI_EXPORT dart_err_t dart_null_init_err(dart_packet_t* pkt);
+  DART_ABI_EXPORT dart_packet_t dart_null_init_rc(dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_null_init_rc_err(dart_packet_t* pkt, dart_rc_type_t rc);
 
   // generic object insert operations.
-  dart_err_t dart_obj_insert_dart(void* dst, char const* key, void const* val);
-  dart_err_t dart_obj_insert_dart_len(void* dst, char const* key, size_t len, void const* val);
-  dart_err_t dart_obj_insert_take_dart(void* dst, char const* key, void* val);
-  dart_err_t dart_obj_insert_take_dart_len(void* dst, char const* key, size_t len, void* val);
-  dart_err_t dart_obj_insert_str(void* dst, char const* key, char const* val);
-  dart_err_t dart_obj_insert_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
-  dart_err_t dart_obj_insert_int(void* dst, char const* key, int64_t val);
-  dart_err_t dart_obj_insert_int_len(void* dst, char const* key, size_t len, int64_t val);
-  dart_err_t dart_obj_insert_dcm(void* dst, char const* key, double val);
-  dart_err_t dart_obj_insert_dcm_len(void* dst, char const* key, size_t len, double val);
-  dart_err_t dart_obj_insert_bool(void* dst, char const* key, int val);
-  dart_err_t dart_obj_insert_bool_len(void* dst, char const* key, size_t len, int val);
-  dart_err_t dart_obj_insert_null(void* dst, char const* key);
-  dart_err_t dart_obj_insert_null_len(void* dst, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_dart(void* dst, char const* key, void const* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_dart_len(void* dst, char const* key, size_t len, void const* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_take_dart(void* dst, char const* key, void* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_take_dart_len(void* dst, char const* key, size_t len, void* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_str(void* dst, char const* key, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_int(void* dst, char const* key, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_int_len(void* dst, char const* key, size_t len, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_dcm(void* dst, char const* key, double val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_dcm_len(void* dst, char const* key, size_t len, double val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_bool(void* dst, char const* key, int val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_bool_len(void* dst, char const* key, size_t len, int val);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_null(void* dst, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_obj_insert_null_len(void* dst, char const* key, size_t len);
 
   // generic object set operations.
-  dart_err_t dart_obj_set_dart(void* dst, char const* key, void const* val);
-  dart_err_t dart_obj_set_dart_len(void* dst, char const* key, size_t len, void const* val);
-  dart_err_t dart_obj_set_take_dart(void* dst, char const* key, void* val);
-  dart_err_t dart_obj_set_take_dart_len(void* dst, char const* key, size_t len, void* val);
-  dart_err_t dart_obj_set_str(void* dst, char const* key, char const* val);
-  dart_err_t dart_obj_set_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
-  dart_err_t dart_obj_set_int(void* dst, char const* key, int64_t val);
-  dart_err_t dart_obj_set_int_len(void* dst, char const* key, size_t len, int64_t val);
-  dart_err_t dart_obj_set_dcm(void* dst, char const* key, double val);
-  dart_err_t dart_obj_set_dcm_len(void* dst, char const* key, size_t len, double val);
-  dart_err_t dart_obj_set_bool(void* dst, char const* key, int val);
-  dart_err_t dart_obj_set_bool_len(void* dst, char const* key, size_t len, int val);
-  dart_err_t dart_obj_set_null(void* dst, char const* key);
-  dart_err_t dart_obj_set_null_len(void* dst, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_dart(void* dst, char const* key, void const* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_dart_len(void* dst, char const* key, size_t len, void const* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_take_dart(void* dst, char const* key, void* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_take_dart_len(void* dst, char const* key, size_t len, void* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_str(void* dst, char const* key, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_int(void* dst, char const* key, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_int_len(void* dst, char const* key, size_t len, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_dcm(void* dst, char const* key, double val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_dcm_len(void* dst, char const* key, size_t len, double val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_bool(void* dst, char const* key, int val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_bool_len(void* dst, char const* key, size_t len, int val);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_null(void* dst, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_obj_set_null_len(void* dst, char const* key, size_t len);
 
   // generic object erase operations.
-  dart_err_t dart_obj_clear(void* dst);
-  dart_err_t dart_obj_erase(void* dst, char const* key);
-  dart_err_t dart_obj_erase_len(void* dst, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_obj_clear(void* dst);
+  DART_ABI_EXPORT dart_err_t dart_obj_erase(void* dst, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_obj_erase_len(void* dst, char const* key, size_t len);
 
   // generic array insert operations.
-  dart_err_t dart_arr_insert_dart(void* dst, size_t idx, void const* val);
-  dart_err_t dart_arr_insert_take_dart(void* dst, size_t idx, void* val);
-  dart_err_t dart_arr_insert_str(void* dst, size_t idx, char const* val);
-  dart_err_t dart_arr_insert_str_len(void* dst, size_t idx, char const* val, size_t val_len);
-  dart_err_t dart_arr_insert_int(void* dst, size_t idx, int64_t val);
-  dart_err_t dart_arr_insert_dcm(void* dst, size_t idx, double val);
-  dart_err_t dart_arr_insert_bool(void* dst, size_t idx, int val);
-  dart_err_t dart_arr_insert_null(void* dst, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_dart(void* dst, size_t idx, void const* val);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_take_dart(void* dst, size_t idx, void* val);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_str(void* dst, size_t idx, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_str_len(void* dst, size_t idx, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_int(void* dst, size_t idx, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_dcm(void* dst, size_t idx, double val);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_bool(void* dst, size_t idx, int val);
+  DART_ABI_EXPORT dart_err_t dart_arr_insert_null(void* dst, size_t idx);
 
   // generic array set operations.
-  dart_err_t dart_arr_set_dart(void* dst, size_t idx, void const* val);
-  dart_err_t dart_arr_set_take_dart(void* dst, size_t idx, void* val);
-  dart_err_t dart_arr_set_str(void* dst, size_t idx, char const* val);
-  dart_err_t dart_arr_set_str_len(void* dst, size_t idx, char const* val, size_t val_len);
-  dart_err_t dart_arr_set_int(void* dst, size_t idx, int64_t val);
-  dart_err_t dart_arr_set_dcm(void* dst, size_t idx, double val);
-  dart_err_t dart_arr_set_bool(void* dst, size_t idx, int val);
-  dart_err_t dart_arr_set_null(void* dst, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_dart(void* dst, size_t idx, void const* val);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_take_dart(void* dst, size_t idx, void* val);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_str(void* dst, size_t idx, char const* val);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_str_len(void* dst, size_t idx, char const* val, size_t val_len);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_int(void* dst, size_t idx, int64_t val);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_dcm(void* dst, size_t idx, double val);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_bool(void* dst, size_t idx, int val);
+  DART_ABI_EXPORT dart_err_t dart_arr_set_null(void* dst, size_t idx);
 
   // generic array erase operations.
-  dart_err_t dart_arr_clear(void* pkt);
-  dart_err_t dart_arr_erase(void* pkt, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_arr_clear(void* pkt);
+  DART_ABI_EXPORT dart_err_t dart_arr_erase(void* pkt, size_t idx);
 
   // generic array resize operations.
-  dart_err_t dart_arr_resize(void* dst, size_t len);
-  dart_err_t dart_arr_reserve(void* dst, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_arr_resize(void* dst, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_arr_reserve(void* dst, size_t len);
 
   // generic object retrieval operations.
-  int dart_obj_has_key(void const* src, char const* key);
-  int dart_obj_has_key_len(void const* src, char const* key, size_t len);
-  dart_packet_t dart_obj_get(void const* src, char const* key);
-  dart_err_t dart_obj_get_err(dart_packet_t* dst, void const* src, char const* key);
-  dart_packet_t dart_obj_get_len(void const* src, char const* key, size_t len);
-  dart_err_t dart_obj_get_len_err(dart_packet_t* dst, void const* src, char const* key, size_t len);
+  DART_ABI_EXPORT int dart_obj_has_key(void const* src, char const* key);
+  DART_ABI_EXPORT int dart_obj_has_key_len(void const* src, char const* key, size_t len);
+  DART_ABI_EXPORT dart_packet_t dart_obj_get(void const* src, char const* key);
+  DART_ABI_EXPORT dart_err_t dart_obj_get_err(dart_packet_t* dst, void const* src, char const* key);
+  DART_ABI_EXPORT dart_packet_t dart_obj_get_len(void const* src, char const* key, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_obj_get_len_err(dart_packet_t* dst, void const* src, char const* key, size_t len);
 
   // generic array retrieval operations.
-  dart_packet_t dart_arr_get(void const* src, size_t idx);
-  dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, size_t idx);
+  DART_ABI_EXPORT dart_packet_t dart_arr_get(void const* src, size_t idx);
+  DART_ABI_EXPORT dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, size_t idx);
 
   // generic string retrieval operations.
-  char const* dart_str_get(void const* src);
-  char const* dart_str_get_len(void const* src, size_t* len);
+  DART_ABI_EXPORT char const* dart_str_get(void const* src);
+  DART_ABI_EXPORT char const* dart_str_get_len(void const* src, size_t* len);
 
   // generic integer retrieval operations.
-  int64_t dart_int_get(void const* src);
-  dart_err_t dart_int_get_err(void const* src, int64_t* val);
+  DART_ABI_EXPORT int64_t dart_int_get(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_int_get_err(void const* src, int64_t* val);
 
   // generic decimal retrieval operations.
-  double dart_dcm_get(void const* src);
-  dart_err_t dart_dcm_get_err(void const* src, double* val);
+  DART_ABI_EXPORT double dart_dcm_get(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_dcm_get_err(void const* src, double* val);
 
   // generic boolean retrieval operations.
-  int dart_bool_get(void const* src);
-  dart_err_t dart_bool_get_err(void const* src, int* val);
+  DART_ABI_EXPORT int dart_bool_get(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_bool_get_err(void const* src, int* val);
 
   // generic introspection operations.
-  size_t dart_size(void const* src);
-  int dart_equal(void const* lhs, void const* rhs);
-  int dart_is_obj(void const* src);
-  int dart_is_arr(void const* src);
-  int dart_is_str(void const* src);
-  int dart_is_int(void const* src);
-  int dart_is_dcm(void const* src);
-  int dart_is_bool(void const* src);
-  int dart_is_null(void const* src);
-  int dart_is_finalized(void const* src);
-  dart_type_t dart_get_type(void const* src);
+  DART_ABI_EXPORT size_t dart_size(void const* src);
+  DART_ABI_EXPORT int dart_equal(void const* lhs, void const* rhs);
+  DART_ABI_EXPORT int dart_is_obj(void const* src);
+  DART_ABI_EXPORT int dart_is_arr(void const* src);
+  DART_ABI_EXPORT int dart_is_str(void const* src);
+  DART_ABI_EXPORT int dart_is_int(void const* src);
+  DART_ABI_EXPORT int dart_is_dcm(void const* src);
+  DART_ABI_EXPORT int dart_is_bool(void const* src);
+  DART_ABI_EXPORT int dart_is_null(void const* src);
+  DART_ABI_EXPORT int dart_is_finalized(void const* src);
+  DART_ABI_EXPORT dart_type_t dart_get_type(void const* src);
 
   // generic json operations.
-  dart_packet_t dart_from_json(char const* str);
-  dart_err_t dart_from_json_err(dart_packet_t* dst, char const* str);
-  dart_packet_t dart_from_json_rc(dart_rc_type_t rc, char const* str);
-  dart_err_t dart_from_json_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str);
-  dart_packet_t dart_from_json_len(char const* str, size_t len);
-  dart_err_t dart_from_json_len_err(dart_packet_t* dst, char const* str, size_t len);
-  dart_packet_t dart_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
-  dart_err_t dart_from_json_len_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str, size_t len);
-  char* dart_to_json(void const* src, size_t* len);
+  DART_ABI_EXPORT dart_packet_t dart_from_json(char const* str);
+  DART_ABI_EXPORT dart_err_t dart_from_json_err(dart_packet_t* dst, char const* str);
+  DART_ABI_EXPORT dart_packet_t dart_from_json_rc(dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_err_t dart_from_json_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str);
+  DART_ABI_EXPORT dart_packet_t dart_from_json_len(char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_from_json_len_err(dart_packet_t* dst, char const* str, size_t len);
+  DART_ABI_EXPORT dart_packet_t dart_from_json_len_rc(dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_from_json_len_rc_err(dart_packet_t* dst, dart_rc_type_t rc, char const* str, size_t len);
+  DART_ABI_EXPORT char* dart_to_json(void const* src, size_t* len);
 
   // generic transition functions.
-  dart_heap_t dart_to_heap(void const* src);
-  dart_err_t dart_to_heap_err(dart_heap_t* dst, void const* src);
-  dart_buffer_t dart_to_buffer(void const* src);
-  dart_err_t dart_to_buffer_err(dart_buffer_t* dst, void const* src);
-  dart_packet_t dart_lower(void const* src);
-  dart_err_t dart_lower_err(dart_packet_t* dst, void const* src);
-  dart_packet_t dart_lift(void const* src);
-  dart_err_t dart_lift_err(dart_packet_t* dst, void const* src);
-  dart_packet_t dart_finalize(void const* src);
-  dart_err_t dart_finalize_err(dart_packet_t* dst, void const* src);
-  dart_packet_t dart_definalize(void const* src);
-  dart_err_t dart_definalize_err(dart_packet_t* dst, void const* src);
+  DART_ABI_EXPORT dart_heap_t dart_to_heap(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_to_heap_err(dart_heap_t* dst, void const* src);
+  DART_ABI_EXPORT dart_buffer_t dart_to_buffer(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_to_buffer_err(dart_buffer_t* dst, void const* src);
+  DART_ABI_EXPORT dart_packet_t dart_lower(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_lower_err(dart_packet_t* dst, void const* src);
+  DART_ABI_EXPORT dart_packet_t dart_lift(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_lift_err(dart_packet_t* dst, void const* src);
+  DART_ABI_EXPORT dart_packet_t dart_finalize(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_finalize_err(dart_packet_t* dst, void const* src);
+  DART_ABI_EXPORT dart_packet_t dart_definalize(void const* src);
+  DART_ABI_EXPORT dart_err_t dart_definalize_err(dart_packet_t* dst, void const* src);
 
   // generic network functions.
-  void const* dart_get_bytes(void const* src, size_t* len);
-  void* dart_dup_bytes(void const* src, size_t* len);
-  dart_packet_t dart_from_bytes(void const* bytes, size_t len);
-  dart_err_t dart_from_bytes_err(dart_packet_t* dst, void const* bytes, size_t len);
-  dart_packet_t dart_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len);
-  dart_err_t dart_from_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void const* bytes, size_t len);
-  dart_packet_t dart_take_bytes(void* bytes);
-  dart_err_t dart_take_bytes_err(dart_packet_t* dst, void* bytes);
-  dart_packet_t dart_take_bytes_rc(void* bytes, dart_rc_type_t rc);
-  dart_err_t dart_take_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void* bytes);
+  DART_ABI_EXPORT void const* dart_get_bytes(void const* src, size_t* len);
+  DART_ABI_EXPORT void* dart_dup_bytes(void const* src, size_t* len);
+  DART_ABI_EXPORT dart_packet_t dart_from_bytes(void const* bytes, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_from_bytes_err(dart_packet_t* dst, void const* bytes, size_t len);
+  DART_ABI_EXPORT dart_packet_t dart_from_bytes_rc(void const* bytes, dart_rc_type_t rc, size_t len);
+  DART_ABI_EXPORT dart_err_t dart_from_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void const* bytes, size_t len);
+  DART_ABI_EXPORT dart_packet_t dart_take_bytes(void* bytes);
+  DART_ABI_EXPORT dart_err_t dart_take_bytes_err(dart_packet_t* dst, void* bytes);
+  DART_ABI_EXPORT dart_packet_t dart_take_bytes_rc(void* bytes, dart_rc_type_t rc);
+  DART_ABI_EXPORT dart_err_t dart_take_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void* bytes);
 
   // Iterator operations.
-  dart_err_t dart_iterator_init_err(dart_iterator_t* dst);
-  dart_err_t dart_iterator_init_from_err(dart_iterator_t* dst, void const* src);
-  dart_err_t dart_iterator_init_key_from_err(dart_iterator_t* dst, void const* src);
-  dart_err_t dart_iterator_copy_err(dart_iterator_t* dst, dart_iterator_t const* src);
-  dart_err_t dart_iterator_move_err(dart_iterator_t* dst, dart_iterator_t* src);
-  dart_err_t dart_iterator_destroy(dart_iterator_t* dst);
-  dart_packet_t dart_iterator_get(dart_iterator_t const* src);
-  dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src);
-  dart_err_t dart_iterator_next(dart_iterator_t* dst);
-  int dart_iterator_done(dart_iterator_t const* src);
-  int dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt);
+  DART_ABI_EXPORT dart_err_t dart_iterator_init_err(dart_iterator_t* dst);
+  DART_ABI_EXPORT dart_err_t dart_iterator_init_from_err(dart_iterator_t* dst, void const* src);
+  DART_ABI_EXPORT dart_err_t dart_iterator_init_key_from_err(dart_iterator_t* dst, void const* src);
+  DART_ABI_EXPORT dart_err_t dart_iterator_copy_err(dart_iterator_t* dst, dart_iterator_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_iterator_move_err(dart_iterator_t* dst, dart_iterator_t* src);
+  DART_ABI_EXPORT dart_err_t dart_iterator_destroy(dart_iterator_t* dst);
+  DART_ABI_EXPORT dart_packet_t dart_iterator_get(dart_iterator_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src);
+  DART_ABI_EXPORT dart_err_t dart_iterator_next(dart_iterator_t* dst);
+  DART_ABI_EXPORT int dart_iterator_done(dart_iterator_t const* src);
+  DART_ABI_EXPORT int dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt);
 
   // error handling functions.
-  char const* dart_get_error();
+  DART_ABI_EXPORT char const* dart_get_error();
 
 #ifdef __cplusplus
 }

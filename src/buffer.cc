@@ -2,6 +2,183 @@
 
 #include "helpers.h"
 
+/*----- Helpers -----*/
+
+namespace {
+
+  // XXX: Thank microsoft for this whole mess.
+  // MSVC can't do generic lambdas inside of extern C functions.
+  // It ends up improperly propagating the function linkage to the lambda,
+  // and it explodes since a template can't have C language linkage.
+  // Apparently some previews of Visual Studio 2019 have this fixed, but we'll just
+  // hack around it for now.
+  // So like half of the functions in the ABI have to call through an implementation
+  // function with internal linkage.
+  int dart_buffer_obj_has_key_len_impl(dart_buffer_t const* src, char const* key, size_t len) {
+    bool val = false;
+    auto err = buffer_access(
+      [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
+      src
+    );
+    if (err) return false;
+    else return val;
+  }
+
+  char const* dart_buffer_str_get_len_impl(dart_buffer_t const* src, size_t* len) {
+    char const* str;
+    auto get_str = [&] (auto& src) {
+      auto view = src.strv();
+      str = view.data();
+      *len = view.size();
+    };
+    auto err = buffer_access(
+      compose(
+        [get_str] (dart::buffer const& src) { get_str(src); },
+        [get_str] (dart::unsafe_buffer const& src) { get_str(src); }
+      ),
+      src
+    );
+    if (err) return nullptr;
+    else return str;
+  }
+
+  dart_err_t dart_buffer_int_get_err_impl(dart_buffer_t const* src, int64_t* val) {
+    auto get_int = [=] (auto& src) { *val = src.integer(); };
+    return buffer_access(
+      compose(
+        [get_int] (dart::buffer const& src) { get_int(src); },
+        [get_int] (dart::unsafe_buffer const& src) { get_int(src); }
+      ),
+      src
+    );
+  }
+
+  dart_err_t dart_buffer_dcm_get_err_impl(dart_buffer_t const* src, double* val) {
+    auto get_dcm = [=] (auto& src) { *val = src.decimal(); };
+    return buffer_access(
+      compose(
+        [get_dcm] (dart::buffer const& src) { get_dcm(src); },
+        [get_dcm] (dart::unsafe_buffer const& src) { get_dcm(src); }
+      ),
+      src
+    );
+  }
+
+  dart_err_t dart_buffer_bool_get_err_impl(dart_buffer_t const* src, int* val) {
+    auto get_bool = [=] (auto& src) { *val = src.boolean(); };
+    return buffer_access(
+      compose(
+        [get_bool] (dart::buffer const& src) { get_bool(src); },
+        [get_bool] (dart::unsafe_buffer const& src) { get_bool(src); }
+      ),
+      src
+    );
+  }
+
+  size_t dart_buffer_size_impl(dart_buffer_t const* src) {
+    size_t val = 0;
+    auto err = buffer_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
+  }
+
+  int dart_buffer_equal_impl(dart_buffer_t const* lhs, dart_buffer_t const* rhs) {
+    bool equal = false;
+    auto check = [&] (auto& lhs, auto& rhs) { equal = (lhs == rhs); };
+    auto err = buffer_access(
+      compose(
+        [check, rhs] (dart::buffer const& lhs) {
+          buffer_access([check, lhs] (dart::buffer const& rhs) { check(lhs, rhs); }, rhs);
+        },
+        [check, rhs] (dart::unsafe_buffer const& lhs) {
+          buffer_access([check, lhs] (dart::unsafe_buffer const& rhs) { check(lhs, rhs); }, rhs);
+        }
+      ),
+      lhs
+    );
+    if (err) return false;
+    else return equal;
+  }
+
+  dart_type_t dart_buffer_get_type_impl(dart_buffer_t const* src) {
+    dart_type_t type;
+    auto get_type = [&] (auto& pkt) { type = abi_type(pkt.get_type()); };
+    auto err = buffer_access(
+      compose(
+        [=] (dart::buffer const& pkt) { get_type(pkt); },
+        [=] (dart::unsafe_buffer const& pkt) { get_type(pkt); }
+      ),
+      src
+    );
+    if (err) return DART_INVALID;
+    else return type;
+  }
+
+  char* dart_buffer_to_json_impl(dart_buffer_t const* pkt, size_t* len) {
+    // How long has it been since I've called a raw malloc like this...
+    char* outstr;
+    auto print = [&] (auto& pkt) {
+      // Call these first so they throw before allocation.
+      auto instr = pkt.to_json();
+      auto inlen = instr.size();
+      if (len) *len = inlen;
+      outstr = reinterpret_cast<char*>(malloc(inlen + 1));
+      memcpy(outstr, instr.data(), inlen + 1);
+    };
+    auto ret = buffer_access(
+      compose(
+        [=] (dart::buffer const& pkt) { print(pkt); },
+        [=] (dart::unsafe_buffer const& pkt) { print(pkt); }
+      ),
+      pkt
+    );
+    if (ret) return nullptr;
+    return outstr;
+  }
+
+  void const* dart_buffer_get_bytes_impl(dart_buffer_t const* src, size_t* len) {
+    void const* ptr = nullptr;
+    auto err = buffer_access(
+      [&ptr, len] (auto& src) {
+        auto bytes = src.get_bytes();
+        ptr = bytes.data();
+        if (len) *len = bytes.size();
+      },
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+  void* dart_buffer_dup_bytes_impl(dart_buffer_t const* src, size_t* len) {
+    void* ptr = nullptr;
+    auto err = buffer_access(
+      [&ptr, len] (auto& src) {
+        auto bytes = [&] {
+          if (len) return src.dup_bytes(*len);
+          else return src.dup_bytes();
+        }();
+
+        // FIXME: This is pretty not great, but it SHOULD be ok at the
+        // moment because the underlying buffer isn't ACTUALLY const.
+        // It's returned with a const pointer because it makes the type
+        // conversion logic for then passing that buffer into a packet
+        // constructor much simpler, but logically speaking the buffer
+        // is, and must be, mutable as it's owned by the client, and
+        // free doesn't take a const pointer.
+        // If you check the implementation of dart::buffer::dup_bytes
+        // you'll see that it also has to use a const_cast internally
+        // to be able to destroy the buffer.
+        ptr = const_cast<gsl::byte*>(bytes.release());
+      },
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+}
+
 /*----- Function Implementations -----*/
 
 extern "C" {
@@ -98,13 +275,7 @@ extern "C" {
   }
 
   int dart_buffer_obj_has_key_len(dart_buffer_t const* src, char const* key, size_t len) {
-    bool val = false;
-    auto err = buffer_access(
-      [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
-      src
-    );
-    if (err) return false;
-    else return val;
+    return dart_buffer_obj_has_key_len_impl(src, key, len);
   }
 
   dart_buffer_t dart_buffer_obj_get(dart_buffer_t const* src, char const* key) {
@@ -178,21 +349,7 @@ extern "C" {
   }
 
   char const* dart_buffer_str_get_len(dart_buffer_t const* src, size_t* len) {
-    char const* str;
-    auto get_str = [&] (auto& src) {
-      auto view = src.strv();
-      str = view.data();
-      *len = view.size();
-    };
-    auto err = buffer_access(
-      compose(
-        [get_str] (dart::buffer const& src) { get_str(src); },
-        [get_str] (dart::unsafe_buffer const& src) { get_str(src); }
-      ),
-      src
-    );
-    if (err) return nullptr;
-    else return str;
+    return dart_buffer_str_get_len_impl(src, len);
   }
 
   int64_t dart_buffer_int_get(dart_buffer_t const* src) {
@@ -204,14 +361,7 @@ extern "C" {
   }
 
   dart_err_t dart_buffer_int_get_err(dart_buffer_t const* src, int64_t* val) {
-    auto get_int = [=] (auto& src) { *val = src.integer(); };
-    return buffer_access(
-      compose(
-        [get_int] (dart::buffer const& src) { get_int(src); },
-        [get_int] (dart::unsafe_buffer const& src) { get_int(src); }
-      ),
-      src
-    );
+    return dart_buffer_int_get_err_impl(src, val);
   }
 
   double dart_buffer_dcm_get(dart_buffer_t const* src) {
@@ -221,14 +371,7 @@ extern "C" {
   }
 
   dart_err_t dart_buffer_dcm_get_err(dart_buffer_t const* src, double* val) {
-    auto get_dcm = [=] (auto& src) { *val = src.decimal(); };
-    return buffer_access(
-      compose(
-        [get_dcm] (dart::buffer const& src) { get_dcm(src); },
-        [get_dcm] (dart::unsafe_buffer const& src) { get_dcm(src); }
-      ),
-      src
-    );
+    return dart_buffer_dcm_get_err_impl(src, val);
   }
 
   int dart_buffer_bool_get(dart_buffer_t const* src) {
@@ -240,39 +383,15 @@ extern "C" {
   }
 
   dart_err_t dart_buffer_bool_get_err(dart_buffer_t const* src, int* val) {
-    auto get_bool = [=] (auto& src) { *val = src.boolean(); };
-    return buffer_access(
-      compose(
-        [get_bool] (dart::buffer const& src) { get_bool(src); },
-        [get_bool] (dart::unsafe_buffer const& src) { get_bool(src); }
-      ),
-      src
-    );
+    return dart_buffer_bool_get_err_impl(src, val);
   }
 
   size_t dart_buffer_size(dart_buffer_t const* src) {
-    size_t val = 0;
-    auto err = buffer_access([&val] (auto& src) { val = src.size(); }, src);
-    if (err) return DART_FAILURE;
-    else return val;
+    return dart_buffer_size_impl(src);
   }
 
   int dart_buffer_equal(dart_buffer_t const* lhs, dart_buffer_t const* rhs) {
-    bool equal = false;
-    auto check = [&] (auto& lhs, auto& rhs) { equal = (lhs == rhs); };
-    auto err = buffer_access(
-      compose(
-        [check, rhs] (dart::buffer const& lhs) {
-          buffer_access([check, lhs] (dart::buffer const& rhs) { check(lhs, rhs); }, rhs);
-        },
-        [check, rhs] (dart::unsafe_buffer const& lhs) {
-          buffer_access([check, lhs] (dart::unsafe_buffer const& rhs) { check(lhs, rhs); }, rhs);
-        }
-      ),
-      lhs
-    );
-    if (err) return false;
-    else return equal;
+    return dart_buffer_equal_impl(lhs, rhs);
   }
 
   int dart_buffer_is_obj(dart_buffer_t const* src) {
@@ -304,17 +423,7 @@ extern "C" {
   }
 
   dart_type_t dart_buffer_get_type(dart_buffer_t const* src) {
-    dart_type_t type;
-    auto get_type = [&] (auto& pkt) { type = abi_type(pkt.get_type()); };
-    auto err = buffer_access(
-      compose(
-        [=] (dart::buffer const& pkt) { get_type(pkt); },
-        [=] (dart::unsafe_buffer const& pkt) { get_type(pkt); }
-      ),
-      src
-    );
-    if (err) return DART_INVALID;
-    else return type;
+    return dart_buffer_get_type_impl(src);
   }
 
   dart_buffer_t dart_buffer_from_json(char const* str) {
@@ -374,25 +483,7 @@ extern "C" {
   }
 
   char* dart_buffer_to_json(dart_buffer_t const* pkt, size_t* len) {
-    // How long has it been since I've called a raw malloc like this...
-    char* outstr;
-    auto print = [&] (auto& pkt) {
-      // Call these first so they throw before allocation.
-      auto instr = pkt.to_json();
-      auto inlen = instr.size();
-      if (len) *len = inlen;
-      outstr = reinterpret_cast<char*>(malloc(inlen + 1));
-      memcpy(outstr, instr.data(), inlen + 1);
-    };
-    auto ret = buffer_access(
-      compose(
-        [=] (dart::buffer const& pkt) { print(pkt); },
-        [=] (dart::unsafe_buffer const& pkt) { print(pkt); }
-      ),
-      pkt
-    );
-    if (ret) return nullptr;
-    return outstr;
+    return dart_buffer_to_json_impl(pkt, len);
   }
 
   dart_heap_t dart_buffer_lift(dart_buffer_t const* src) {
@@ -430,44 +521,11 @@ extern "C" {
   }
 
   void const* dart_buffer_get_bytes(dart_buffer_t const* src, size_t* len) {
-    void const* ptr = nullptr;
-    auto err = buffer_access(
-      [&ptr, len] (auto& src) {
-        auto bytes = src.get_bytes();
-        ptr = bytes.data();
-        if (len) *len = bytes.size();
-      },
-      src
-    );
-    if (err) return nullptr;
-    else return ptr;
+    return dart_buffer_get_bytes_impl(src, len);
   }
 
   void* dart_buffer_dup_bytes(dart_buffer_t const* src, size_t* len) {
-    void* ptr = nullptr;
-    auto err = buffer_access(
-      [&ptr, len] (auto& src) {
-        auto bytes = [&] {
-          if (len) return src.dup_bytes(*len);
-          else return src.dup_bytes();
-        }();
-
-        // FIXME: This is pretty not great, but it SHOULD be ok at the
-        // moment because the underlying buffer isn't ACTUALLY const.
-        // It's returned with a const pointer because it makes the type
-        // conversion logic for then passing that buffer into a packet
-        // constructor much simpler, but logically speaking the buffer
-        // is, and must be, mutable as it's owned by the client, and
-        // free doesn't take a const pointer.
-        // If you check the implementation of dart::buffer::dup_bytes
-        // you'll see that it also has to use a const_cast internally
-        // to be able to destroy the buffer.
-        ptr = const_cast<gsl::byte*>(bytes.release());
-      },
-      src
-    );
-    if (err) return nullptr;
-    else return ptr;
+    return dart_buffer_dup_bytes_impl(src, len);
   }
 
   dart_buffer_t dart_buffer_from_bytes(void const* bytes, size_t len) {

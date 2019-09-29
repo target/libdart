@@ -22,6 +22,629 @@ namespace {
     punned_dst->rc_id = punned_src->rc_id;
   }
 
+  // XXX: Thank microsoft for this whole mess.
+  // MSVC can't do generic lambdas inside of extern C functions.
+  // It ends up improperly propagating the function linkage to the lambda,
+  // and it explodes since a template can't have C language linkage.
+  // Apparently some previews of Visual Studio 2019 have this fixed, but we'll just
+  // hack around it for now.
+  // So like half of the functions in the ABI have to call through an implementation
+  // function with internal linkage.
+  dart_err_t dart_copy_err_impl(void* dst, void const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [=] (auto& src) { return generic_construct([&src] (auto* dst) { safe_construct(dst, src); }, dst); },
+      src
+    );
+  }
+
+  dart_err_t dart_move_err_impl(void* dst, void* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [=] (auto& src) { return generic_construct([&src] (auto* dst) { safe_construct(dst, std::move(src)); }, dst); },
+      src
+    );
+  }
+
+  dart_err_t dart_obj_insert_dart_len_impl(void* dst, char const* key, size_t len, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_insert(dst, string_view {key, len}, val);
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_take_dart_len_impl(void* dst, char const* key, size_t len, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_insert(dst, string_view {key, len}, std::move(val));
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_str_len_impl(void* dst, char const* key, size_t len, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, string_view {val, val_len}); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_int_len_impl(void* dst, char const* key, size_t len, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_dcm_len_impl(void* dst, char const* key, size_t len, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_bool_len_impl(void* dst, char const* key, size_t len, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, static_cast<bool>(val)); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_insert_null_len_impl(void* dst, char const* key, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, nullptr); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_dart_len_impl(void* dst, char const* key, size_t len, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_set(dst, string_view {key, len}, val);
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_take_dart_len_impl(void* dst, char const* key, size_t len, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [key, len, val] (auto& dst) {
+          return generic_access([&dst, key, len] (auto& val) {
+            safe_set(dst, string_view {key, len}, std::move(val));
+          }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_str_len_impl(void* dst, char const* key, size_t len, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, string_view {val, val_len}); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_int_len_impl(void* dst, char const* key, size_t len, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_dcm_len_impl(void* dst, char const* key, size_t len, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_bool_len_impl(void* dst, char const* key, size_t len, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, static_cast<bool>(val)); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_set_null_len_impl(void* dst, char const* key, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, nullptr); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_obj_clear_impl(void* dst) {
+    return generic_access(mutable_visitor([] (auto& dst) { dst.clear(); }), dst);
+  }
+
+  dart_err_t dart_obj_erase_len_impl(void* dst, char const* key, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.erase(string_view {key, len}); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_dart_impl(void* dst, size_t idx, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_take_dart_impl(void* dst, size_t idx, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, std::move(val)); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_str_len_impl(void* dst, size_t idx, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, string_view {val, val_len}); }),
+      dst
+    );
+  }
+  
+  dart_err_t dart_arr_insert_int_impl(void* dst, size_t idx, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_dcm_impl(void* dst, size_t idx, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_bool_impl(void* dst, size_t idx, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_insert_null_impl(void* dst, size_t idx) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, nullptr); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_dart_impl(void* dst, size_t idx, void const* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_set(dst, idx, val); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_take_dart_impl(void* dst, size_t idx, void* val) {
+    return generic_access(
+      mutable_visitor(
+        [idx, val] (auto& dst) {
+          return generic_access([&dst, idx] (auto& val) { safe_set(dst, idx, std::move(val)); }, val);
+        }
+      ),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_str_len_impl(void* dst, size_t idx, char const* val, size_t val_len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, string_view {val, val_len}); }),
+      dst
+    );
+  }
+  
+  dart_err_t dart_arr_set_int_impl(void* dst, size_t idx, int64_t val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_dcm_impl(void* dst, size_t idx, double val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_bool_impl(void* dst, size_t idx, int val) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_set_null_impl(void* dst, size_t idx) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.set(idx, nullptr); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_clear_impl(void* dst) {
+    return generic_access(mutable_visitor([] (auto& dst) { dst.clear(); }), dst);
+  }
+
+  dart_err_t dart_arr_erase_impl(void* dst, size_t idx) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.erase(idx); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_resize_impl(void* dst, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.resize(len); }),
+      dst
+    );
+  }
+
+  dart_err_t dart_arr_reserve_impl(void* dst, size_t len) {
+    return generic_access(
+      mutable_visitor([=] (auto& dst) { dst.reserve(len); }),
+      dst
+    );
+  }
+
+  int dart_obj_has_key_len_impl(void const* src, char const* key, size_t len) {
+    bool val = false;
+    auto err = generic_access(
+      [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
+      src
+    );
+    if (err) return false;
+    else return val;
+  }
+
+  dart_err_t dart_obj_get_len_err_impl(dart_packet_t* dst, void const* src, char const* key, size_t len) {
+    // Initialize.
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        return packet_construct([=, &src] (auto* dst) {
+          safe_construct(dst, src.get({key, len}));
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_arr_get_err_impl(dart_packet_t* dst, void const* src, size_t idx) {
+    // Initialize.
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        return packet_construct([=, &src] (auto* dst) {
+          safe_construct(dst, src.get(idx));
+        }, dst);
+      },
+      src
+    );
+  }
+
+  char const* dart_str_get_len_impl(void const* src, size_t* len) {
+    char const* ptr;
+    auto ret = generic_access([&] (auto& src) {
+      auto strv = src.strv();
+      ptr = strv.data();
+      *len = strv.size();
+    }, src);
+    if (ret) return nullptr;
+    else return ptr;
+  }
+
+  dart_err_t dart_int_get_err_impl(void const* src, int64_t* val) {
+    return generic_access([=] (auto& str) { *val = str.integer(); }, src);
+  }
+
+  dart_err_t dart_dcm_get_err_impl(void const* src, double* val) {
+    return generic_access([=] (auto& str) { *val = str.decimal(); }, src);
+  }
+
+  dart_err_t dart_bool_get_err_impl(void const* src, int* val) {
+    return generic_access([=] (auto& src) { *val = src.boolean(); }, src);
+  }
+
+  size_t dart_size_impl(void const* src) {
+    size_t val = 0;
+    auto err = generic_access([&val] (auto& src) { val = src.size(); }, src);
+    if (err) return DART_FAILURE;
+    else return val;
+  }
+
+  int dart_equal_impl(void const* lhs, void const* rhs) {
+    bool equal = false;
+    dart::detail::typeless_comparator comp {};
+    auto err = generic_access(
+      [&] (auto& lhs) { generic_access([&] (auto& rhs) { equal = comp(lhs, rhs); }, rhs); },
+      lhs
+    );
+    if (err) return false;
+    else return equal;
+  }
+
+  int dart_is_finalized_impl(void const* src) {
+    bool finalized = false;
+    auto err = generic_access(
+      [&] (auto& src) { finalized = src.is_finalized(); },
+      src
+    );
+    if (err) return false;
+    else return finalized;
+  }
+
+  dart_type_t dart_get_type_impl(void const* src) {
+    dart_type_t type;
+    auto err = generic_access([&] (auto& str) { type = abi_type(str.get_type()); }, src);
+    if (err) return DART_INVALID;
+    else return type;
+  }
+
+  char* dart_to_json_impl(void const* src, size_t* len) {
+    char* outstr;
+    auto ret = generic_access(
+      [&] (auto& pkt) {
+        // Call these first so they throw before allocation.
+        auto instr = pkt.to_json();
+        auto inlen = instr.size();
+        if (len) *len = inlen;
+        outstr = reinterpret_cast<char*>(malloc(inlen + 1));
+        memcpy(outstr, instr.data(), inlen + 1);
+      },
+      src
+    );
+    if (ret) return nullptr;
+    return outstr;
+  }
+
+  dart_err_t dart_to_heap_err_impl(dart_heap_t* dst, void const* src) {
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_HEAP;
+    return generic_access(
+      [=] (auto& src) {
+        auto tmp {src};
+        return heap_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lift()); }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_to_buffer_err_impl(dart_buffer_t* dst, void const* src) {
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_BUFFER;
+    return generic_access(
+      [=] (auto& src) {
+        auto tmp {src};
+        return buffer_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lift()); }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_lower_err_impl(dart_packet_t* dst, void const* src) {
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        auto tmp {src};
+        return generic_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lower()); }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_lift_err_impl(dart_packet_t* dst, void const* src) {
+    dart_rc_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    return generic_access(
+      [=] (auto& src) {
+        auto tmp {src};
+        return generic_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lift()); }, dst);
+      },
+      src
+    );
+  }
+
+  void const* dart_get_bytes_impl(void const* src, size_t* len) {
+    void const* ptr = nullptr;
+    auto err = generic_access(
+      immutable_visitor(
+        [&ptr, len] (auto& src) {
+          auto bytes = src.get_bytes();
+          ptr = bytes.data();
+          if (len) *len = bytes.size();
+        }
+      ),
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+  void* dart_dup_bytes_impl(void const* src, size_t* len) {
+    void* ptr = nullptr;
+    auto err = generic_access(
+      immutable_visitor(
+        [&ptr, len] (auto& src) {
+          auto bytes = [&] {
+            if (len) return src.dup_bytes(*len);
+            else return src.dup_bytes();
+          }();
+
+          // FIXME: This is pretty not great, but it SHOULD be ok at the
+          // moment because the underlying buffer isn't ACTUALLY const.
+          // It's returned with a const pointer because it makes the type
+          // conversion logic for then passing that buffer into a packet
+          // constructor much simpler, but logically speaking the buffer
+          // is, and must be, mutable as it's owned by the client, and
+          // free doesn't take a const pointer.
+          // If you check the implementation of dart::buffer::dup_bytes
+          // you'll see that it also has to use a const_cast internally
+          // to be able to destroy the buffer.
+          ptr = const_cast<gsl::byte*>(bytes.release());
+        }
+      ),
+      src
+    );
+    if (err) return nullptr;
+    else return ptr;
+  }
+
+  dart_err_t dart_from_bytes_rc_err_impl(dart_packet_t* dst, dart_rc_type_t rc, void const* bytes, size_t len) {
+    auto* punned = reinterpret_cast<gsl::byte const*>(bytes);
+    return packet_typed_constructor_access(
+      [punned, len] (auto& dst) {
+        using packet_type = std::decay_t<decltype(dst)>;
+        dst = packet_type {gsl::make_span(punned, len)};
+      },
+      dst,
+      rc
+    );
+  }
+
+  dart_err_t dart_take_bytes_rc_err_impl(dart_packet_t* dst, dart_rc_type_t rc, void* bytes) {
+    using owner_type = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>;
+
+    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+    owner_type owner {reinterpret_cast<gsl::byte const*>(bytes), del};
+    return packet_typed_constructor_access(
+      [&] (auto& dst) {
+        using packet_type = std::decay_t<decltype(dst)>;
+        dst = packet_type {std::move(owner)};
+      },
+      dst,
+      rc
+    );
+  }
+
+  dart_err_t dart_iterator_init_from_err_impl(dart_iterator_t* dst, void const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [dst] (auto& src) {
+        using iterator = typename std::decay_t<decltype(src)>::iterator;
+        return iterator_construct([&src] (iterator* begin, iterator* end) {
+          new(begin) iterator(src.begin());
+          new(end) iterator(src.end());
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_init_key_from_err_impl(dart_iterator_t* dst, void const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return generic_access(
+      [dst] (auto& src) {
+        using iterator = typename std::decay_t<decltype(src)>::iterator;
+        return iterator_construct([&src] (iterator* begin, iterator* end) {
+          new(begin) iterator(src.key_begin());
+          new(end) iterator(src.key_end());
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_copy_err_impl(dart_iterator_t* dst, dart_iterator_t const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return iterator_access(
+      [dst] (auto& src_curr, auto& src_end) {
+        using type = std::decay_t<decltype(src_curr)>;
+        return iterator_construct([&src_curr, &src_end] (type* dst_curr, type* dst_end) {
+          new(dst_curr) type(src_curr);
+          new(dst_end) type(src_end);
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_move_err_impl(dart_iterator_t* dst, dart_iterator_t* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return iterator_access(
+      [dst] (auto& src_curr, auto& src_end) {
+        using type = std::decay_t<decltype(src_curr)>;
+        return iterator_construct([&src_curr, &src_end] (type* dst_curr, type* dst_end) {
+          new(dst_curr) type(std::move(src_curr));
+          new(dst_end) type(std::move(src_end));
+        }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_destroy_impl(dart_iterator_t* dst) {
+    return iterator_access([] (auto& start, auto& end) {
+      using type = std::decay_t<decltype(start)>;
+      start.~type();
+      end.~type();
+    }, dst);
+  }
+
+  dart_err_t dart_iterator_get_err_impl(dart_packet_t* dst, dart_iterator_t const* src) {
+    // Initialize.
+    dart_rtti_propagate(dst, src);
+    return iterator_access(
+      [dst] (auto& src_curr, auto& src_end) {
+        using type = typename std::decay_t<decltype(src_curr)>::value_type;
+        if (src_curr == src_end) throw std::runtime_error("dart_iterator has been exhausted");
+        return packet_construct([&src_curr] (type* dst) { new(dst) type(*src_curr); }, dst);
+      },
+      src
+    );
+  }
+
+  dart_err_t dart_iterator_next_impl(dart_iterator_t* dst) {
+    return iterator_access([] (auto& curr, auto& end) { if (curr != end) curr++; }, dst);
+  }
+
+  int dart_iterator_done_impl(dart_iterator_t const* src) {
+    bool ended = false;
+    auto err = iterator_access([&] (auto& curr, auto& end) { ended = (curr == end); }, src);
+    if (err) return true;
+    else return ended;
+  }
+
 }
 
 /*----- Function Implementations -----*/
@@ -66,12 +689,7 @@ extern "C" {
   }
 
   dart_err_t dart_copy_err(void* dst, void const* src) {
-    // Initialize.
-    dart_rtti_propagate(dst, src);
-    return generic_access(
-      [=] (auto& src) { return generic_construct([&src] (auto* dst) { safe_construct(dst, src); }, dst); },
-      src
-    );
+    return dart_copy_err_impl(dst, src);
   }
 
   dart_packet_t dart_move(void* src) {
@@ -82,12 +700,7 @@ extern "C" {
   }
 
   dart_err_t dart_move_err(void* dst, void* src) {
-    // Initialize.
-    dart_rtti_propagate(dst, src);
-    return generic_access(
-      [=] (auto& src) { return generic_construct([&src] (auto* dst) { safe_construct(dst, std::move(src)); }, dst); },
-      src
-    );
+    return dart_move_err_impl(dst, src);
   }
 
   dart_err_t dart_destroy(void* pkt) {
@@ -448,16 +1061,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_insert_dart_len(void* dst, char const* key, size_t len, void const* val) {
-    return generic_access(
-      mutable_visitor(
-        [key, len, val] (auto& dst) {
-          return generic_access([&dst, key, len] (auto& val) {
-            safe_insert(dst, string_view {key, len}, val);
-          }, val);
-        }
-      ),
-      dst
-    );
+    return dart_obj_insert_dart_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_insert_take_dart(void* dst, char const* key, void* val) {
@@ -465,16 +1069,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_insert_take_dart_len(void* dst, char const* key, size_t len, void* val) {
-    return generic_access(
-      mutable_visitor(
-        [key, len, val] (auto& dst) {
-          return generic_access([&dst, key, len] (auto& val) {
-            safe_insert(dst, string_view {key, len}, std::move(val));
-          }, val);
-        }
-      ),
-      dst
-    );
+    return dart_obj_insert_take_dart_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_insert_str(void* dst, char const* key, char const* val) {
@@ -482,10 +1077,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_insert_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, string_view {val, val_len}); }),
-      dst
-    );
+    return dart_obj_insert_str_len_impl(dst, key, len, val, val_len);
   }
 
   dart_err_t dart_obj_insert_int(void* dst, char const* key, int64_t val) {
@@ -493,10 +1085,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_insert_int_len(void* dst, char const* key, size_t len, int64_t val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, val); }),
-      dst
-    );
+    return dart_obj_insert_int_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_insert_dcm(void* dst, char const* key, double val) {
@@ -504,10 +1093,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_insert_dcm_len(void* dst, char const* key, size_t len, double val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, val); }),
-      dst
-    );
+    return dart_obj_insert_dcm_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_insert_bool(void* dst, char const* key, int val) {
@@ -515,10 +1101,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_insert_bool_len(void* dst, char const* key, size_t len, int val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, static_cast<bool>(val)); }),
-      dst
-    );
+    return dart_obj_insert_bool_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_insert_null(void* dst, char const* key) {
@@ -526,10 +1109,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_insert_null_len(void* dst, char const* key, size_t len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(string_view {key, len}, nullptr); }),
-      dst
-    );
+    return dart_obj_insert_null_len_impl(dst, key, len);
   }
 
   dart_err_t dart_obj_set_dart(void* dst, char const* key, void const* val) {
@@ -537,16 +1117,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_set_dart_len(void* dst, char const* key, size_t len, void const* val) {
-    return generic_access(
-      mutable_visitor(
-        [key, len, val] (auto& dst) {
-          return generic_access([&dst, key, len] (auto& val) {
-            safe_set(dst, string_view {key, len}, val);
-          }, val);
-        }
-      ),
-      dst
-    );
+    return dart_obj_set_dart_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_set_take_dart(void* dst, char const* key, void* val) {
@@ -554,16 +1125,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_set_take_dart_len(void* dst, char const* key, size_t len, void* val) {
-    return generic_access(
-      mutable_visitor(
-        [key, len, val] (auto& dst) {
-          return generic_access([&dst, key, len] (auto& val) {
-            safe_set(dst, string_view {key, len}, std::move(val));
-          }, val);
-        }
-      ),
-      dst
-    );
+    return dart_obj_set_take_dart_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_set_str(void* dst, char const* key, char const* val) {
@@ -571,10 +1133,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_set_str_len(void* dst, char const* key, size_t len, char const* val, size_t val_len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, string_view {val, val_len}); }),
-      dst
-    );
+    return dart_obj_set_str_len_impl(dst, key, len, val, val_len);
   }
 
   dart_err_t dart_obj_set_int(void* dst, char const* key, int64_t val) {
@@ -582,10 +1141,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_set_int_len(void* dst, char const* key, size_t len, int64_t val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, val); }),
-      dst
-    );
+    return dart_obj_set_int_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_set_dcm(void* dst, char const* key, double val) {
@@ -593,10 +1149,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_set_dcm_len(void* dst, char const* key, size_t len, double val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, val); }),
-      dst
-    );
+    return dart_obj_set_dcm_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_set_bool(void* dst, char const* key, int val) {
@@ -604,10 +1157,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_set_bool_len(void* dst, char const* key, size_t len, int val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, static_cast<bool>(val)); }),
-      dst
-    );
+    return dart_obj_set_bool_len_impl(dst, key, len, val);
   }
 
   dart_err_t dart_obj_set_null(void* dst, char const* key) {
@@ -615,14 +1165,11 @@ extern "C" {
   }
 
   dart_err_t dart_obj_set_null_len(void* dst, char const* key, size_t len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(string_view {key, len}, nullptr); }),
-      dst
-    );
+    return dart_obj_set_null_len_impl(dst, key, len);
   }
 
   dart_err_t dart_obj_clear(void* dst) {
-    return generic_access(mutable_visitor([] (auto& dst) { dst.clear(); }), dst);
+    return dart_obj_clear_impl(dst);
   }
 
   dart_err_t dart_obj_erase(void* dst, char const* key) {
@@ -630,32 +1177,15 @@ extern "C" {
   }
 
   dart_err_t dart_obj_erase_len(void* dst, char const* key, size_t len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.erase(string_view {key, len}); }),
-      dst
-    );
+    return dart_obj_erase_len_impl(dst, key, len);
   }
 
   dart_err_t dart_arr_insert_dart(void* dst, size_t idx, void const* val) {
-    return generic_access(
-      mutable_visitor(
-        [idx, val] (auto& dst) {
-          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, val); }, val);
-        }
-      ),
-      dst
-    );
+    return dart_arr_insert_dart_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_insert_take_dart(void* dst, size_t idx, void* val) {
-    return generic_access(
-      mutable_visitor(
-        [idx, val] (auto& dst) {
-          return generic_access([&dst, idx] (auto& val) { safe_insert(dst, idx, std::move(val)); }, val);
-        }
-      ),
-      dst
-    );
+    return dart_arr_insert_take_dart_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_insert_str(void* dst, size_t idx, char const* val) {
@@ -663,60 +1193,31 @@ extern "C" {
   }
 
   dart_err_t dart_arr_insert_str_len(void* dst, size_t idx, char const* val, size_t val_len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(idx, string_view {val, val_len}); }),
-      dst
-    );
+    return dart_arr_insert_str_len_impl(dst, idx, val, val_len);
   }
   
   dart_err_t dart_arr_insert_int(void* dst, size_t idx, int64_t val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
-      dst
-    );
+    return dart_arr_insert_int_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_insert_dcm(void* dst, size_t idx, double val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
-      dst
-    );
+    return dart_arr_insert_dcm_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_insert_bool(void* dst, size_t idx, int val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
-      dst
-    );
+    return dart_arr_insert_bool_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_insert_null(void* dst, size_t idx) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(idx, nullptr); }),
-      dst
-    );
+    return dart_arr_insert_null_impl(dst, idx);
   }
 
   dart_err_t dart_arr_set_dart(void* dst, size_t idx, void const* val) {
-    return generic_access(
-      mutable_visitor(
-        [idx, val] (auto& dst) {
-          return generic_access([&dst, idx] (auto& val) { safe_set(dst, idx, val); }, val);
-        }
-      ),
-      dst
-    );
+    return dart_arr_set_dart_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_set_take_dart(void* dst, size_t idx, void* val) {
-    return generic_access(
-      mutable_visitor(
-        [idx, val] (auto& dst) {
-          return generic_access([&dst, idx] (auto& val) { safe_set(dst, idx, std::move(val)); }, val);
-        }
-      ),
-      dst
-    );
+    return dart_arr_set_take_dart_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_set_str(void* dst, size_t idx, char const* val) {
@@ -724,63 +1225,39 @@ extern "C" {
   }
 
   dart_err_t dart_arr_set_str_len(void* dst, size_t idx, char const* val, size_t val_len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(idx, string_view {val, val_len}); }),
-      dst
-    );
+    return dart_arr_set_str_len_impl(dst, idx, val, val_len);
   }
   
   dart_err_t dart_arr_set_int(void* dst, size_t idx, int64_t val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
-      dst
-    );
+    return dart_arr_set_int_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_set_dcm(void* dst, size_t idx, double val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
-      dst
-    );
+    return dart_arr_set_dcm_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_set_bool(void* dst, size_t idx, int val) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
-      dst
-    );
+    return dart_arr_set_bool_impl(dst, idx, val);
   }
 
   dart_err_t dart_arr_set_null(void* dst, size_t idx) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(idx, nullptr); }),
-      dst
-    );
+    return dart_arr_set_null_impl(dst, idx);
   }
 
   dart_err_t dart_arr_clear(void* dst) {
-    return generic_access(mutable_visitor([] (auto& dst) { dst.clear(); }), dst);
+    return dart_arr_clear_impl(dst);
   }
 
   dart_err_t dart_arr_erase(void* dst, size_t idx) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.erase(idx); }),
-      dst
-    );
+    return dart_arr_erase_impl(dst, idx);
   }
 
   dart_err_t dart_arr_resize(void* dst, size_t len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.resize(len); }),
-      dst
-    );
+    return dart_arr_resize_impl(dst, len);
   }
 
   dart_err_t dart_arr_reserve(void* dst, size_t len) {
-    return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.reserve(len); }),
-      dst
-    );
+    return dart_arr_reserve_impl(dst, len);
   }
 
   int dart_obj_has_key(void const* src, char const* key) {
@@ -788,13 +1265,7 @@ extern "C" {
   }
 
   int dart_obj_has_key_len(void const* src, char const* key, size_t len) {
-    bool val = false;
-    auto err = generic_access(
-      [&val, key, len] (auto& src) { val = src.has_key(string_view {key, len}); },
-      src
-    );
-    if (err) return false;
-    else return val;
+    return dart_obj_has_key_len_impl(src, key, len);
   }
 
   dart_packet_t dart_obj_get(void const* src, char const* key) {
@@ -816,17 +1287,7 @@ extern "C" {
   }
 
   dart_err_t dart_obj_get_len_err(dart_packet_t* dst, void const* src, char const* key, size_t len) {
-    // Initialize.
-    dart_rc_propagate(dst, src);
-    dst->rtti.p_id = DART_PACKET;
-    return generic_access(
-      [=] (auto& src) {
-        return packet_construct([=, &src] (auto* dst) {
-          safe_construct(dst, src.get({key, len}));
-        }, dst);
-      },
-      src
-    );
+    return dart_obj_get_len_err_impl(dst, src, key, len);
   }
 
   dart_packet_t dart_arr_get(void const* src, size_t idx) {
@@ -837,17 +1298,7 @@ extern "C" {
   }
 
   dart_err_t dart_arr_get_err(dart_packet_t* dst, void const* src, size_t idx) {
-    // Initialize.
-    dart_rc_propagate(dst, src);
-    dst->rtti.p_id = DART_PACKET;
-    return generic_access(
-      [=] (auto& src) {
-        return packet_construct([=, &src] (auto* dst) {
-          safe_construct(dst, src.get(idx));
-        }, dst);
-      },
-      src
-    );
+    return dart_arr_get_err_impl(dst, src, idx);
   }
 
   char const* dart_str_get(void const* src) {
@@ -856,14 +1307,7 @@ extern "C" {
   }
 
   char const* dart_str_get_len(void const* src, size_t* len) {
-    char const* ptr;
-    auto ret = generic_access([&] (auto& src) {
-      auto strv = src.strv();
-      ptr = strv.data();
-      *len = strv.size();
-    }, src);
-    if (ret) return nullptr;
-    else return ptr;
+    return dart_str_get_len_impl(src, len);
   }
 
   int64_t dart_int_get(void const* src) {
@@ -875,7 +1319,7 @@ extern "C" {
   }
 
   dart_err_t dart_int_get_err(void const* src, int64_t* val) {
-    return generic_access([=] (auto& str) { *val = str.integer(); }, src);
+    return dart_int_get_err_impl(src, val);
   }
 
   double dart_dcm_get(void const* src) {
@@ -885,7 +1329,7 @@ extern "C" {
   }
 
   dart_err_t dart_dcm_get_err(void const* src, double* val) {
-    return generic_access([=] (auto& str) { *val = str.decimal(); }, src);
+    return dart_dcm_get_err_impl(src, val);
   }
 
   int dart_bool_get(void const* src) {
@@ -897,25 +1341,15 @@ extern "C" {
   }
 
   dart_err_t dart_bool_get_err(void const* src, int* val) {
-    return generic_access([=] (auto& src) { *val = src.boolean(); }, src);
+    return dart_bool_get_err_impl(src, val);
   }
 
   size_t dart_size(void const* src) {
-    size_t val = 0;
-    auto err = generic_access([&val] (auto& src) { val = src.size(); }, src);
-    if (err) return DART_FAILURE;
-    else return val;
+    return dart_size_impl(src);
   }
 
   int dart_equal(void const* lhs, void const* rhs) {
-    bool equal = false;
-    dart::detail::typeless_comparator comp {};
-    auto err = generic_access(
-      [&] (auto& lhs) { generic_access([&] (auto& rhs) { equal = comp(lhs, rhs); }, rhs); },
-      lhs
-    );
-    if (err) return false;
-    else return equal;
+    return dart_equal_impl(lhs, rhs);
   }
 
   int dart_is_obj(void const* src) {
@@ -947,20 +1381,11 @@ extern "C" {
   }
 
   int dart_is_finalized(void const* src) {
-    bool finalized = false;
-    auto err = generic_access(
-      [&] (auto& src) { finalized = src.is_finalized(); },
-      src
-    );
-    if (err) return false;
-    else return finalized;
+    return dart_is_finalized_impl(src);
   }
 
   dart_type_t dart_get_type(void const* src) {
-    dart_type_t type;
-    auto err = generic_access([&] (auto& str) { type = abi_type(str.get_type()); }, src);
-    if (err) return DART_INVALID;
-    else return type;
+    return dart_get_type_impl(src);
   }
 
   dart_packet_t dart_from_json(char const* str) {
@@ -1019,20 +1444,7 @@ extern "C" {
   }
 
   char* dart_to_json(void const* src, size_t* len) {
-    char* outstr;
-    auto ret = generic_access(
-      [&] (auto& pkt) {
-        // Call these first so they throw before allocation.
-        auto instr = pkt.to_json();
-        auto inlen = instr.size();
-        if (len) *len = inlen;
-        outstr = reinterpret_cast<char*>(malloc(inlen + 1));
-        memcpy(outstr, instr.data(), inlen + 1);
-      },
-      src
-    );
-    if (ret) return nullptr;
-    return outstr;
+    return dart_to_json_impl(src, len);
   }
 
   dart_heap_t dart_to_heap(void const* src) {
@@ -1043,15 +1455,7 @@ extern "C" {
   }
 
   dart_err_t dart_to_heap_err(dart_heap_t* dst, void const* src) {
-    dart_rc_propagate(dst, src);
-    dst->rtti.p_id = DART_HEAP;
-    return generic_access(
-      [=] (auto& src) {
-        auto tmp {src};
-        return heap_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lift()); }, dst);
-      },
-      src
-    );
+    return dart_to_heap_err_impl(dst, src);
   }
 
   dart_buffer_t dart_to_buffer(void const* src) {
@@ -1062,15 +1466,7 @@ extern "C" {
   }
 
   dart_err_t dart_to_buffer_err(dart_buffer_t* dst, void const* src) {
-    dart_rc_propagate(dst, src);
-    dst->rtti.p_id = DART_BUFFER;
-    return generic_access(
-      [=] (auto& src) {
-        auto tmp {src};
-        return buffer_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lift()); }, dst);
-      },
-      src
-    );
+    return dart_to_buffer_err_impl(dst, src);
   }
 
   dart_packet_t dart_lower(void const* src) {
@@ -1081,15 +1477,7 @@ extern "C" {
   }
 
   dart_err_t dart_lower_err(dart_packet_t* dst, void const* src) {
-    dart_rc_propagate(dst, src);
-    dst->rtti.p_id = DART_PACKET;
-    return generic_access(
-      [=] (auto& src) {
-        auto tmp {src};
-        return generic_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lower()); }, dst);
-      },
-      src
-    );
+    return dart_lower_err_impl(dst, src);
   }
 
   dart_packet_t dart_lift(void const* src) {
@@ -1100,15 +1488,7 @@ extern "C" {
   }
 
   dart_err_t dart_lift_err(dart_packet_t* dst, void const* src) {
-    dart_rc_propagate(dst, src);
-    dst->rtti.p_id = DART_PACKET;
-    return generic_access(
-      [=] (auto& src) {
-        auto tmp {src};
-        return generic_construct([&tmp] (auto* dst) { safe_construct(dst, std::move(tmp).lift()); }, dst);
-      },
-      src
-    );
+    return dart_lift_err_impl(dst, src);
   }
 
   dart_packet_t dart_finalize(void const* src) {
@@ -1128,48 +1508,11 @@ extern "C" {
   }
 
   void const* dart_get_bytes(void const* src, size_t* len) {
-    void const* ptr = nullptr;
-    auto err = generic_access(
-      immutable_visitor(
-        [&ptr, len] (auto& src) {
-          auto bytes = src.get_bytes();
-          ptr = bytes.data();
-          if (len) *len = bytes.size();
-        }
-      ),
-      src
-    );
-    if (err) return nullptr;
-    else return ptr;
+    return dart_get_bytes_impl(src, len);
   }
 
   void* dart_dup_bytes(void const* src, size_t* len) {
-    void* ptr = nullptr;
-    auto err = generic_access(
-      immutable_visitor(
-        [&ptr, len] (auto& src) {
-          auto bytes = [&] {
-            if (len) return src.dup_bytes(*len);
-            else return src.dup_bytes();
-          }();
-
-          // FIXME: This is pretty not great, but it SHOULD be ok at the
-          // moment because the underlying buffer isn't ACTUALLY const.
-          // It's returned with a const pointer because it makes the type
-          // conversion logic for then passing that buffer into a packet
-          // constructor much simpler, but logically speaking the buffer
-          // is, and must be, mutable as it's owned by the client, and
-          // free doesn't take a const pointer.
-          // If you check the implementation of dart::buffer::dup_bytes
-          // you'll see that it also has to use a const_cast internally
-          // to be able to destroy the buffer.
-          ptr = const_cast<gsl::byte*>(bytes.release());
-        }
-      ),
-      src
-    );
-    if (err) return nullptr;
-    else return ptr;
+    return dart_dup_bytes_impl(src, len);
   }
 
   dart_packet_t dart_from_bytes(void const* bytes, size_t len) {
@@ -1191,15 +1534,7 @@ extern "C" {
   }
 
   dart_err_t dart_from_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void const* bytes, size_t len) {
-    auto* punned = reinterpret_cast<gsl::byte const*>(bytes);
-    return packet_typed_constructor_access(
-      [punned, len] (auto& dst) {
-        using packet_type = std::decay_t<decltype(dst)>;
-        dst = packet_type {gsl::make_span(punned, len)};
-      },
-      dst,
-      rc
-    );
+    return dart_from_bytes_rc_err_impl(dst, rc, bytes, len);
   }
 
   dart_packet_t dart_take_bytes(void* bytes) {
@@ -1221,18 +1556,7 @@ extern "C" {
   }
 
   dart_err_t dart_take_bytes_rc_err(dart_packet_t* dst, dart_rc_type_t rc, void* bytes) {
-    using owner_type = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>;
-
-    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
-    owner_type owner {reinterpret_cast<gsl::byte const*>(bytes), del};
-    return packet_typed_constructor_access(
-      [&] (auto& dst) {
-        using packet_type = std::decay_t<decltype(dst)>;
-        dst = packet_type {std::move(owner)};
-      },
-      dst,
-      rc
-    );
+    return dart_take_bytes_rc_err_impl(dst, rc, bytes);
   }
 
   dart_err_t dart_iterator_init_err(dart_iterator_t* dst) {
@@ -1246,71 +1570,23 @@ extern "C" {
   }
 
   dart_err_t dart_iterator_init_from_err(dart_iterator_t* dst, void const* src) {
-    // Initialize.
-    dart_rtti_propagate(dst, src);
-    return generic_access(
-      [dst] (auto& src) {
-        using iterator = typename std::decay_t<decltype(src)>::iterator;
-        return iterator_construct([&src] (iterator* begin, iterator* end) {
-          new(begin) iterator(src.begin());
-          new(end) iterator(src.end());
-        }, dst);
-      },
-      src
-    );
+    return dart_iterator_init_from_err_impl(dst, src);
   }
 
   dart_err_t dart_iterator_init_key_from_err(dart_iterator_t* dst, void const* src) {
-    // Initialize.
-    dart_rtti_propagate(dst, src);
-    return generic_access(
-      [dst] (auto& src) {
-        using iterator = typename std::decay_t<decltype(src)>::iterator;
-        return iterator_construct([&src] (iterator* begin, iterator* end) {
-          new(begin) iterator(src.key_begin());
-          new(end) iterator(src.key_end());
-        }, dst);
-      },
-      src
-    );
+    return dart_iterator_init_key_from_err_impl(dst, src);
   }
 
   dart_err_t dart_iterator_copy_err(dart_iterator_t* dst, dart_iterator_t const* src) {
-    // Initialize.
-    dart_rtti_propagate(dst, src);
-    return iterator_access(
-      [dst] (auto& src_curr, auto& src_end) {
-        using type = std::decay_t<decltype(src_curr)>;
-        return iterator_construct([&src_curr, &src_end] (type* dst_curr, type* dst_end) {
-          new(dst_curr) type(src_curr);
-          new(dst_end) type(src_end);
-        }, dst);
-      },
-      src
-    );
+    return dart_iterator_copy_err_impl(dst, src);
   }
 
   dart_err_t dart_iterator_move_err(dart_iterator_t* dst, dart_iterator_t* src) {
-    // Initialize.
-    dart_rtti_propagate(dst, src);
-    return iterator_access(
-      [dst] (auto& src_curr, auto& src_end) {
-        using type = std::decay_t<decltype(src_curr)>;
-        return iterator_construct([&src_curr, &src_end] (type* dst_curr, type* dst_end) {
-          new(dst_curr) type(std::move(src_curr));
-          new(dst_end) type(std::move(src_end));
-        }, dst);
-      },
-      src
-    );
+    return dart_iterator_move_err_impl(dst, src);
   }
 
   dart_err_t dart_iterator_destroy(dart_iterator_t* dst) {
-    return iterator_access([] (auto& start, auto& end) {
-      using type = std::decay_t<decltype(start)>;
-      start.~type();
-      end.~type();
-    }, dst);
+    return dart_iterator_destroy_impl(dst);
   }
 
   dart_packet_t dart_iterator_get(dart_iterator_t const* src) {
@@ -1321,27 +1597,15 @@ extern "C" {
   }
 
   dart_err_t dart_iterator_get_err(dart_packet_t* dst, dart_iterator_t const* src) {
-    // Initialize.
-    dart_rtti_propagate(dst, src);
-    return iterator_access(
-      [dst] (auto& src_curr, auto& src_end) {
-        using type = typename std::decay_t<decltype(src_curr)>::value_type;
-        if (src_curr == src_end) throw std::runtime_error("dart_iterator has been exhausted");
-        return packet_construct([&src_curr] (type* dst) { new(dst) type(*src_curr); }, dst);
-      },
-      src
-    );
+    return dart_iterator_get_err_impl(dst, src);
   }
 
   dart_err_t dart_iterator_next(dart_iterator_t* dst) {
-    return iterator_access([] (auto& curr, auto& end) { if (curr != end) curr++; }, dst);
+    return dart_iterator_next_impl(dst);
   }
 
   int dart_iterator_done(dart_iterator_t const* src) {
-    bool ended = false;
-    auto err = iterator_access([&] (auto& curr, auto& end) { ended = (curr == end); }, src);
-    if (err) return true;
-    else return ended;
+    return dart_iterator_done_impl(src);
   }
 
   int dart_iterator_done_destroy(dart_iterator_t* dst, dart_packet_t* pkt) {
