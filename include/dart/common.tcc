@@ -179,7 +179,7 @@ namespace dart {
 
       // Set the length, truncating down to 256.
       auto max_len = std::numeric_limits<uint8_t>::max();
-      if (prefix.size() < max_len) this->layout.len = prefix.size();
+      if (prefix.size() < max_len) this->layout.len = static_cast<uint8_t>(prefix.size());
       else this->layout.len = max_len;
 
       // Try SO HARD not to violate strict aliasing rules, while copying those characters into an integer.

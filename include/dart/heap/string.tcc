@@ -76,7 +76,7 @@ namespace dart {
           // is intentionally allowed to access 1 byte out of range if the string is the max
           // SSO length, and MSVC asserts on out of bounds accesses in std::array.
           layout.buffer.data()[val.size()] = '\0';
-          layout.left = sso_bytes - val.size();
+          layout.left = static_cast<uint8_t>(sso_bytes) - static_cast<uint8_t>(val.size());
           data = layout;
         }
     }

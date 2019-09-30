@@ -37,7 +37,9 @@ namespace dart {
     }
 
     template <class SizeType>
-    basic_string<SizeType>::basic_string(char const* str, size_t len) noexcept : len(len) {
+    basic_string<SizeType>::basic_string(char const* str, size_t len) noexcept :
+      len(static_cast<size_type>(len))
+    {
       // Copy the string into the buffer.
       std::copy_n(str, len, data());
       data()[len] = '\0';
@@ -50,7 +52,7 @@ namespace dart {
 
     template <class SizeType>
     size_t basic_string<SizeType>::get_sizeof() const noexcept {
-      return static_sizeof(size());
+      return static_sizeof(static_cast<size_type>(size()));
     }
 
     template <class SizeType>

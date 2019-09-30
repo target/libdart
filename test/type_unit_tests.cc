@@ -630,8 +630,7 @@ SCENARIO("all objects can inject additional keys", "[type unit]") {
   }
 
   GIVEN("a dynamically built object") {
-    constexpr auto num_keys = 1024;
-
+    auto num_keys = 1024U;
     dart::object_api_test([num_keys] (auto tag, auto idx) {
       using object = typename decltype(tag)::type;
       using packet = typename object::value_type;

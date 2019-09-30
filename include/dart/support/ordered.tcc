@@ -79,6 +79,11 @@ namespace dart {
       return !(*this == other);
     }
 
+#if DART_USING_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4244)
+#endif
+
     template <class T, class O>
     template <class Operand, class EnableIf>
     auto ordered<T, O>::operator +=(Operand op) noexcept -> ordered& {
@@ -158,6 +163,10 @@ namespace dart {
       return that;
     }
 
+#if DART_USING_MSVC
+#pragma warning(pop)
+#endif
+
     template <class T, class O>
     template <class Value, class EnableIf>
     auto ordered<T, O>::operator *() const noexcept -> std::remove_pointer_t<Value> {
@@ -234,6 +243,11 @@ namespace dart {
       return order_type::value != DART_BYTE_ORDER;
     }
 
+#if DART_USING_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4244)
+#endif
+
     template <class T, class O>
     void ordered<T, O>::copy_in(value_type val) noexcept {
       if (sizeof(T) == 8) {
@@ -285,6 +299,10 @@ namespace dart {
         return DART_COPY_OUT(&managed, 8);
       }
     }
+
+#if DART_USING_MSVC
+#pragma warning(pop)
+#endif
 
   }
 }

@@ -117,11 +117,11 @@ namespace dart {
       case detail::raw_type::string:
         // Maximum size in the case of a string is the base size of the string structure, plus the
         // length of the string. Structure size includes null-terminating character.
-        return detail::string::static_sizeof(size());
+        return detail::string::static_sizeof(static_cast<detail::string::size_type>(size()));
       case detail::raw_type::big_string:
         // Maximum size in the case of a string is the base size of the string structure, plus the
         // length of the string. Structure size includes null-terminating character.
-        return detail::big_string::static_sizeof(size());
+        return detail::big_string::static_sizeof(static_cast<detail::big_string::size_type>(size()));
       case detail::raw_type::short_integer:
         return detail::primitive<int16_t>::static_sizeof();
       case detail::raw_type::integer:
@@ -166,16 +166,16 @@ namespace dart {
           break;
         }
       case detail::raw_type::short_integer:
-        new(buffer) detail::primitive<int16_t>(integer());
+        new(buffer) detail::primitive<int16_t>(static_cast<int16_t>(integer()));
         break;
       case detail::raw_type::integer:
-        new(buffer) detail::primitive<int32_t>(integer());
+        new(buffer) detail::primitive<int32_t>(static_cast<int32_t>(integer()));
         break;
       case detail::raw_type::long_integer:
         new(buffer) detail::primitive<int64_t>(integer());
         break;
       case detail::raw_type::decimal:
-        new(buffer) detail::primitive<float>(decimal());
+        new(buffer) detail::primitive<float>(static_cast<float>(decimal()));
         break;
       case detail::raw_type::long_decimal:
         new(buffer) detail::primitive<double>(decimal());

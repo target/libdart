@@ -200,7 +200,9 @@ namespace dart {
 
 #ifdef DART_USE_SAJSON
     template <template <class> class RefCount>
-    object<RefCount>::object(sajson::value fields) noexcept : elems(fields.get_length()) {
+    object<RefCount>::object(sajson::value fields) noexcept :
+      elems(static_cast<uint32_t>(fields.get_length()))
+    {
       // Iterate over our elements and write each one into the buffer.
       object_entry* entry = vtable();
       size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
@@ -217,7 +219,7 @@ namespace dart {
         // Construct the vtable entry.
         shim::string_view keyv {key.data(), key.length()};
         auto val_type = json_identify<RefCount>(val);
-        new(entry++) object_entry(val_type, offset, keyv);
+        new(entry++) object_entry(val_type, static_cast<uint32_t>(offset), keyv);
 
         // Layout our key.
         new(aligned) string(keyv);
@@ -237,13 +239,15 @@ namespace dart {
       offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 #endif
 
 #if DART_HAS_RAPIDJSON
     template <template <class> class RefCount>
-    object<RefCount>::object(rapidjson::Value const& fields) noexcept : elems(fields.MemberCount()) {
+    object<RefCount>::object(rapidjson::Value const& fields) noexcept :
+      elems(static_cast<uint32_t>(fields.MemberCount()))
+    {
       using sorter = std::vector<rapidjson::Value::ConstMemberIterator>;
 
       // Sort our fields real quick.
@@ -277,7 +281,7 @@ namespace dart {
 
         // Add an entry to the vtable.
         auto val_type = json_identify<RefCount>(it->value);
-        new(entry++) object_entry(val_type, offset, it->name.GetString());
+        new(entry++) object_entry(val_type, static_cast<uint32_t>(offset), it->name.GetString());
 
         // Layout our key.
         offset += json_lower<RefCount>(aligned, it->name);
@@ -296,12 +300,14 @@ namespace dart {
       offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 #endif
 
     template <template <class> class RefCount>
-    object<RefCount>::object(gsl::span<packet_pair<RefCount>> pairs) noexcept : elems(pairs.size()) {
+    object<RefCount>::object(gsl::span<packet_pair<RefCount>> pairs) noexcept :
+      elems(static_cast<uint32_t>(pairs.size()))
+    {
       // Iterate over our elements and write each one into the buffer.
       object_entry* entry = vtable();
       size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
@@ -312,7 +318,9 @@ namespace dart {
         offset += aligned - unaligned;
 
         // Add an entry to the vtable.
-        new(entry++) object_entry(pair.value.get_raw_type(), offset, pair.key.str());
+        new(entry++)
+          object_entry(pair.value.get_raw_type(),
+            static_cast<uint32_t>(offset), pair.key.str());
 
         // Layout our key.
         offset += pair.key.layout(aligned);
@@ -331,12 +339,14 @@ namespace dart {
       offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 
     // FIXME: Audit this function. A LOT has changed since it was written.
     template <template <class> class RefCount>
-    object<RefCount>::object(packet_fields<RefCount> const* fields) noexcept : elems(fields->size()) {
+    object<RefCount>::object(packet_fields<RefCount> const* fields) noexcept :
+      elems(static_cast<uint32_t>(fields->size()))
+    {
       // Iterate over our elements and write each one into the buffer.
       object_entry* entry = vtable();
       size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
@@ -347,7 +357,9 @@ namespace dart {
         offset += aligned - unaligned;
 
         // Add an entry to the vtable.
-        new(entry++) object_entry(field.second.get_raw_type(), offset, field.first.str());
+        new(entry++)
+          object_entry(field.second.get_raw_type(),
+              static_cast<uint32_t>(offset), field.first.str());
 
         // Layout our key.
         offset += field.first.layout(aligned);
@@ -366,7 +378,7 @@ namespace dart {
       offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 
     template <template <class> class RefCount>
@@ -398,7 +410,8 @@ namespace dart {
 
         // Add an entry to the vtable.
         auto* key = get_string(raw_key);
-        new(entry++) object_entry(raw_val.type, offset, key->get_strv().data());
+        new(entry++) object_entry(raw_val.type,
+            static_cast<uint32_t>(offset), key->get_strv().data());
 
         // Copy in our key.
         auto key_len = find_sizeof<RefCount>(raw_key);
@@ -426,7 +439,7 @@ namespace dart {
       offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 
     template <template <class> class RefCount>
@@ -446,7 +459,8 @@ namespace dart {
 
         // Add an entry to the vtable.
         auto* key = get_string(raw_key);
-        new(entry++) object_entry(raw_val.type, offset, key->get_strv().data());
+        new(entry++) object_entry(raw_val.type,
+            static_cast<uint32_t>(offset), key->get_strv().data());
 
         // Copy in our key.
         auto key_len = find_sizeof<RefCount>(raw_key);
@@ -474,7 +488,7 @@ namespace dart {
       offset = pad_bytes<RefCount>(offset, detail::raw_type::object);
 
       // object is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 
     template <template <class> class RefCount>
@@ -514,22 +528,22 @@ namespace dart {
       size_t const num_keys = size();
 
       // Run binary search to find the key.
-      auto const key_size = key.size();
       gsl::byte const* target = nullptr;
       auto type = detail::raw_type::null;
-      int32_t low = 0, high = num_keys - 1;
+      ssize_t const key_size = key.size();
       gsl::byte const* const base = DART_FROM_THIS;
+      int32_t low = 0, high = static_cast<int32_t>(num_keys) - 1;
       while (high >= low) {
         // Calculate the location of the next guess.
         auto const mid = (low + high) / 2;
 
         // Run the comparison.
         auto const& entry = vtable()[mid];
-        auto comparison = -entry.prefix_compare(key);
+        ssize_t comparison = -entry.prefix_compare(key);
         if (!comparison) {
           auto const* curr_str = detail::get_string({detail::raw_type::string, base + entry.get_offset()});
           auto const curr_view = curr_str->get_strv();
-          auto const curr_size = curr_view.size();
+          ssize_t const curr_size = curr_view.size();
           comparison = (curr_size == key_size) ? key.compare(curr_view) : key_size - curr_size;
         }
 

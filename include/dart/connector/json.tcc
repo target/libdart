@@ -215,7 +215,7 @@ namespace dart {
   template <class Null>
   template <unsigned flags>
   std::string basic_null<Null>::to_json() const {
-    return (typename value_type::null()).to_json();
+    return value_type::make_null().to_json();
   }
 
   template <template <class> class RefCount>

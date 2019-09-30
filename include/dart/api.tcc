@@ -198,7 +198,7 @@ namespace dart {
   template <class Number>
   basic_number<Number>::operator int64_t() const noexcept {
     if (is_integer()) return integer();
-    else return decimal();
+    else return static_cast<int64_t>(decimal());
   }
 
   template <class Number>

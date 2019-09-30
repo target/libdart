@@ -1187,7 +1187,9 @@ namespace dart {
     // Returns the smallest floating point type capable of precisely representing the given
     // value.
     constexpr raw_type identify_decimal(double val) noexcept {
-      if (val != static_cast<float volatile>(val)) return raw_type::long_decimal;
+      // XXX: I'm not impressed by this check either, but I can't find any legit way
+      // to check if a double will be precisely representable as a float.
+      if (val != static_cast<float>(val)) return raw_type::long_decimal;
       else return raw_type::decimal;
     }
 

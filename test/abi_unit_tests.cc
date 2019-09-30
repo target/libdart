@@ -1,3 +1,9 @@
+// XXX: Bool to int conversion warnings are too noisy otherwise
+#if DART_USING_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4805)
+#endif
+
 /*----- Local Includes -----*/
 
 #include <string.h>
@@ -42,7 +48,7 @@ SCENARIO("objects are regular types", "[abi unit]") {
     WHEN("the object is queried") {
       THEN("its basic properties make sense") {
         REQUIRE(dart_size(&pkt) == 0);
-        REQUIRE(dart_is_obj(&pkt));
+        REQUIRE(static_cast<bool>(dart_is_obj(&pkt)));
         REQUIRE(pkt.rtti.p_id == DART_PACKET);
         REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
         REQUIRE(dart_get_type(&pkt) == DART_OBJECT);
@@ -76,7 +82,7 @@ SCENARIO("objects are regular types", "[abi unit]") {
         REQUIRE(dart_is_dcm(&key_three));
         REQUIRE(dart_dcm_get(&key_three) == 3.14159);
         REQUIRE(dart_is_bool(&key_four));
-        REQUIRE(dart_bool_get(&key_four) == true);
+        REQUIRE(static_cast<bool>(dart_bool_get(&key_four)) == true);
       }
 
       WHEN("it's finalized, and split along APIs") {
@@ -126,9 +132,9 @@ SCENARIO("objects are regular types", "[abi unit]") {
           REQUIRE(dart_dcm_get(&low_three) == 3.14159);
           REQUIRE(dart_dcm_get(&heap_three) == 3.14159);
           REQUIRE(dart_dcm_get(&buffer_three) == 3.14159);
-          REQUIRE(dart_bool_get(&low_four) == true);
-          REQUIRE(dart_bool_get(&heap_four) == true);
-          REQUIRE(dart_bool_get(&buffer_four) == true);
+          REQUIRE(static_cast<bool>(dart_bool_get(&low_four)) == true);
+          REQUIRE(static_cast<bool>(dart_bool_get(&heap_four)) == true);
+          REQUIRE(static_cast<bool>(dart_bool_get(&buffer_four)) == true);
         }
       }
     }
@@ -213,7 +219,7 @@ SCENARIO("objects can be constructed with many values", "[abi unit]") {
 
         REQUIRE(dart_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_str_get(&str) == "string"s);
-        REQUIRE(dart_bool_get(&boolean) == true);
+        REQUIRE(static_cast<bool>(dart_bool_get(&boolean)) == true);
         REQUIRE(dart_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_int_get(&integer) == 1337);
       }
@@ -374,7 +380,7 @@ SCENARIO("arrays can be constructed with many values", "[abi unit]") {
 
         REQUIRE(dart_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_str_get(&str) == "string"s);
-        REQUIRE(dart_bool_get(&boolean) == true);
+        REQUIRE(static_cast<bool>(dart_bool_get(&boolean)) == true);
         REQUIRE(dart_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_int_get(&integer) == 1337);
       }
@@ -470,3 +476,7 @@ SCENARIO("arrays can be iterated over", "[abi unit]") {
     }
   }
 }
+
+#if DART_USING_MSVC
+#pragma warning(pop)
+#endif
