@@ -54,7 +54,7 @@ using ssize_t = SSIZE_T;
 
 #if DART_USING_MSVC
 #include <io.h>
-#define DART_WRITE(fd, ptr, bytes) _write(fd, ptr, bytes)
+#define DART_WRITE(fd, ptr, bytes) _write(fd, ptr, static_cast<unsigned int>(bytes))
 #define DART_STDERR_FILENO _fileno(stderr)
 #else
 #include <unistd.h>
@@ -77,7 +77,8 @@ using ssize_t = SSIZE_T;
   if (DART_UNLIKELY(!(cond))) {                                                                               \
     auto& msg = "dart::packet has detected fatal memory corruption and cannot continue execution.\n"          \
       "\"" DART_STRINGIFY(cond) "\" violated.\nSee " __FILE__ ":" DART_STRINGIFY(__LINE__);                   \
-    int spins {0}, written {0}, total {sizeof(msg)}, errfd = DART_STDERR_FILENO;                              \
+    int errfd = DART_STDERR_FILENO;                                                                           \
+    ssize_t spins {0}, written {0}, total {sizeof(msg)};                                                      \
     do {                                                                                                      \
       ssize_t ret = DART_WRITE(errfd, msg + written, total - written);                                        \
       if (ret >= 0) written += ret;                                                                           \

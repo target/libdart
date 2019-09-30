@@ -122,7 +122,7 @@ void compare_rj_dart(rj::Value const& obj, dart::packet const& pkt) {
         // Iterate over the values and recursively check each one.
         for (size_t index = 0; index < obj.Size(); ++index) {
           // Run the check.
-          compare_rj_dart(rj_arr[index], pkt[index]);
+          compare_rj_dart(rj_arr[static_cast<rj::SizeType>(index)], pkt[index]);
         }
         break;
       }
@@ -185,7 +185,7 @@ void compare_rj_rj(rj::Value const& obj, rj::Value const& dup) {
         // Iterate over the values and recursively check each one.
         for (size_t index = 0; index < orig_arr.Size(); ++index) {
           // Run the check.
-          compare_rj_rj(orig_arr[index], dup_arr[index]);
+          compare_rj_rj(orig_arr[static_cast<rj::SizeType>(index)], dup_arr[static_cast<rj::SizeType>(index)]);
         }
         break;
       }

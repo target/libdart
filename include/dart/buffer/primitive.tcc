@@ -23,7 +23,7 @@ namespace dart {
   double basic_buffer<RefCount>::numeric() const {
     switch (get_type()) {
       case type::integer:
-        return integer();
+        return static_cast<double>(integer());
       case type::decimal:
         return decimal();
       default:

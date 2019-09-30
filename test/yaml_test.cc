@@ -112,7 +112,7 @@ void compare_rj_dart(rj::Value const& obj, dart::packet const& pkt) {
         // Iterate over the values and recursively check each one.
         for (size_t index = 0; index < obj.Size(); ++index) {
           // Run the check.
-          compare_rj_dart(rj_arr[index], pkt[index]);
+          compare_rj_dart(rj_arr[static_cast<rj::SizeType>(index)], pkt[index]);
         }
         break;
       }

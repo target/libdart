@@ -216,7 +216,9 @@ namespace dart {
 
 #ifdef DART_USE_SAJSON
     template <template <class> class RefCount>
-    array<RefCount>::array(sajson::value vals) noexcept : elems(vals.get_length()) {
+    array<RefCount>::array(sajson::value vals) noexcept :
+      elems(static_cast<uint32_t>(vals.get_length()))
+    {
       // Iterate over our elements and write each one into the buffer.
       array_entry* entry = vtable();
       size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
@@ -231,20 +233,22 @@ namespace dart {
         offset += aligned - unaligned;
 
         // Add an entry to the vtable.
-        new(entry++) array_entry(val_type, offset);
+        new(entry++) array_entry(val_type, static_cast<uint32_t>(offset));
 
         // Recurse.
         offset += json_lower<RefCount>(aligned, curr_val);
       }
 
       // array is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 #endif
 
 #if DART_HAS_RAPIDJSON
     template <template <class> class RefCount>
-    array<RefCount>::array(rapidjson::Value const& vals) noexcept : elems(vals.Size()) {
+    array<RefCount>::array(rapidjson::Value const& vals) noexcept :
+      elems(static_cast<uint32_t>(vals.Size()))
+    {
       // Iterate over our elements and write each one into the buffer.
       array_entry* entry = vtable();
       size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
@@ -259,20 +263,22 @@ namespace dart {
         offset += aligned - unaligned;
 
         // Add an entry to the vtable.
-        new(entry++) array_entry(val_type, offset);
+        new(entry++) array_entry(val_type, static_cast<uint32_t>(offset));
 
         // Recurse.
         offset += json_lower<RefCount>(aligned, curr_val);
       }
 
       // array is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 #endif
 
     // FIXME: Audit this function. A LOT has changed since it was written.
     template <template <class> class RefCount>
-    array<RefCount>::array(packet_elements<RefCount> const* vals) noexcept : elems(vals->size()) {
+    array<RefCount>::array(packet_elements<RefCount> const* vals) noexcept :
+      elems(static_cast<uint32_t>(vals->size()))
+    {
       // Iterate over our elements and write each one into the buffer.
       array_entry* entry = vtable();
       size_t offset = reinterpret_cast<gsl::byte*>(&vtable()[elems]) - DART_FROM_THIS_MUT;
@@ -283,14 +289,14 @@ namespace dart {
         offset += aligned - unaligned;
 
         // Add an entry to the vtable.
-        new(entry++) array_entry(elem.get_raw_type(), offset);
+        new(entry++) array_entry(elem.get_raw_type(), static_cast<uint32_t>(offset));
 
         // Recurse.
         offset += elem.layout(aligned);
       }
 
       // array is laid out, write in our final size.
-      bytes = offset;
+      bytes = static_cast<uint32_t>(offset);
     }
 
     template <template <class> class RefCount>

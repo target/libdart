@@ -56,7 +56,7 @@ if (NOT COMPILER_SUPPORTS_CXX_STANDARD)
 endif ()
 
 if (MSVC)
-  set(dart_default_compile_options "${DART_CXX_STD_OPT};/EHsc;/Zc:__cplusplus;/permissive-;/bigobj;/w")
+  set(dart_default_compile_options "${DART_CXX_STD_OPT};/EHsc;/Zc:__cplusplus;/permissive-;/bigobj")
 else ()
   set(dart_default_compile_options "${DART_CXX_STD_OPT};-Wall;-Wextra;-Wno-implicit-fallthrough;-Wno-unused-local-typedefs")
 endif ()
