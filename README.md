@@ -49,15 +49,15 @@ at which point the API will be considered stable.
 ## Compilation and Installation
 **Dart** is implemented using modern C++, and requires both Microsoft's Guidelines
 Support Library [GSL](https://github.com/Microsoft/GSL), and a C++14 enabled toolchain
-(`clang` >= 3.8, `gcc` >= 5.0, apple's `clang` >= 8.3). Support for C++11  may be
-added in the future, but is not currently being pursued.
+(`clang` >= 3.8, `gcc` >= 5.0, apple's `clang` >= 8.3, `MSVC` ~> 19.22).
+Support for C++11  may be added in the future, but is not currently being pursued.
 
-**Dart** utilizes `cmake` for its build process, currently supports
-Linux/OS X, and can be built in the following manner:
-
+**Dart** utilizes `cmake` for its build process and currently primarily targets
+Linux/macOS, but has experimental (and improving) support for Windows.
+On Linux/macOS, it can be built in the following way:
 ```bash
 # Clone it down.
-git clone git@github.com:target/libdart.git
+git clone https://github.com/target/libdart.git
 cd libdart/
 
 # Create the cmake build directory and prepare a build
@@ -78,6 +78,34 @@ make install
 cd ..
 doxygen
 ```
+
+On Windows, assuming Visual Studio 2019 is installed, it can be built in the
+following way:
+```bash
+# Clone it down.
+git clone https://github.com/target/libdart.git
+cd libdart
+
+# Create the cmake build directory and prepare a build
+# with tests enabled
+mkdir build
+cd build
+
+# Windows doesn't have standardized directories for storing
+# system headers like Linux/macOS, and so you need to provide
+# the path to the GSL installation to use.
+# If performing this step in Visual Studio, it can be configured
+# graphically.
+cmake .. -DCMAKE_INCLUDE_PATH="C:\Path\To\Guidelines\Support\Library\include"
+cmake --build . --config Release
+ctest -C Release
+
+# We've tested things, now install the library itself.
+# The install location can be customized using
+# -DCMAKE_INSTALL_PREFIX
+cmake --install . --config Release
+```
+
 **Dart** can optionally leverage [RapidJSON](https://github.com/Tencent/rapidjson),
 [sajson](https://github.com/chadaustin/sajson), 
 and [libyaml](https://github.com/yaml/libyaml.git), and will attempt to detect installations
