@@ -6,14 +6,14 @@ Dart Implementation
 processing under the constraint that schema information could not be assumed
 to be generally available.
 
-`JSON` is, perhaps, the most convenient and human-readable interchange format
+**JSON** is, perhaps, the most convenient and human-readable interchange format
 in widespread use, and lends itself very naturally to the idea of schema-less
 stream processing, the only problem is that it's not, traditionally speaking,
 a very good starting point for high performance code.
 
-The fact that `JSON` is so easily readable means that it must be **parsed**
+The fact that **JSON** is so easily readable means that it must be **parsed**
 before a computer system can efficiently interact with it, and, while there is
-an extremely rich set of high performance `JSON` parsers available in the wild,
+an extremely rich set of high performance **JSON** parsers available in the wild,
 nearly all of them generate a post-parsing representation that is only suitable
 for interaction within the context of a single process, on a single machine.
 The aforementioned architecture being targeted would be spread across _**many**_
@@ -21,7 +21,7 @@ co-operating processes potentially distributed across many machines/datacenters;
 the concept of each machine/process individually parsing their input is a
 non-starter for obvious reasons.
 
-Of the few high performance `JSON` parsers available that generate a machine
+Of the few high performance **JSON** parsers available that generate a machine
 representation suitable for network distribution
 ([sajson](https://github.com/chadaustin/sajson), [msgpack](https://msgpack.org),
 [flexbuffers](https://github.com/google/flatbuffers), not many more), all were

@@ -1,58 +1,141 @@
-Dart
+![Dart Logo](benchmark/logo.png)
 ==============
-
 [![Build Status](https://travis-ci.com/target/libdart.svg?branch=master)](https://travis-ci.com/target/libdart)
 [![Build status](https://ci.appveyor.com/api/projects/status/fji5sgka5toa7ieq/branch/master?svg=true)](https://ci.appveyor.com/project/Cfretz244/libdart-lud7s/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/target/libdart/badge.svg?branch=master)](https://coveralls.io/github/target/libdart?branch=master)
-### A High Performance, Network Optimized, JSON Manipulation Library
-**Dart** is both a wire-level binary `JSON` protocol, along with a high performance,
-and surprisingly high level, `C++` API to interact with that `JSON`.
-It is primarily optimized for on-the-wire representation size along with
-efficiency of receiver-side interaction, however, it also allows for reasonably 
-performant dynamic modification when necessary.
+
+## A High Performance, Easy to Use, Network Optimized, JSON Library
+**Dart** is both a wire-level binary **JSON** protocol, along with a high performance,
+and surprisingly high level, **C++** API to interact with that **JSON**.
+It is primarily optimized for efficiency of receiver interaction and on-the-wire
+representation size, however, it also allows for dynamic modification when necessary.
 
 **Dart** can be used in any application as a dead-simple, fast, and lightweight
-`JSON` parser, but it first and foremost targets real-time stream processing engines
+**JSON** parser, but it first and foremost targets real-time stream processing engines
 in a schema-less environment.
 
-It retains logarithmic complexity of object key-lookup, scales extremely well as packet
-sizes increase (see performance below), requires **zero** receiver-side memory
-allocations/parsing/unpacking for read-only interactions, and is header-only, allowing
-for trivially easy installation.
+It offers logarithmic complexity of object key-lookup, guarantees stability of object
+iteration, scales [extremely well](PERFORMANCE.md#lookup-finalized-random-fields-1)
+as packet sizes increase, requires **zero** receiver-side memory allocations/parsing/unpacking
+for read-only interactions, and exposes two interfaces, a header-only **C++14** interface for
+typical use, and an **ABI** stable **C89** interface for binding against.
 
-Although not a `JSON` parser itself, **Dart** leverages the fastest general purpose
-`JSON` parsers available ([source](https://github.com/miloyip/nativejson-benchmark)),
+Although not a **JSON** parser itself, **Dart** leverages the fastest general purpose
+**JSON** parsers available ([source](https://github.com/miloyip/nativejson-benchmark)),
 [RapidJSON](https://github.com/Tencent/rapidjson)
 and [sajson](https://github.com/chadaustin/sajson), for format conversion both into,
-and out of, `JSON`.
+and out of, **JSON**.
 
-As **Dart** can also be useful when working with config files, it also supports parsing
-`YAML` via [libyaml](https://github.com/yaml/libyaml.git).
+Finally, as **Dart** can also be useful when working with config files, it also
+supports parsing **YAML** via [libyaml](https://github.com/yaml/libyaml.git).
 
-## Performance
-![Dart vs Google Flexbuffers vs sajson](benchmark/dart.png)
-For more in depth performance details, see our [performance](PERFORMANCE.md) document,
-for those interested in where this performance comes from, see our
-[implementation](IMPLEMENTATION.md) document.
+## Quick Start
+This readme covers a wide variety of information for the library, but for the impatient among us,
+here are some at-a-glance examples. For examples of how to use the **C** binding layer,
+see our [bindings](BINDINGS.md) document.
 
-`JSON` parsing performance is a big enough topic to be given its own document, which
-can be found here: [parsing performance](PARSING.md).
+**Dart** makes parsing a **JSON** string dead-simple, and crazy [fast](PARSING.md):
+```c++
+#include <dart.h>
+#include <iostream>
 
-## API Stability
-**Dart** has been an ongoing development effort over the last few years, and its API has
-morphed several times during that period. All of the network-level logic is very stable
-and has not changed significantly in some time, but the user-facing API is still being
-finalized and may change some before the first release.
+int main() {
+  // Fancy string literal is a raw literal.
+  auto json = dart::parse(R"({"msg":"hello from dart!"})");
+  std::cout << json["msg"].to_json() << std::endl;
+}
 
-The library is currently set at version `0.9.0`, and after a period of a few weeks, collecting
-user/community feedback on the API, the project will transition to its `1.0.0` release,
-at which point the API will be considered stable.
+// => "hello from dart!"
+```
+
+**Dart** automatically understands most built-in and `std` types
+(and can be extended to work with any type), making it extremely
+easy and natural to build **JSON**.
+```c++
+#include <dart.h>
+#include <iostream>
+
+int main() {
+  // A simple example with some built-in types.
+  dart::array arr {1, "two", 3.14159, true, nullptr};
+  std::cout << arr << std::endl;
+
+  // A more complex example with some complex STL types.
+  using value = std::variant<double, std::string>;
+  using sequence = std::vector<value>;
+  using map = std::map<std::string, sequence>;
+
+  // Dart recursively decomposes the type and figures it out.
+  arr.push_back(map {{"args", {3.14159, 2.99792, "top", "secret"}}});
+  std::cout << arr << std::endl;
+}
+
+// => [1,"two",3.14159,true,null]
+// => [1,"two",3.14159,true,null,{"args":[3.14159,2.99792,"top","secret"]}]
+```
+
+The **Dart** container types (`dart::object` and `dart::array`) model the API
+of the `std` equivalents (`std::map` and `std::vector` respectively), allowing
+for extremely expressive, idiomatic, and type-safe interaction with a dynamically
+typed notation language from a statically typed programming language:
+```c++
+#include <dart.h>
+#include <iostream>
+#include <algorithm>
+
+int main() {
+  // Build the same array as in the last example, but incrementally.
+  dart::array arr;
+  arr.push_back("two").push_front(1);
+  arr.insert(2, 3.14159);
+  arr.resize(5, true);
+  arr.set(4, nullptr);
+  std::cout << arr << std::endl;
+
+  // Search for a particular element and erase the rest.
+  auto it = std::find(std::begin(arr), std::end(arr), 3.14159);
+  while (it != std::end(arr)) {
+    it = arr.erase(it);
+  }
+  std::cout << arr << std::endl;
+}
+
+// => [1,"two",3.14159,true,null]
+// => [1, "two"]
+```
+
+**Dart** also makes it extremely easy to efficiently share data across machines/processes,
+without the receiver needing to reparse the data.
+```c++
+#include <dart.h>
+
+// Function sends data over the network,
+// through shared memory,
+// into a file,
+// wherever.
+size_t send_data(void const* bytes, size_t len);
+
+int main() {
+  // Suppose we have some very important data
+  dart::object data {"albums", dart::array {"dark side", "meddle", "animals"}};
+
+  // It can be finalized into a contiguous, architecture-independent, representation.
+  data.finalize();
+
+  // We can then pass the raw bytes along.
+  // On the receiver end, a new packet instance can be constructed from this buffer
+  // without any additional work or parsing.
+  auto bytes = data.get_bytes();
+  auto sent = send_data(bytes.data(), bytes.size());
+  assert(sent == bytes.size());
+}
+```
 
 ## Compilation and Installation
-**Dart** is implemented using modern C++, and requires both Microsoft's Guidelines
-Support Library [GSL](https://github.com/Microsoft/GSL), and a C++14 enabled toolchain
-(`clang` >= 3.8, `gcc` >= 5.0, apple's `clang` >= 8.3, `MSVC` ~> 19.22).
-Support for C++11  may be added in the future, but is not currently being pursued.
+**Dart** is implemented using modern **C++**, and requires both Microsoft's Guidelines
+Support Library [GSL](https://github.com/Microsoft/GSL), and a **C++14** enabled toolchain
+(`clang` >= **3.8**, `gcc` >= **5.0**, apple's `clang` >= **8.3**, `MSVC` ~> **19.22**).
+Support for **C++11**  may be added in the future, but is not currently being pursued.
 
 **Dart** utilizes `cmake` for its build process and currently primarily targets
 Linux/macOS, but has experimental (and improving) support for Windows.
@@ -69,7 +152,10 @@ cd build
 
 # Build, test, and install (assuming a 4 core machine).
 # Running tests isn't mandatory, but is highly recommended.
-cmake ..
+# Dart is primarily a header-only library, but also includes
+# an ABI-stable pure C binding layer which can be built and
+# installed with -Dbuild_abi=ON
+cmake .. # -Dbuild_abi=ON
 make -j 4
 ctest
 make install
@@ -80,33 +166,7 @@ make install
 cd ..
 doxygen
 ```
-
-On Windows, assuming Visual Studio 2019 is installed, it can be built in the
-following way:
-```bash
-# Clone it down.
-git clone https://github.com/target/libdart.git
-cd libdart
-
-# Create the cmake build directory and prepare a build
-# with tests enabled
-mkdir build
-cd build
-
-# Windows doesn't have standardized directories for storing
-# system headers like Linux/macOS, and so you need to provide
-# the path to the GSL installation to use.
-# If performing this step in Visual Studio, it can be configured
-# graphically.
-cmake .. -DCMAKE_INCLUDE_PATH="C:\Path\To\Guidelines\Support\Library\include"
-cmake --build . --config Release
-ctest -C Release
-
-# We've tested things, now install the library itself.
-# The install location can be customized using
-# -DCMAKE_INSTALL_PREFIX
-cmake --install . --config Release
-```
+For instructions on building for windows, see our [windows](WINDOWS.md) build instructions.
 
 **Dart** can optionally leverage [RapidJSON](https://github.com/Tencent/rapidjson),
 [sajson](https://github.com/chadaustin/sajson), 
@@ -114,10 +174,21 @@ and [libyaml](https://github.com/yaml/libyaml.git), and will attempt to detect i
 automatically while building, but can be independently specified with `-DDART_HAS_RAPIDJSON`,
 `-DDART_USE_SAJSON`, and `-DDART_HAS_YAML` preprocessor flags.
 
+
+## Performance
+**TL;DR**: **Dart**'s performance is excellent, but to see detailed breakdowns for different
+workflows, see our [performance](PERFORMANCE.md) document.
+For those interested in where this performance comes from, see our
+[implementation](IMPLEMENTATION.md) document.
+
+**JSON** parsing performance is a big enough topic to be given its own document, which
+can be found here: [parsing performance](PARSING.md).
+
 ## Basic Usage
 Overly detailed usage examples can be obtained from the `test/` directory, or by building the
-included documentation, but for the impatient among us, examples of basic usage are below.  
-Parsing a JSON string with **Dart**:
+included documentation, but some examples of basic usage are included below. For examples of
+how to use the **C** binding layer, see our [bindings](BINDINGS.md) document.
+Parsing a **JSON** string with **Dart**:
 ```c++
 // Get some JSON from somewhere.
 std::string json = input.read();
@@ -157,7 +228,7 @@ switch (resp["code"].integer()) {
 }
 ```
 
-Build a JSON object from scratch:
+Build a **JSON** object from scratch:
 ```c++
 // Create a base object.
 // dart::packet::make_object can take arbitrarily many pairs of arguments.
@@ -174,7 +245,7 @@ obj.add_field("fib", dart::packet::make_array(1, 1, 2, 3, 5, 8, 13));
 do_something(obj.to_json());
 ```
 
-Preparing a JSON object to be sent over the network:
+Preparing a **JSON** object to be sent over the network:
 ```c++
 // Assuming the packet from the previous example:
 auto buffer = obj.finalize().get_bytes();
@@ -409,7 +480,7 @@ Thread-safe reference counting is ideal for many applications. It strikes a nice
 balance between performance (predictable memory usage, no GC-pauses, etc) and safety,
 while also making it trivially easy to share data across threads. Nothing is for free,
 however, and there will always be use-cases that demand every last ounce of available
-performance; C++ has never been a "one size fits all" kind of language.
+performance; **C++** has never been a "one size fits all" kind of language.
 
 As stated previously, **Dart** has a dedicated reference counter API that allows the
 user to generically customize every facet of how **Dart** implements reference counting
@@ -501,14 +572,16 @@ dart::packet update_cache(dart::packet::view data) {
 
 ## Type-Safe API
 **Dart** is first and foremost a dynamically typed library, for interacting with a
-dynamically typed notation language, but as C++ is a statically typed language, it
+dynamically typed notation language, but as **C++** is a statically typed language, it
 can be useful to statically know the type of a variable at compile-time.
 
 To enable this use-case, **Dart** exposes a secondary interface, fully interoperable
 with the first, that enables static type enforcement.
 ```c++
 // Definitely an object, might be mutable.
-dart::packet::object dynamic {"pi", 3.14159, "c", 2.99792};
+// dart::object is an alias for dart::packet::object.
+dart::object dynamic {"pi", 3.14159, "c", 2.99792};
+dart::packet::object copyobj = dynamic;
 
 // Definitely a mutable object.
 dart::heap::object mut {"pi", 3.14159, "c", 2.99792};
@@ -517,7 +590,9 @@ dart::heap::object mut {"pi", 3.14159, "c", 2.99792};
 dart::buffer::object immut {"pi", 3.14159, "c", 2.99792};
 
 // Definitely an array, might be mutable.
-dart::packet::array dynarr {1, "fish", 2, "fish"};
+// dart::array is an alias for dart::packet::array
+dart::array dynarr {1, "fish", 2, "fish"};
+dart::packet::array copyarr = dynarr;
 
 // Definitely a mutable array.
 dart::heap::array mutarr {"red", "fish", "blue", "fish"};
@@ -555,7 +630,7 @@ identical performance characteristics, and exists solely for the purposes of
 code-organization/developer quality of life improvements.
 
 A consequence of all this conversion logic, and becoming especially compelling with
-class template argument deduction in C++17, is that code like this is actually valid:
+class template argument deduction in **C++17**, is that code like this is actually valid:
 ```c++
 #include <map>
 #include <dart.h>

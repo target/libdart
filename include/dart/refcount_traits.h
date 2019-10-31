@@ -13,6 +13,9 @@
 
 namespace dart {
 
+  // Namespace starts with a slew of "behavioral structs"
+  // that allow users to specialize how specific behavior
+  // is performed with their reference counter.
   namespace refcount {
 
     template <class T>
@@ -122,6 +125,9 @@ namespace dart {
 
     };
 
+    // This section raises all of the functionality that was just declared
+    // into a space where it can be SFINAEd with meta::is_detected to check
+    // if it is supported for arbitrary types.
     namespace detail {
 
       template <class T>
@@ -181,6 +187,105 @@ namespace dart {
       template <class T>
       using nonowning_t = typename T::is_nonowning;
 
+      // XXX: Miserable, awful, hack that allowed me to add the dart::packet::view types.
+      // Unfortunately I didn't leave design space to add non-owning view types to the library,
+      // and the library had already gotten so big, and I didn't see a way to add view types
+      // without also adding a proper allocator model, which would've added a boatload of new code.
+      // So I came up with a hack that allowed dart::basic_packet to act as its own view type,
+      // allowing me to add views in at the last minute with minimal code change.
+      //
+      // dart::packet is actually:
+      // dart::basic_packet<std::shared_ptr>
+      // and dart::packet::view is actually:
+      // dart::basic_packet<dart::view_ptr_context<std::shared_ptr>::view_ptr>;
+      //
+      // The basic idea was to come up with a version of dart::basic_packet whose refcounter
+      // was actually a "do-nothing" refcounter that just cached a raw pointer to its parent's
+      // reference counter, and then define some magic conversion functions to tie the whole thing
+      // together and make it feel akin to std::string -> std::string_view.
+      //
+      // The dart::view_ptr_context::view_ptr dance is necessary because I couldn't change the
+      // template signature of dart::basic_packet, which meant that view_ptr had to be parameterized
+      // by only a single type, and yet it needed to also be able to remember how to convert itself
+      // into a new instance of the original reference counter, because I wanted view types
+      // to be able to transition back into the safe, refcounted, pathway on demand.
+      //
+      // The problem arose because dart::heap has to hold pointers to collections of itself
+      // to make aggregates work, which meant that dart::heap::view was calculating that it
+      // held a pointer to instances of dart::heap::view, when it was actually being initialized
+      // with a pointer to instances of dart::heap.
+      //
+      // As a concrete illustration, dart::heap::view used to declare that it stored instances of:
+      // dart::shareable_ptr<
+      //   dart::view_ptr_context<std::shared_ptr>::view_ptr<
+      //     std::vector<
+      //       dart::basic_heap<
+      //         dart::view_ptr_context<std::shared_ptr>::view_ptr
+      //       >
+      //     >
+      //   >
+      // >
+      // Now it declares that it stores:
+      // dart::shareable_ptr<
+      //   dart::view_ptr_context<std::shared_ptr>::view_ptr<
+      //     std::vector<
+      //       dart::refcount::owner_indirection<
+      //         dart::basic_heap,
+      //         dart::view_ptr_context<std::shared_ptr>::view_ptr
+      //       >
+      //     >
+      //   >
+      // >
+      // Which resolves to:
+      // dart::shareable_ptr<
+      //   dart::view_ptr_context<std::shared_ptr>::view_ptr<
+      //     std::vector<
+      //       dart::basic_heap<std::shared_ptr>
+      //     >
+      //   >
+      // >
+      // Which fixes the issue by forcing view types to declare that they actually contain
+      // instances of their PARENT type, instead of themselves, while leaving the main types
+      // to declare that they contain instances of themselves.
+      //
+      // The reason this is so difficult to do in C++ is because alias templates aren't like
+      // type aliases when it comes to specialization. In the following code:
+      //
+      // template <class T>
+      // using identity = T;
+      // template <class T>
+      // using identity_alias = identity<T>;
+      //
+      // template <class T>
+      // struct foo {};
+      //
+      // template <template <class> class Tmp>
+      // struct higher_foo {};
+      //
+      // static_assert(
+      //   std::is_same<
+      //     foo<identity<void>>,
+      //     foo<identity_alias<void>>
+      //   >::value
+      // );
+      //
+      // static_assert(
+      //   std::is_same<
+      //     higher_foo<identity>,
+      //     higher_foo<identity_alias>
+      //   >::value
+      // );
+      //
+      // The first static assert will pass, the second will fail.
+      // identity and identity_alias are two SEPARATE templates, even though they compute
+      // exactly the same space of types, and are defined in terms of each other.
+      // This makes things very, very difficult if you need to extract a template-template
+      // parameter from an existing type and then USE that template-template parameter to
+      // recompute a previously computed type via specialization, which is what needed to happen
+      // here.
+      // All this to say, the damn thing works, but I hope to god it never becomes a problem.
+      // Rant over.
+      // XXX: Miserable, awful, hack that allowed me to add the dart::basic_packet::view types.
       template <bool, template <template <class> class> class Tmp, template <class> class RefCount>
       struct owner_indirection_impl {
         using type = Tmp<RefCount>;
@@ -197,6 +302,11 @@ namespace dart {
 
     }
 
+    // This section finishes the work of the file so far, lowering the
+    // question of whether a particular operation is supported
+    // by an arbitrary type into a compile-time boolean.
+    // Classes all ultimately inherit from either std::true_type
+    // or std::false_type.
     template <class T>
     struct has_element_type :
       meta::is_detected<
@@ -301,9 +411,13 @@ namespace dart {
       >
     {};
 
+    // Struct checks whether a Dart implementation type is a view or not.
     template <template <class> class Owner>
     struct is_owner : meta::negation<meta::is_detected<detail::nonowning_t, Owner<gsl::byte>>> {};
 
+    // Struct handles an AWFUL edge case in the type logic surrounding classes
+    // like dart::packet::view
+    // For more information, check the comments above detail::owner_indirection_impl
     template <template <template <class> class> class Tmp, template <class> class RefCount>
     struct owner_indirection {
       using type = typename detail::owner_indirection_impl<
@@ -317,6 +431,27 @@ namespace dart {
 
   }
 
+  /**
+   *  @brief
+   *  Struct is used to centralize the concept of how to operate
+   *  with a given reference counter implementation.
+   *
+   *  @details
+   *  The basic idea of refcount_traits is to identify a minimal set of
+   *  operations and semantics with which to define Dart's requirements
+   *  of any reference counting implementation it uses.
+   *
+   *  @remarks
+   *  I didn't want users to have to specialize this class directly
+   *  to work with their refcounters, as they'd always have to implement
+   *  every single function, even if their refcounter already had mostly
+   *  sensible operators and semantics defined.
+   *  Therefore, this class sits as a common touchpoint for all things
+   *  related to reference counters, but defers final implementation to
+   *  the behavioral structs defined at the top of this file.
+   *  Allows the users to specialize only what they need, but allows
+   *  the rest of the library one logical unit to work with.
+   */
   template <class T>
   struct refcount_traits {
 
@@ -350,6 +485,15 @@ namespace dart {
 
     /*----- Helpers -----*/
 
+    /**
+     *  @brief
+     *  Function defers construction of a reference counter to a
+     *  potentially user defined source.
+     *
+     *  @param[out] that
+     *  Pointer to unconstructed memory!
+     *  Placement new must be used to construct your reference counter.
+     */
     template <class... Args>
     static auto construct(T* that, Args&&... the_args) {
       static_assert(refcount::is_constructible<T, Args...>::value,
@@ -358,6 +502,17 @@ namespace dart {
       return refcount::construct<T>::perform(that, std::forward<Args>(the_args)...);
     }
 
+    /**
+     *  @brief
+     *  Function defers ownership transfer of an existing pointer
+     *  to a potentially user defined source.
+     *
+     *  @param[out] that
+     *  Pointer to unconstructed memory!
+     *  Placement new must be used to construct your reference counter.
+     *  @param[in,out] del
+     *  Deleter to be used on the given pointer.
+     */
     template <class Del>
     static auto take(T* that, std::nullptr_t, Del&& del) noexcept(can_nothrow_take<element_type*, Del>::value) {
       static_assert(refcount::can_take<T, element_type*, Del>::value,
@@ -366,6 +521,20 @@ namespace dart {
       return refcount::take<T>::perform(that, nullptr, std::forward<Del>(del));
     }
 
+    /**
+     *  @brief
+     *  Function defers construction of a reference counter to a
+     *  potentially user defined source.
+     *
+     *  @param[out] that
+     *  Pointer to unconstructed memory!
+     *  Placement new must be used to construct your reference counter.
+     *  @param[in,out] ptr
+     *  The pointer whose ownership must be transferred to a newly
+     *  constructed reference counter.
+     *  @param[in,out] del
+     *  Deleter to be used on the given pointer.
+     */
     template <class Ptr, class Del>
     static auto take(T* that, Ptr* ptr, Del&& del) noexcept(can_nothrow_take<Ptr, Del>::value) {
       static_assert(refcount::can_take<T, Ptr*, Del>::value,
@@ -374,30 +543,92 @@ namespace dart {
       return refcount::take<T>::perform(that, ptr, std::forward<Del>(del));
     }
 
+    /**
+     *  @brief
+     *  Function defers copying of a reference counter to a
+     *  potentially user defined source.
+     *
+     *  @param[out] that
+     *  Pointer to unconstructed memory!
+     *  Placement new must be used to construct your reference counter.
+     *  @param[in] rc
+     *  The reference counter to be copied from.
+     */
     static auto copy(T* that, T const& rc) noexcept(is_nothrow_copyable::value) {
       return refcount::copy<T>::perform(that, rc);
     }
 
+    /**
+     *  @brief
+     *  Function defers moving of a reference counter to a
+     *  potentially user defined source.
+     *
+     *  @param[out] that
+     *  Pointer to unconstructed memory!
+     *  Placement new must be used to construct your reference counter.
+     *  @param[in] rc
+     *  The reference counter to be moved from.
+     */
     static auto move(T* that, T&& rc) noexcept(is_nothrow_moveable::value) {
       return refcount::move<T>::perform(that, std::move(rc));
     }
 
+    /**
+     *  @brief
+     *  Function defers dereferencing a reference counter to a
+     *  potentially user defined source.
+     *
+     *  @param[in] rc
+     *  The reference counter to dereference
+     */
     static auto& deref(T const& rc) noexcept(is_nothrow_unwrappable::value) {
       return *refcount::unwrap<T>::perform(rc);
     }
 
+    /**
+     *  @brief
+     *  Function defers retrieval of the underlying pointer for a
+     *  reference counter to a potentially user defined source.
+     *
+     *  @param[in] rc
+     *  The reference counter to be unwrapped.
+     */
     static auto* unwrap(T const& rc) noexcept(is_nothrow_unwrappable::value) {
       return refcount::unwrap<T>::perform(rc);
     }
 
+    /**
+     *  @brief
+     *  Function defers querying the reference count of a reference counter
+     *  to a potentially user defined source.
+     *
+     *  @param[in] rc
+     *  The reference counter to query.
+     */
     static auto use_count(T const& rc) noexcept(has_nothrow_use_count::value) {
       return refcount::use_count<T>::perform(rc);
     }
 
+    /**
+     *  @brief
+     *  Function defers release of a reference counter to a potentially user
+     *  defined source.
+     *
+     *  @param[in] rc
+     *  The reference counter to reset.
+     */
     static auto reset(T& rc) noexcept(has_nothrow_reset::value) {
       return refcount::reset<T>::perform(rc);
     }
 
+    /**
+     *  @brief
+     *  Function defers null checking a reference counter to a potentially
+     *  user defined source.
+     *
+     *  @param[in] rc
+     *  The reference counter to null check.
+     */
     static auto is_null(T const& rc) noexcept(is_nothrow_unwrappable::value) {
       return unwrap(rc) == nullptr;
     }
