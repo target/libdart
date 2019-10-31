@@ -7,10 +7,10 @@ but the performance is still [quite good](#results).
 **Long Version**:
 
 As a library, **Dart**'s primary design goals are:
-  1. Be the fastest way to represent `JSON` on the wire, requiring
-     as little receiver-side effort as possible.
+  1. Be the fastest way to represent **JSON** on the wire, requiring
+     as little receiver-side effort as physically possible.
   2. Be easy to use (provide a consistent, natural, API).
-  3. Be the fastest general purpose `JSON` parser.
+  3. Be the fastest general purpose **JSON** parser.
 
 In order to meet goal one, **Dart** requires that object keys be
 _lexicographically sorted_ (no other library mentioned in this document depends on,
@@ -21,7 +21,7 @@ In order to meet goal two, **Dart** preserves this ordering even in _dynamic_ mo
 where it's not strictly necessary, so that object iteration order _remains stable_
 regardless of whether the object is _finalized_ or not.
 
-Many other high performance `JSON` parsing libraries exist, but very few (if any) require
+Many other high performance **JSON** parsing libraries exist, but very few (if any) require
 this property, which **does** have performance implications.
 
 **Dart** does not support incremental parsing, must pass through an explicit sorting

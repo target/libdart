@@ -1,7 +1,7 @@
 ## Dart Performance
 
 **TL;DR**:
-Dart's performance is [excellent](#results).
+Skip to the [results](#results).
 
 **Long Version**:
 
@@ -22,7 +22,7 @@ counter implementation used by the library.
 `dart::packet` is the most flexible of the aforementioned classes, erasing
 implementation details related to type, mutability, and layout, and
 providing a uniform, and reasonably performant, API for all use-cases.
-For the basic case of using **Dart** as a dead-simple `JSON`/`YAML`
+For the basic case of using **Dart** as a dead-simple **JSON**/**YAML**
 parser, this is likely to be the class you want.
 This flexibility is not without cost, however, and `dart::packet` should
 typically be assumed to be the slowest of the types exported by the
@@ -43,6 +43,12 @@ STL containers and conversion operators to other **Dart** types), and
 is guaranteed to be stored contiguously as a flattened buffer of bytes
 (accessible via `dart::buffer::get_bytes` or `dart::buffer::dup_bytes`)
 immediately ready for distribution over a socket/file/shared memory queue/etc.
+
+Read-only view types, like `dart::packet::view`, `dart::heap::view`,
+and `dart::buffer::view`, will perform largely similarly to their traditional
+counterparts, however, they do not participate in reference counting, and
+so can be used to selectively disable reference counting and its associated
+cost within a particular scope.
 
 ## Measuring Dart Performance
 Given the API topology mentioned above, all performance validation cases
@@ -208,7 +214,7 @@ As you can see, **Dart** measures performance across a wide-variety of categorie
 descriptions of those categories are listed below.
 
 ### Parse Flat/Nested Dynamic Packet
-These benchmark cases are testing the whole stack of dynamic **Dart** `JSON` parsing,
+These benchmark cases are testing the whole stack of dynamic **Dart** **JSON** parsing,
 from a `std::string`, parsed by the **RapidJSON** SAX parser, raised into a dynamic
 `dart::heap` representation.
 
@@ -217,7 +223,7 @@ their names would suggest: the **flat** test case exists all at one level, where
 the **nested** test benchmarks the additional overhead from creating nested objects.
 
 ### Parse Flat/Nested Finalized Packet
-These benchmark cases are testing the whole stack of finalized **Dart** `JSON` parsing,
+These benchmark cases are testing the whole stack of finalized **Dart** **JSON** parsing,
 from a `std::string`, parsed by the **RapidJSON** DOM parser, lowered into a finalized,
 contiguous, `dart::buffer` representation.
 
@@ -408,7 +414,7 @@ performing a single allocation of the calculated size, and then recursively walk
 across the dynamic representation a second time and lowering it into the allocated buffer.
 
 ### Serialize Flat/Nested Finalized Packet
-These benchmark cases are testing the whole stack of **Dart** `JSON` generation,
+These benchmark cases are testing the whole stack of **Dart** **JSON** generation,
 from a finalized representation (`dart::buffer`), fed into a **RapidJSON** writer,
 and output as a `std::string`.
 
@@ -417,13 +423,13 @@ their names would suggest: the **flat** test case exists all at one level, where
 the **nested** test benchmarks the additional overhead of nested objects.
 
 ### Serialize Flat/Nested Dynamic Packet
-These benchmark cases are testing the whole stack of **Dart** `JSON` generation,
+These benchmark cases are testing the whole stack of **Dart** **JSON** generation,
 from a dynamic representation (`dart::heap`), fed into a **RapidJSON** writer,
 and output as a `std::string`.
 
 This benchmark is identical to the previous benchmark from a methodological
 perspective, the crucial difference being that this test measures the performance
-of serializing a _dynamic_ packet into `JSON`.
+of serializing a _dynamic_ packet into **JSON**.
 
 ### Unwrap Finalized String
 This benchmark case measurements the cost of unwrapping a finalized **Dart** string

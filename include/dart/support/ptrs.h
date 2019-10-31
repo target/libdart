@@ -394,6 +394,7 @@ namespace dart {
         using is_nonowning = refcount_type;
         using element_type = typename refcount_traits<refcount_type>::element_type;
 
+        // XXX: Necessary to make logic in refcount_traits work.
         template <template <template <class> class> class Binder>
         using refcount_rebind = Binder<RefCount>;
 

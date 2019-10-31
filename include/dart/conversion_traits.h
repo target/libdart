@@ -37,6 +37,16 @@ namespace dart {
       struct dart_tag {};
       struct user_tag {};
 
+      // Meta-function normalizes any conceivable type into one of
+      // eight cases that can then be individually processed.
+      //
+      // Think of it as a switch statement, but for types.
+      //
+      // It's abusing overload mechanics to test different
+      // properties of a given type by SFINAEing away overloads
+      // that don't match.
+      //
+      // The ordering of the checks is important
       template <class T>
       struct normalize {
         template <class U, class =
@@ -109,13 +119,17 @@ namespace dart {
       template <class T>
       using normalize_t = typename normalize<T>::type;
 
+      // Makes the question of whether a user conversion is defined SFINAEable
+      // so that it can be used in meta::is_detected.
       template <class T, class Packet>
       using user_cast_t = decltype(to_dart<std::decay_t<T>>::template cast<Packet>(std::declval<T>()));
 
+      // Switch table implementation for type conversions.
       template <class T>
       struct caster_impl;
       template <>
       struct caster_impl<null_tag> {
+        // This handles the case where we were given nullptr
         template <class Packet>
         static Packet cast(std::nullptr_t) {
           return Packet::make_null();
@@ -123,6 +137,7 @@ namespace dart {
       };
       template <>
       struct caster_impl<boolean_tag> {
+        // This handles the case where we were given bool.
         template <class Packet>
         static Packet cast(bool val) {
           return Packet::make_boolean(val);
@@ -130,6 +145,7 @@ namespace dart {
       };
       template <>
       struct caster_impl<integer_tag> {
+        // This handles the case where we were given int anything.
         template <class Packet>
         static Packet cast(int64_t val) {
           return Packet::make_integer(val);
@@ -137,6 +153,7 @@ namespace dart {
       };
       template <>
       struct caster_impl<decimal_tag> {
+        // This handles the case where we were given float/double anything.
         template <class Packet>
         static Packet cast(double val) {
           return Packet::make_decimal(val);
@@ -144,6 +161,8 @@ namespace dart {
       };
       template <>
       struct caster_impl<string_tag> {
+        // This handles the case where we given anything convertible to
+        // std::string_view
         template <class Packet>
         static Packet cast(shim::string_view val) {
           return Packet::make_string(val);
@@ -151,6 +170,9 @@ namespace dart {
       };
       template <>
       struct caster_impl<dart_tag> {
+        // This handles the case that we were given
+        // the right type to start with.
+        // Forwards whatever it was given back out.
         template <class TargetPacket, class Packet,
           std::enable_if_t<
             std::is_same<
@@ -162,6 +184,8 @@ namespace dart {
         static Packet&& cast(Packet&& pkt) {
           return std::forward<Packet>(pkt);
         }
+        // This handles the case where we were given
+        // another dart type, but not the correct type.
         template <class TargetPacket, class Packet,
           std::enable_if_t<
             !std::is_same<
@@ -176,6 +200,9 @@ namespace dart {
       };
       template <>
       struct caster_impl<wrapper_tag> {
+        // Handles the case where we were given a Dart wrapper
+        // type like basic_object or basic_array.
+        // Hands off to the conversion logic for the underlying implementation type.
         template <class Packet, class Wrapper>
         static Packet cast(Wrapper&& wrapper) {
           return caster_impl<dart_tag>::cast<Packet>(std::forward<Wrapper>(wrapper).val);
@@ -183,12 +210,16 @@ namespace dart {
       };
       template <>
       struct caster_impl<user_tag> {
+        // Handles the case where we were given a user type
+        // that has a defined conversion.
         template <class Packet, class T>
         static Packet cast(T&& val) {
           return to_dart<std::decay_t<T>>::template cast<Packet>(std::forward<T>(val));
         }
       };
 
+      // Calculates if two dart types are using the same reference counter
+      // implementation, even if the two dart types aren't the same.
       template <class PacketOne, class PacketTwo>
       struct same_refcounter : std::false_type {};
       template <template <class> class RefCount,
@@ -196,6 +227,9 @@ namespace dart {
                template <template <class> class> class PacketTwo>
       struct same_refcounter<PacketOne<RefCount>, PacketTwo<RefCount>> : std::true_type {};
 
+      // Calculates if two Dart wrapper types are using the same reference counter
+      // implementation, even if those two wrapper types are using different
+      // implementation types.
       template <class Packet, class Wrapper>
       struct same_wrapped_refcounter : std::false_type {};
       template <template <class> class RefCount,
