@@ -1347,7 +1347,7 @@ namespace dart {
           return identify_string<RefCount>({curr_val.GetString(), curr_val.GetStringLength()});
         case rapidjson::kNumberType:
           // Figure out what type of number we've been given.
-          if (curr_val.IsInt()) return identify_integer(curr_val.GetInt64());
+          if (curr_val.IsInt64()) return identify_integer(curr_val.GetInt64());
           else return identify_decimal(curr_val.GetDouble());
         case rapidjson::kTrueType:
         case rapidjson::kFalseType:
