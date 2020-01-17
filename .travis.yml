@@ -64,6 +64,17 @@ install:
 # Build matrix
 matrix:
   include:
+    - os: osx
+      compiler: clang
+      osx_image: xcode8.3
+    - os: osx
+      compiler: clang
+      osx_image: xcode9.4
+    - os: osx
+      compiler: clang
+      osx_image: xcode10.1
+      env:
+        GEN_COVERAGE: true
     - env: VERSION=5 ARCH=powerpc-linux
       os: linux
       compiler: gcc
@@ -180,23 +191,12 @@ matrix:
           packages:
             - rapidjson-dev
             - g++-8
-    - os: osx
-      compiler: clang
-      osx_image: xcode8.3
-    - os: osx
-      compiler: clang
-      osx_image: xcode9.4
-    - os: osx
-      compiler: clang
-      osx_image: xcode10.1
-      env:
-        GEN_COVERAGE: true
 
 # Build and run.
 script:
   - mkdir build
   - cd build
-  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON -Dgen_coverage=ON
+  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
   - make VERBOSE=1
   - ctest --output-on-failure
   - cd ..
@@ -210,5 +210,5 @@ script:
 after_success:
   - |
     if [ "${TRAVIS_OS_NAME}" = "osx" ] && [ "${GEN_COVERAGE}" = "true" ]; then
-      coveralls -r . -b build/ -i include/ -i src/ -e include/extern/ --gcov-options '\-lp'
+      coveralls -r . -b build/ -i include/ -i src/ -e include/extern/ -e include/dart/support/variant.h --gcov-options '\-lp'
     fi

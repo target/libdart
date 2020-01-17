@@ -16,6 +16,7 @@ option(extended_test "Building extended tests..." OFF)
 option(force_cxx17 "Assuming c++17 is available, and using it" OFF)
 option(use_sajson "Assuming sajson is installed, and using it" OFF)
 option(gen_coverage "Generate gcov coverage information in support envs" OFF)
+option(use_asan "Link tests with address sanitizer" OFF)
 
 # Check which dependencies are installed.
 find_path(libgsl gsl/gsl)
@@ -53,7 +54,7 @@ endif ()
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("${DART_CXX_STD_OPT}" COMPILER_SUPPORTS_CXX_STANDARD)
 if (NOT COMPILER_SUPPORTS_CXX_STANDARD)
-  message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no c++${dart_CXX_STANDARD} support.")
+  message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no c++${DART_CXX_STANDARD} support.")
 endif ()
 
 if (MSVC)
@@ -68,6 +69,21 @@ if (build_abi)
   set(abi_sources src/heap.cc src/buffer.cc src/generic.cc)
   add_library(dart_abi SHARED ${abi_sources})
   add_library(dart_abi_static STATIC ${abi_sources})
+
+  # Asan has to come first in linked libraries, so check if we need to link it.
+  if (use_asan AND MSVC)
+    message(FATAL_ERROR "Address sanitizer is not currently supported on MSVC")
+  elseif (use_asan AND CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(dart_abi PUBLIC "-fsanitize=address")
+    target_link_libraries(dart_abi PUBLIC asan)
+    target_compile_options(dart_abi_static PUBLIC "-fsanitize=address")
+    target_link_libraries(dart_abi_static PUBLIC asan)
+  elseif (use_asan)
+    target_compile_options(dart_abi PUBLIC "-fsanitize=address")
+    target_link_libraries(dart_abi PUBLIC "-fsanitize=address")
+    target_compile_options(dart_abi_static PUBLIC "-fsanitize=address")
+    target_link_libraries(dart_abi_static PUBLIC "-fsanitize=address")
+  endif ()
 
   # Setup include directories
   target_include_directories(dart_abi PUBLIC include ${libgsl})

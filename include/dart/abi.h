@@ -55,7 +55,7 @@
   dart_iterator_t it_name;                                                                  \
   dart_err_t err_name = it_func(&it_name, aggr);                                            \
   err_name = (err_name) ? err_name : dart_iterator_get_err(value, &it_name);                \
-  for (; err_name == DART_NO_ERROR && !dart_iterator_done_destroy(&it_name, value);         \
+  for (; !dart_iterator_done_destroy(&it_name, value) && err_name == DART_NO_ERROR;         \
           err_name = (dart_iterator_next(&it_name),                                         \
                       dart_destroy(value),                                                  \
                       dart_iterator_get_err(value, &it_name)))
@@ -583,6 +583,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -646,6 +647,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -715,6 +717,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -781,6 +784,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -923,6 +927,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -986,6 +991,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -1055,6 +1061,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -1121,6 +1128,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -4560,6 +4568,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -4623,6 +4632,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -4692,6 +4702,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -4758,6 +4769,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -4900,6 +4912,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -4963,6 +4976,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -5032,6 +5046,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -5098,6 +5113,7 @@ extern "C" {
    *      - Boolean. Will consume two arguments, one for the key (always a string)
    *        and one for the value (now assumed to be an int).
    *    * " "
+   *    * n
    *      - A space means that no value, only a single key, has been provided, and the value
    *        should be initialized to null.
    *    * ,
@@ -7256,6 +7272,15 @@ extern "C" {
    *  Function is generic and will exhibit sensible semantics for any input Dart type.
    */
   DART_ABI_EXPORT dart_type_t dart_get_type(void const* src);
+
+  /**
+   *  @brief
+   *  Return the current refcount for the given instance.
+   *
+   *  @remarks
+   *  Function is generic and will exhibit sensible semantics for any input Dart type.
+   */
+  DART_ABI_EXPORT size_t dart_refcount(void const* src);
   
   /*----- Generic JSON Manipulation Functions -----*/
 

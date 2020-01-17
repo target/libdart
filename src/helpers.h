@@ -26,7 +26,12 @@ static_assert(sizeof(dart::packet::iterator) * 2 <= DART_ITERATOR_MAX_SIZE, "Dar
 
 /*----- Globals -----*/
 
-extern thread_local std::string errmsg;
+namespace dart {
+  namespace detail {
+    extern thread_local std::string errmsg;
+  }
+}
+
 
 /*----- Private Types -----*/
 
@@ -225,7 +230,7 @@ namespace {
             std::forward<decltype(c)>(c), std::forward<decltype(as)>(as)...);
       },
       [] (std::false_type, auto&&, auto&&...) {
-        errmsg = "Avoided a type-mismatched call of some sort. "
+      dart::detail::errmsg = "Avoided a type-mismatched call of some sort. "
               "Are your rc types correct? Did you perform a bad cast?";
         return DART_CLIENT_ERROR;
       }
@@ -248,7 +253,7 @@ namespace {
               const_cast<maybe_const_t<dart::unsafe_heap, is_const>&>(*rt_ptr));
         }
       default:
-        errmsg = "Unknown reference counter passed for dart_heap";
+        dart::detail::errmsg = "Unknown reference counter passed for dart_heap";
         return DART_CLIENT_ERROR;
     }
   }
@@ -269,7 +274,7 @@ namespace {
               const_cast<maybe_const_t<dart::unsafe_buffer, is_const>&>(*rt_ptr));
         }
       default:
-        errmsg = "Unknown reference counter passed for dart_buffer";
+        dart::detail::errmsg = "Unknown reference counter passed for dart_buffer";
         return DART_CLIENT_ERROR;
     }
   }
@@ -290,7 +295,7 @@ namespace {
               const_cast<maybe_const_t<dart::unsafe_packet, is_const>&>(*rt_ptr));
         }
       default:
-        errmsg = "Unknown reference counter passed for dart_packet";
+        dart::detail::errmsg = "Unknown reference counter passed for dart_packet";
         return DART_CLIENT_ERROR;
     }
   }
@@ -319,7 +324,7 @@ namespace {
           return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       default:
-        errmsg = "Unknown reference counter passed for dart_heap";
+        dart::detail::errmsg = "Unknown reference counter passed for dart_heap";
         return DART_CLIENT_ERROR;
     }
   }
@@ -348,7 +353,7 @@ namespace {
           return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       default:
-        errmsg = "Unknown reference counter passed for dart_buffer";
+        dart::detail::errmsg = "Unknown reference counter passed for dart_buffer";
         return DART_CLIENT_ERROR;
     }
   }
@@ -377,7 +382,7 @@ namespace {
           return safe_call(std::forward<Func>(cb), rt_ptr);
         }
       default:
-        errmsg = "Unknown reference counter passed for dart_packet";
+        dart::detail::errmsg = "Unknown reference counter passed for dart_packet";
         return DART_CLIENT_ERROR;
     }
   }
@@ -393,7 +398,7 @@ namespace {
       case DART_PACKET:
         return packet_unwrap_impl<is_const>(std::forward<Func>(cb), reinterpret_cast<dart_packet_t*>(pkt));
       default:
-        errmsg = "Corrupted dart object encountered in generic function call.";
+        dart::detail::errmsg = "Corrupted dart object encountered in generic function call.";
         return DART_CLIENT_ERROR;
     }
   }
@@ -419,7 +424,7 @@ namespace {
       case DART_PACKET:
         return packet_construct(std::forward<Func>(cb), reinterpret_cast<dart_packet_t*>(pkt));
       default:
-        errmsg = "Corrupted dart object encountered in generic function call.";
+        dart::detail::errmsg = "Corrupted dart object encountered in generic function call.";
         return DART_CLIENT_ERROR;
     }
   }
@@ -444,7 +449,7 @@ namespace {
             return safe_call(std::forward<Func>(cb), rt_ptr, rt_ptr + 1);
           }
         default:
-          errmsg = "Unknown reference counter passed for dart_iterator";
+          dart::detail::errmsg = "Unknown reference counter passed for dart_iterator";
           return DART_CLIENT_ERROR;
       }
     };
@@ -458,7 +463,7 @@ namespace {
       case DART_PACKET:
         return rc_switch(packet_builder<dart::basic_packet> {});
       default:
-        errmsg = "Unknown packet type passed for dart_iterator";
+        dart::detail::errmsg = "Unknown packet type passed for dart_iterator";
         return DART_CLIENT_ERROR;
     }
   }
@@ -472,22 +477,22 @@ namespace {
   dart_err_t err_handler(Func&& cb) noexcept try {
     return std::forward<Func>(cb)();
   } catch (dart::type_error const& err) {
-    errmsg = err.what();
+    dart::detail::errmsg = err.what();
     return DART_TYPE_ERROR;
   } catch (dart::state_error const& err) {
-    errmsg = err.what();
+    dart::detail::errmsg = err.what();
     return DART_STATE_ERROR;
   } catch (dart::parse_error const& err) {
-    errmsg = err.what();
+    dart::detail::errmsg = err.what();
     return DART_PARSE_ERROR;
   } catch (std::logic_error const& err) {
-    errmsg = err.what();
+    dart::detail::errmsg = err.what();
     return DART_LOGIC_ERROR;
   } catch (std::runtime_error const& err) {
-    errmsg = err.what();
+    dart::detail::errmsg = err.what();
     return DART_RUNTIME_ERROR;
   } catch (...) {
-    errmsg = "Dart caught an unexpected error type. This is a bug, please make a report";
+    dart::detail::errmsg = "Dart caught an unexpected error type. This is a bug, please make a report";
     return DART_UNKNOWN_ERROR;
   }
 
@@ -590,6 +595,7 @@ namespace {
       case 'b':
         return parse_type::boolean;
       case ' ':
+      case 'n':
         return parse_type::null;
       default:
         return parse_type::invalid;

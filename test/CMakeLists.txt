@@ -23,6 +23,15 @@ add_executable(unit_tests
 if (extended_test)
   set_property(TARGET unit_tests APPEND PROPERTY COMPILE_DEFINITIONS DART_EXTENDED_TESTS)
 endif ()
+if (use_asan AND MSVC)
+  message(FATAL_ERROR "Address sanitizer is not currently supported on MSVC")
+elseif (use_asan AND CMAKE_COMPILER_IS_GNUCXX)
+  target_compile_options(unit_tests PUBLIC "-fsanitize=address")
+  target_link_libraries(unit_tests PUBLIC asan)
+elseif (use_asan)
+  target_compile_options(unit_tests PUBLIC "-fsanitize=address")
+  target_link_libraries(unit_tests PUBLIC "-fsanitize=address")
+endif ()
 if (gen_coverage AND CMAKE_COMPILER_IS_GNUCXX)
   target_compile_options(unit_tests PUBLIC "-fprofile-arcs;-ftest-coverage")
   target_link_libraries(unit_tests PUBLIC gcov)
@@ -35,7 +44,19 @@ target_compile_options(unit_tests PUBLIC ${dart_default_compile_options} ${dart_
 
 # Configure to build our ABI if requested.
 if (build_abi)
-  add_executable(abi_tests abi_unit_tests.cc $<TARGET_OBJECTS:catch>)
+  add_executable(abi_tests heap_abi_unit_tests.cc buffer_abi_unit_tests.cc generic_abi_unit_tests.cc $<TARGET_OBJECTS:catch>)
+
+  # Asan has to come first in linked libraries, so check if we need to link it.
+  if (use_asan AND MSVC)
+    message(FATAL_ERROR "Address sanitizer is not currently supported on MSVC")
+  elseif (use_asan AND CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(abi_tests PUBLIC "-fsanitize=address")
+    target_link_libraries(abi_tests PUBLIC asan)
+  elseif (use_asan)
+    target_compile_options(abi_tests PUBLIC "-fsanitize=address")
+    target_link_libraries(abi_tests PUBLIC "-fsanitize=address")
+  endif ()
+
   target_link_libraries(abi_tests PUBLIC dart_abi)
   target_include_directories(abi_tests PUBLIC ../include ${libgsl})
   target_compile_options(abi_tests PUBLIC ${dart_default_compile_options} ${dart_test_compile_options})
@@ -61,13 +82,26 @@ endif ()
 if (static_test)
   target_link_libraries(unit_tests PUBLIC "-static-libstdc++")
   if (build_abi)
-    target_link_libraries(abi_tests PUBLIC "-static-libdstdc++")
+    target_link_libraries(abi_tests PUBLIC "-static-libstdc++")
   endif ()
 endif ()
 
 # Setup targets for JSON tests.
 if (librj)
   add_executable(json_test json_test.cc $<TARGET_OBJECTS:catch>)
+
+  # Asan has to come first in the list of linked libraries, so check if we need to link it.
+  if (use_asan AND MSVC)
+    message(FATAL_ERROR "Address sanitizer is not currently supported on MSVC")
+  elseif (use_asan AND CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(json_test PUBLIC "-fsanitize=address")
+    target_link_libraries(json_test PUBLIC asan)
+  elseif (use_asan)
+    target_compile_options(json_test PUBLIC "-fsanitize=address")
+    target_link_libraries(json_test PUBLIC "-fsanitize=address")
+  endif ()
+
+  # Finish configuration
   target_include_directories(json_test PUBLIC ../include ${libgsl} ${librj})
   target_compile_options(json_test PUBLIC ${dart_default_compile_options} ${dart_test_compile_options})
   if (extended_test)
@@ -92,6 +126,19 @@ endif ()
 if (can_build_yaml)
   # Define the yaml test
   add_executable(yaml_test yaml_test.cc $<TARGET_OBJECTS:catch>)
+
+  # Asan has to come first in the list of linked libraries, check if we need to link it.
+  if (use_asan AND MSVC)
+    message(FATAL_ERROR "Address sanitizer is not currently supported on MSVC")
+  elseif (use_asan AND CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(yaml_test PUBLIC "-fsanitize=address")
+    target_link_libraries(yaml_test PUBLIC asan)
+  elseif (use_asan)
+    target_compile_options(yaml_test PUBLIC "-fsanitize=address")
+    target_link_libraries(yaml_test PUBLIC "-fsanitize=address")
+  endif ()
+
+  # Finish configuration
   target_link_libraries(yaml_test PUBLIC ${libyaml})
   target_include_directories(yaml_test PUBLIC ../include ${libgsl} ${libyaml})
   if (librj)

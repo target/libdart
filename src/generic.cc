@@ -4,7 +4,12 @@
 
 /*----- Globals -----*/
 
-thread_local std::string errmsg {};
+namespace dart {
+  namespace detail {
+    thread_local std::string errmsg {};
+  }
+}
+
 
 /*----- Helpers -----*/
 
@@ -226,7 +231,7 @@ namespace {
 
   dart_err_t dart_arr_insert_bool_impl(void* dst, size_t idx, int val) {
     return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.insert(idx, val); }),
+      mutable_visitor([=] (auto& dst) { dst.insert(idx, static_cast<bool>(val)); }),
       dst
     );
   }
@@ -283,7 +288,7 @@ namespace {
 
   dart_err_t dart_arr_set_bool_impl(void* dst, size_t idx, int val) {
     return generic_access(
-      mutable_visitor([=] (auto& dst) { dst.set(idx, val); }),
+      mutable_visitor([=] (auto& dst) { dst.set(idx, static_cast<bool>(val)); }),
       dst
     );
   }
@@ -414,6 +419,13 @@ namespace {
     auto err = generic_access([&] (auto& str) { type = abi_type(str.get_type()); }, src);
     if (err) return DART_INVALID;
     else return type;
+  }
+
+  size_t dart_refcount_impl(void const* src) {
+    size_t rc = 0;
+    auto err = generic_access([&rc] (auto& src) { rc = src.refcount(); }, src);
+    if (err) return DART_FAILURE;
+    else return rc;
   }
 
   char* dart_to_json_impl(void const* src, size_t* len) {
@@ -623,10 +635,19 @@ namespace {
 
   dart_err_t dart_iterator_get_err_impl(dart_packet_t* dst, dart_iterator_t const* src) {
     // Initialize.
-    dart_rtti_propagate(dst, src);
+    dst->rtti.p_id = DART_PACKET;
+    dart_rc_propagate(dst, src);
     return iterator_access(
       [dst] (auto& src_curr, auto& src_end) {
-        using type = typename std::decay_t<decltype(src_curr)>::value_type;
+        // XXX: Yikes.
+        // For the sake of simplicity (this API is already huge), the ABI iterator API always
+        // hands out dart_packet_t instances, but the underlying iterator type will depend on what
+        // type it was initialized from.
+        // We need to safely dereference and convert whatever iterator type we currently have
+        // into a dart::packet instance with the same reference counter type as the incoming iterator.
+        // Thankfully, all of the Dart types have a builtin type member, generic_type, which will
+        // compute the type we actually need to initialize here.
+        using type = typename std::decay_t<decltype(src_curr)>::value_type::generic_type;
         if (src_curr == src_end) throw std::runtime_error("dart_iterator has been exhausted");
         return packet_construct([&src_curr] (type* dst) { new(dst) type(*src_curr); }, dst);
       },
@@ -654,7 +675,7 @@ extern "C" {
   dart_packet_t dart_init() {
     // Cannot meaningfully fail.
     dart_packet_t dst;
-    dart_init_rc_err(&dst, DART_RC_SAFE);
+    dart_init_err(&dst);
     return dst;
   }
 
@@ -891,7 +912,7 @@ extern "C" {
   }
 
   dart_err_t dart_str_init_err(dart_packet_t* dst, char const* str) {
-    return dart_str_init_rc_len_err(dst, DART_RC_SAFE, str, strlen(str));
+    return dart_str_init_len_err(dst, str, strlen(str));
   }
 
   dart_packet_t dart_str_init_len(char const* str, size_t len) {
@@ -1388,6 +1409,10 @@ extern "C" {
     return dart_get_type_impl(src);
   }
 
+  size_t dart_refcount(void const* src) {
+    return dart_refcount_impl(src);
+  }
+
   dart_packet_t dart_from_json(char const* str) {
     dart_packet_t dst;
     auto err = dart_from_json_err(&dst, str);
@@ -1616,7 +1641,7 @@ extern "C" {
   }
 
   char const* dart_get_error() {
-    return errmsg.data();
+    return dart::detail::errmsg.data();
   }
 
 }
