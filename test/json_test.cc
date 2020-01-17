@@ -48,7 +48,8 @@ auto make_scope_guard(Func&& cb) {
 
 #if DART_HAS_RAPIDJSON
 void compare_rj_dart(rj::Value const& obj, dart::packet const& pkt);
-void compare_rj_dart_abi(rj::Value const& obj, dart_packet_t const* pkt);
+template <class AbiType>
+void compare_rj_dart_abi(rj::Value const& obj, AbiType const* pkt);
 void compare_rj_rj(rj::Value const& obj, rj::Value const& dup);
 #endif
 
@@ -195,7 +196,7 @@ void compare_rj_rj(rj::Value const& obj, rj::Value const& dup) {
 }
 #endif
 
-#ifdef DART_HAS_ABI
+#ifdef __cplusplus
 TEST_CASE("dart_packet parses JSON via RapidJSON", "[json unit]") {
   // Read in the packets from disk.
   std::string json;
@@ -213,32 +214,85 @@ TEST_CASE("dart_packet parses JSON via RapidJSON", "[json unit]") {
   for (size_t index = 0; index < parsed.size(); ++index) {
     // Construct the packet.
     auto& packet = parsed[index];
-    auto pkt = dart_from_json(packets[index].data());
-    auto guard_one = make_scope_guard([&] { dart_destroy(&pkt); });
+    auto pktone = dart_from_json(packets[index].data());
+    auto pkttwo = dart_from_json_rc(DART_RC_SAFE, packets[index].data());
+    auto pktthree = dart_from_json_len(packets[index].data(), packets[index].size());
+    auto pktfour = dart_from_json_len_rc(DART_RC_SAFE, packets[index].data(), packets[index].size());
+    auto bufferone = dart_buffer_from_json(packets[index].data());
+    auto buffertwo = dart_buffer_from_json_rc(DART_RC_SAFE, packets[index].data());
+    auto bufferthree = dart_buffer_from_json_len(packets[index].data(), packets[index].size());
+    auto bufferfour = dart_buffer_from_json_len_rc(DART_RC_SAFE, packets[index].data(), packets[index].size());
+    auto heapone = dart_heap_from_json(packets[index].data());
+    auto heaptwo = dart_heap_from_json_rc(DART_RC_SAFE, packets[index].data());
+    auto heapthree = dart_heap_from_json_len(packets[index].data(), packets[index].size());
+    auto heapfour = dart_heap_from_json_len_rc(DART_RC_SAFE, packets[index].data(), packets[index].size());
+    auto guard_one = make_scope_guard([&] {
+      dart_destroy(&heapfour);
+      dart_destroy(&heapthree);
+      dart_destroy(&heaptwo);
+      dart_destroy(&heapone);
+      dart_destroy(&bufferfour);
+      dart_destroy(&bufferthree);
+      dart_destroy(&buffertwo);
+      dart_destroy(&bufferone);
+      dart_destroy(&pktfour);
+      dart_destroy(&pktthree);
+      dart_destroy(&pkttwo);
+      dart_destroy(&pktone);
+    });
 
     // Validate against the reference.
-    compare_rj_dart_abi(packet, &pkt);
+    compare_rj_dart_abi(packet, &pktone);
+    compare_rj_dart_abi(packet, &pkttwo);
+    compare_rj_dart_abi(packet, &pktthree);
+    compare_rj_dart_abi(packet, &pktfour);
+    compare_rj_dart_abi(packet, &heapone);
+    compare_rj_dart_abi(packet, &heaptwo);
+    compare_rj_dart_abi(packet, &heapthree);
+    compare_rj_dart_abi(packet, &heapfour);
+    compare_rj_dart_abi(packet, &bufferone);
+    compare_rj_dart_abi(packet, &buffertwo);
+    compare_rj_dart_abi(packet, &bufferthree);
+    compare_rj_dart_abi(packet, &bufferfour);
 
     // Validate the underlying buffer.
-    auto fin = dart_finalize(&pkt);
-    auto dup = dart_take_bytes(dart_dup_bytes(&fin, nullptr));
+    auto pktdup = dart_take_bytes(dart_dup_bytes(&bufferone, nullptr));
+    auto pktduptwo = dart_take_bytes_rc(dart_dup_bytes(&bufferone, nullptr), DART_RC_SAFE);
+    auto bufferdup = dart_buffer_take_bytes(dart_buffer_dup_bytes(&bufferone, nullptr));
+    auto bufferduptwo = dart_buffer_take_bytes_rc(dart_buffer_dup_bytes(&bufferone, nullptr), DART_RC_SAFE);
     auto guard_two = make_scope_guard([&] {
-      dart_destroy(&dup);
-      dart_destroy(&fin);
+      dart_destroy(&bufferduptwo);
+      dart_destroy(&bufferdup);
+      dart_destroy(&pktduptwo);
+      dart_destroy(&pktdup);
     });
-    compare_rj_dart_abi(packet, &dup);
+    compare_rj_dart_abi(packet, &pktdup);
+    compare_rj_dart_abi(packet, &pktduptwo);
+    compare_rj_dart_abi(packet, &bufferdup);
+    compare_rj_dart_abi(packet, &bufferduptwo);
 
     // Generate JSON, reparse it, and validate it's still the same.
-    rj::Document rj_dup;
-    auto* json = dart_to_json(&pkt, nullptr);
-    auto guard_three = make_scope_guard([=] { free(json); });
+    rj::Document rjone, rjtwo, rjthree;
+    auto* pktjson = dart_to_json(&pktone, nullptr);
+    auto* heapjson = dart_heap_to_json(&heapone, nullptr);
+    auto* bufferjson = dart_buffer_to_json(&bufferone, nullptr);
+    auto guard_three = make_scope_guard([=] {
+      free(bufferjson);
+      free(heapjson);
+      free(pktjson);
+    });
 
-    rj_dup.Parse(json);
-    compare_rj_rj(packet, rj_dup);
+    rjone.Parse(pktjson);
+    rjtwo.Parse(heapjson);
+    rjthree.Parse(bufferjson);
+    compare_rj_rj(packet, rjone);
+    compare_rj_rj(packet, rjtwo);
+    compare_rj_rj(packet, rjthree);
   }
 }
 
-void compare_rj_dart_abi(rj::Value const& obj, dart_packet_t const* pkt) {
+template <class AbiType>
+void compare_rj_dart_abi(rj::Value const& obj, AbiType const* pkt) {
   switch (obj.GetType()) {
     case rj::kObjectType:
       {

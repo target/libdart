@@ -167,6 +167,7 @@ namespace dart {
       using type = typename Object::type;
       using iterator = typename Object::iterator;
       using size_type = typename Object::size_type;
+      using generic_type = typename value_type::generic_type;
       using reverse_iterator = typename Object::reverse_iterator;
 
       /*----- Lifecycle Functions -----*/
@@ -1534,6 +1535,7 @@ namespace dart {
       using type = typename Array::type;
       using iterator = typename Array::iterator;
       using size_type = typename Array::size_type;
+      using generic_type = typename value_type::generic_type;
       using reverse_iterator = typename Array::reverse_iterator;
 
       /*----- Lifecycle Functions -----*/
@@ -2668,6 +2670,7 @@ namespace dart {
       using value_type = String;
       using type = typename String::type;
       using size_type = typename String::size_type;
+      using generic_type = typename value_type::generic_type;
 
       /*----- Lifecycle Functions -----*/
 
@@ -3138,6 +3141,7 @@ namespace dart {
       using value_type = Number;
       using type = typename Number::type;
       using size_type = typename Number::size_type;
+      using generic_type = typename value_type::generic_type;
 
       /*----- Lifecycle Functions -----*/
 
@@ -3611,6 +3615,7 @@ namespace dart {
       using value_type = Boolean;
       using type = typename Boolean::type;
       using size_type = typename Boolean::size_type;
+      using generic_type = typename value_type::generic_type;
 
       /*----- Lifecycle Functions -----*/
 
@@ -4043,6 +4048,7 @@ namespace dart {
       using value_type = Null;
       using type = typename Null::type;
       using size_type = typename Null::size_type;
+      using generic_type = typename value_type::generic_type;
 
       /*----- Lifecycle Functions -----*/
 
@@ -4496,6 +4502,9 @@ namespace dart {
       using number = basic_number<basic_heap>;
       using flag = basic_flag<basic_heap>;
       using null = basic_null<basic_heap>;
+
+      // Type than can implicitly subsume this type.
+      using generic_type = basic_packet<RefCount>;
 
       // Views of views don't work, so prevent infinite recursion
       using view = std::conditional_t<
@@ -7125,6 +7134,9 @@ namespace dart {
       using flag = basic_flag<basic_buffer>;
       using null = basic_null<basic_buffer>;
 
+      // Type than can implicitly subsume this type.
+      using generic_type = basic_packet<RefCount>;
+
       // Views of views don't work, so prevent infinite recursion
       using view = std::conditional_t<
         refcount::is_owner<RefCount>::value,
@@ -9469,6 +9481,9 @@ namespace dart {
       using number = basic_number<basic_packet>;
       using flag = basic_flag<basic_packet>;
       using null = basic_null<basic_packet>;
+
+      // Type than can implicitly subsume this type.
+      using generic_type = basic_packet;
 
       // Views of views don't work, so prevent infinite recursion
       using view = std::conditional_t<
