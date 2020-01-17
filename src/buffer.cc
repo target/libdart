@@ -203,7 +203,7 @@ extern "C" {
 
   dart_err_t dart_buffer_init_rc_err(dart_buffer_t* dst, dart_rc_type_t rc) {
     // Initialize.
-    dst->rtti = {DART_HEAP, rc};
+    dst->rtti = {DART_BUFFER, rc};
     return buffer_constructor_access(
       compose(
         [] (dart::buffer* ptr) { new(ptr) dart::buffer(); },

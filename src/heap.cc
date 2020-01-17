@@ -794,7 +794,7 @@ extern "C" {
   }
 
   dart_err_t dart_heap_str_init_err(dart_heap_t* dst, char const* str) {
-    return dart_heap_str_init_rc_len_err(dst, DART_RC_SAFE, str, strlen(str));
+    return dart_heap_str_init_len_err(dst, str, strlen(str));
   }
 
   dart_heap_t dart_heap_str_init_len(char const* str, size_t len) {
