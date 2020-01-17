@@ -29,7 +29,7 @@ before_install:
       cd benchmark-1.5.0
       mkdir build
       cd build
-      cmake .. -DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON -DCMAKE_BUILD_TYPE=Release
+      cmake .. -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_TESTING=OFF -DBENCHMARK_ENABLE_GTEST_TESTS=OFF
       make -j 2
       sudo make install
       cd ../..
@@ -48,6 +48,8 @@ before_install:
       sudo cp include/sajson.h /usr/local/include
       popd
       rm -rf $BUILD_DIR
+      brew install python@2
+      pip2 install cpp-coveralls
     fi
 
 # Final environment configs.
@@ -187,15 +189,26 @@ matrix:
     - os: osx
       compiler: clang
       osx_image: xcode10.1
+      env:
+        GEN_COVERAGE: true
 
 # Build and run.
 script:
   - mkdir build
   - cd build
-  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON
+  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON -Dgen_coverage=ON
   - make VERBOSE=1
   - ctest --output-on-failure
-  - make clean
-  - cmake .. -Duse_sajson=ON -Dextended_test=OFF
+  - cd ..
+  - mkdir build2
+  - cd build2
+  - cmake .. -Duse_sajson=ON -Dbenchmark=ON -Dbuild_abi=ON
   - make VERBOSE=1
   - ctest --output-on-failure
+  - cd ..
+
+after_success:
+  - |
+    if [ "${TRAVIS_OS_NAME}" = "osx" ] && [ "${GEN_COVERAGE}" = "true" ]; then
+      coveralls -r . -b build/ -i include/ -i src/ -e include/extern/ --gcov-options '\-lp'
+    fi

@@ -106,47 +106,6 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_buffer<RefCount>::operator basic_heap<RefCount>() const {
-    switch (get_type()) {
-      case type::object:
-        {
-          iterator k, v;
-          std::tie(k, v) = kvbegin();
-          auto obj = basic_heap<RefCount>::make_object();
-          while (v != end()) {
-            obj.add_field(basic_heap<RefCount> {*k}, basic_heap<RefCount> {*v});
-            ++k, ++v;
-          }
-          return obj;
-        }
-      case type::array:
-        {
-          auto arr = basic_heap<RefCount>::make_array();
-          for (auto elem : *this) arr.push_back(basic_heap<RefCount> {std::move(elem)});
-          return arr;
-        }
-      case type::string:
-        return basic_heap<RefCount>::make_string(strv());
-      case type::integer:
-        return basic_heap<RefCount>::make_integer(integer());
-      case type::decimal:
-        return basic_heap<RefCount>::make_decimal(decimal());
-      case type::boolean:
-        return basic_heap<RefCount>::make_boolean(boolean());
-      default:
-        DART_ASSERT(get_type() == type::null);
-        return basic_heap<RefCount>::make_null();
-    }
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount>::operator basic_heap<RefCount>() const {
-    auto* pkt = shim::get_if<basic_heap<RefCount>>(&impl);
-    if (pkt) return *pkt;
-    else return basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
-  }
-
-  template <template <class> class RefCount>
   basic_heap<RefCount> basic_heap<RefCount>::make_null() noexcept {
     return basic_heap(detail::null_tag {});
   }
