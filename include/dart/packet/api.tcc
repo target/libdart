@@ -91,6 +91,34 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_heap<RefCount>() const& {
+    auto* pkt = shim::get_if<basic_heap<RefCount>>(&impl);
+    if (pkt) return *pkt;
+    else return basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_heap<RefCount>() && {
+    auto* pkt = shim::get_if<basic_heap<RefCount>>(&impl);
+    if (pkt) return std::move(*pkt);
+    else return basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_buffer<RefCount>() const& {
+    auto* pkt = shim::get_if<basic_buffer<RefCount>>(&impl);
+    if (pkt) return *pkt;
+    else return basic_buffer<RefCount> {shim::get<basic_heap<RefCount>>(impl)};
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_buffer<RefCount>() && {
+    auto* pkt = shim::get_if<basic_buffer<RefCount>>(&impl);
+    if (pkt) return std::move(*pkt);
+    else return basic_buffer<RefCount> {shim::get<basic_heap<RefCount>>(impl)};
+  }
+
+  template <template <class> class RefCount>
   basic_packet<RefCount> basic_packet<RefCount>::make_null() noexcept {
     return basic_heap<RefCount>::make_null();
   }
