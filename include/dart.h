@@ -9997,7 +9997,23 @@ namespace dart {
        *  object tree and lifts it into a dynamic heap representation,
        *  making at least as many allocations as nodes in the tree during the process.
        */
-      explicit operator basic_heap<RefCount>() const;
+      explicit operator basic_heap<RefCount>() const&;
+
+      /**
+       *  @brief
+       *  dart::heap conversion operator.
+       *
+       *  @details
+       *  If the current packet isn't finalized, function simply unwraps and returns
+       *  a copy of the current instance (incrementing the reference counter).
+       *  If the current packet IS finalized, function walks across the flattened
+       *  object tree and lifts it into a dynamic heap representation,
+       *  making at least as many allocations as nodes in the tree during the process.
+       *
+       *  @remarks
+       *  Rvalue ref overload exists to forward through conversions.
+       */
+      explicit operator basic_heap<RefCount>() &&;
 
       /**
        *  @brief
@@ -10010,7 +10026,23 @@ namespace dart {
        *  If the current packet IS finalized, function simply unwraps and returns a copy
        *  of the current instance (incrementing the reference counter).
        */
-      explicit operator basic_buffer<RefCount>() const;
+      explicit operator basic_buffer<RefCount>() const&;
+
+      /**
+       *  @brief
+       *  dart::buffer conversion operator.
+       *
+       *  @details
+       *  If the current packet isn't finalized, function walks across the dynamic
+       *  object tree and lowers it into a flattened buffer of bytes, making precisely
+       *  one allocation during the process.
+       *  If the current packet IS finalized, function simply unwraps and returns a copy
+       *  of the current instance (incrementing the reference counter).
+       *
+       *  @remarks
+       *  Rvalue ref overload exists to forward through conversions.
+       */
+      explicit operator basic_buffer<RefCount>() &&;
 
       /*----- Public API -----*/
 

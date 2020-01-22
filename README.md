@@ -2,6 +2,7 @@ Dart
 ==============
 
 [![Build Status](https://travis-ci.com/target/libdart.svg?branch=master)](https://travis-ci.com/target/libdart)
+[![Coverage Status](https://coveralls.io/repos/github/Cfretz244/libdart/badge.svg?branch=master)](https://coveralls.io/github/Cfretz244/libdart?branch=master)
 ### A High Performance, Network Optimized, JSON Manipulation Library
 **Dart** is both a wire-level binary `JSON` protocol, along with a high performance,
 and surprisingly high level, `C++` API to interact with that `JSON`.

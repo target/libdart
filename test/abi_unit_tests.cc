@@ -288,6 +288,48 @@ SCENARIO("objects can be constructed with many values", "[abi unit]") {
   }
 }
 
+SCENARIO("objects can insert any type", "[abi unit]") {
+  GIVEN("an object to insert into") {
+    auto obj = dart_obj_init();
+    auto guard = make_scope_guard([&] { dart_destroy(&obj); });
+
+    WHEN("we insert another dart type") {
+      auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
+      dart_obj_insert_dart(&obj, "nested", &nested);
+      auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+
+      THEN("the object is reachable, and the original copy is preserved") {
+        auto grabbed = dart_obj_get(&obj, "nested");
+        auto guard = make_scope_guard([&] { dart_destroy(&grabbed); });
+
+        REQUIRE(dart_is_obj(&nested));
+        REQUIRE(dart_is_obj(&grabbed));
+        REQUIRE(dart_size(&nested) == 2U);
+        REQUIRE(dart_size(&grabbed) == 2U);
+        REQUIRE(dart_get_type(&nested) == DART_OBJECT);
+        REQUIRE(dart_get_type(&grabbed) == DART_OBJECT);
+      }
+    }
+
+    WHEN("we take another dart type") {
+      auto nested = dart_obj_init_va("ss", "hello", "world", "yes", "no");
+      dart_obj_insert_take_dart(&obj, "nested", &nested);
+      auto guard = make_scope_guard([&] { dart_destroy(&nested); });
+
+      THEN("the object is reachable, and the original copy is reset to null") {
+        auto grabbed = dart_obj_get(&obj, "nested");
+        auto guard = make_scope_guard([&] { dart_destroy(&grabbed); });
+
+        REQUIRE(dart_is_obj(&grabbed));
+        REQUIRE(dart_is_null(&nested));
+        REQUIRE(dart_size(&grabbed) == 2U);
+        REQUIRE(dart_get_type(&grabbed) == DART_OBJECT);
+        REQUIRE(dart_get_type(&nested) == DART_NULL);
+      }
+    }
+  }
+}
+
 SCENARIO("objects can be iterated over", "[abi unit]") {
   GIVEN("an object with contents") {
     auto* dyn = "dynamic";
