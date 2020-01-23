@@ -254,7 +254,7 @@ TEST_CASE("dart_packet parses JSON via RapidJSON", "[json unit]") {
     compare_rj_dart_abi(packet, &buffertwo);
     compare_rj_dart_abi(packet, &bufferthree);
     compare_rj_dart_abi(packet, &bufferfour);
-
+    
     // Validate the underlying buffer.
     auto pktdup = dart_take_bytes(dart_dup_bytes(&bufferone, nullptr));
     auto pktduptwo = dart_take_bytes_rc(dart_dup_bytes(&bufferone, nullptr), DART_RC_SAFE);

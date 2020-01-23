@@ -57,7 +57,7 @@ if (build_abi)
     target_link_libraries(abi_tests PUBLIC "-fsanitize=address")
   endif ()
 
-  target_link_libraries(abi_tests PUBLIC dart_abi)
+  target_link_libraries(abi_tests PUBLIC dart_abi_static)
   target_include_directories(abi_tests PUBLIC ../include ${libgsl})
   target_compile_options(abi_tests PUBLIC ${dart_default_compile_options} ${dart_test_compile_options})
   set_property(TARGET unit_tests APPEND PROPERTY COMPILE_DEFINITIONS DART_HAS_ABI)
@@ -109,7 +109,7 @@ if (librj)
   endif ()
   if (build_abi)
     set_property(TARGET json_test APPEND PROPERTY COMPILE_DEFINITIONS DART_HAS_ABI)
-    target_link_libraries(json_test PUBLIC dart_abi)
+    target_link_libraries(json_test PUBLIC dart_abi_static)
   endif ()
 
   # Generate coverage information if it was requested

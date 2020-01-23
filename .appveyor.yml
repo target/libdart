@@ -1,0 +1,31 @@
+build:
+  verbosity: detailed
+
+branches:
+  only:
+    - master
+    - development
+
+platform: x64
+
+environment:
+  matrix:
+    - GENERATOR: Visual Studio 16 2019
+      BUILD_TYPE: Debug
+      APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+
+build_script:
+  - mkdir tmp
+  - cd tmp
+  - curl -fsSL "https://github.com/microsoft/GSL/archive/v2.0.0.zip" -o gsl.zip
+  - 7z x gsl.zip
+  - Xcopy /E /I GSL-2.0.0\include\gsl ..\include\extern\gsl\
+  - curl -fsSL "https://github.com/Tencent/rapidjson/archive/v1.1.0.zip" -o rapidjson.zip
+  - 7z x rapidjson.zip
+  - Xcopy /E /I rapidjson-1.1.0\include\rapidjson ..\include\extern\rapidjson
+  - cd ..
+  - mkdir build
+  - cd build
+  - cmake .. -G "%GENERATOR%" -A x64 -Dbuild_abi=ON -Dextended_test=ON
+  - cmake --build . --config %BUILD_TYPE%
+  - ctest --output-on-failure --build-config %BUILD_TYPE%

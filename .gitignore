@@ -1,6 +1,9 @@
 *.DS_Store
 *.swp
 *.swo
+.vs/*
+CMakeSettings.json
+out/*
 build/*
 docs/*
 benchmark/build/*
