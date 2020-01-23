@@ -8118,6 +8118,20 @@ extern "C" {
    */
   DART_ABI_EXPORT char const* dart_get_error();
 
+  /**
+   *  @brief
+   *  Free a buffer returned from one of the dart_*_dup_bytes functions
+   *
+   *  @details
+   *  Dart requires its buffer representations to be aligned to a 64-bit
+   *  boundary for internal design reasons (simplifies alignment logic significantly).
+   *  Very easy to do on *nix machines with posix_memalign, which allocates aligned
+   *  memory that can be passed directly to free.
+   *  Windows, on the other hand, has _aligned_malloc and _aligned_free, which MUST
+   *  be paired, so to write portable code this function must exist.
+   */
+  DART_ABI_EXPORT void dart_aligned_free(void* ptr);
+
 #ifdef __cplusplus
 }
 #endif

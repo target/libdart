@@ -588,7 +588,9 @@ extern "C" {
     if (err) return err;
 
     // Assign to it.
-    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+    // We need to use dart_aligned_free here for the destructor as on windows, aligned alloc
+    // must be paired with a call to aligned free. Linux/Mac are just fine with normal free
+    auto* del = +[] (gsl::byte const* ptr) { dart_aligned_free(const_cast<gsl::byte*>(ptr)); };
     owner_type owner {reinterpret_cast<gsl::byte const*>(bytes), del};
     return err_handler([&] {
       return buffer_unwrap(
