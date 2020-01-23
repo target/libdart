@@ -1644,4 +1644,8 @@ extern "C" {
     return dart::detail::errmsg.data();
   }
 
+  void dart_aligned_free(void* ptr) {
+    dart::shim::aligned_free(ptr);
+  }
+
 }

@@ -19,9 +19,9 @@ option(gen_coverage "Generate gcov coverage information in support envs" OFF)
 option(use_asan "Link tests with address sanitizer" OFF)
 
 # Check which dependencies are installed.
-find_path(libgsl gsl/gsl)
 find_library(libyaml yaml)
-find_path(librj rapidjson/reader.h)
+find_path(libgsl gsl/gsl HINTS ${PROJECT_SOURCE_DIR}/include/extern)
+find_path(librj rapidjson/reader.h HINTS ${PROJECT_SOURCE_DIR}/include/extern)
 if (NOT librj)
   CHECK_INCLUDE_FILE_CXX("rapidjson/reader.h" librj)
 endif ()

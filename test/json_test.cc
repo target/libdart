@@ -255,22 +255,6 @@ TEST_CASE("dart_packet parses JSON via RapidJSON", "[json unit]") {
     compare_rj_dart_abi(packet, &bufferthree);
     compare_rj_dart_abi(packet, &bufferfour);
 
-    // Validate the underlying buffer.
-    auto pktdup = dart_take_bytes(dart_dup_bytes(&bufferone, nullptr));
-    auto pktduptwo = dart_take_bytes_rc(dart_dup_bytes(&bufferone, nullptr), DART_RC_SAFE);
-    auto bufferdup = dart_buffer_take_bytes(dart_buffer_dup_bytes(&bufferone, nullptr));
-    auto bufferduptwo = dart_buffer_take_bytes_rc(dart_buffer_dup_bytes(&bufferone, nullptr), DART_RC_SAFE);
-    auto guard_two = make_scope_guard([&] {
-      dart_destroy(&bufferduptwo);
-      dart_destroy(&bufferdup);
-      dart_destroy(&pktduptwo);
-      dart_destroy(&pktdup);
-    });
-    compare_rj_dart_abi(packet, &pktdup);
-    compare_rj_dart_abi(packet, &pktduptwo);
-    compare_rj_dart_abi(packet, &bufferdup);
-    compare_rj_dart_abi(packet, &bufferduptwo);
-
     // Generate JSON, reparse it, and validate it's still the same.
     rj::Document rjone, rjtwo, rjthree;
     auto* pktjson = dart_to_json(&pktone, nullptr);
