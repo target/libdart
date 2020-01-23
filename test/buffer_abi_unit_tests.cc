@@ -447,9 +447,9 @@ SCENARIO("buffer objects can be iterated over", "[buffer abi unit]") {
 
 SCENARIO("buffer objects can switch between finalized and non-finalized representations", "[buffer abi unit]") {
   GIVEN("an object with lots of contents") {
-    auto mut = dart_obj_init_va("sass,oidb,sidbn",
+    auto mut = dart_obj_init_va("sass,aidb,sidbn",
         "hello", "world", "arr", "one", "two",
-        "obj", "nest_int", 1337, "nest_dcm", 3.14159, "nest_bool", true,
+        "arr", 1337, 3.14159, true,
         "yes", "no", "int", 1337, "dcm", 3.14159, "bool", true, "none");
     auto fin = dart_to_buffer(&mut);
     auto guard = make_scope_guard([&] {
@@ -461,12 +461,26 @@ SCENARIO("buffer objects can switch between finalized and non-finalized represen
       // These functions are equivalent
       auto defin = dart_buffer_definalize(&fin);
       auto liftd = dart_buffer_lift(&fin);
+
+      auto finbool = dart_buffer_obj_get(&fin, "bool");
+      auto dynbool = dart_heap_obj_get(&defin, "bool");
+      auto finarr = dart_buffer_obj_get(&fin, "arr");
+      auto dynarr = dart_heap_obj_get(&defin, "arr");
       auto guard = make_scope_guard([&] {
+        dart_heap_destroy(&dynarr);
+        dart_buffer_destroy(&finarr);
+        dart_heap_destroy(&dynbool);
+        dart_buffer_destroy(&finbool);
         dart_heap_destroy(&liftd);
         dart_heap_destroy(&defin);
       });
-
       THEN("it still compares equal with its original representation") {
+        REQUIRE(dart_buffer_is_bool(&finbool));
+        REQUIRE(dart_heap_is_bool(&dynbool));
+        REQUIRE(dart_buffer_is_obj(&fin));
+        REQUIRE(dart_heap_is_obj(&defin));
+        REQUIRE(dart_buffer_is_arr(&finarr));
+        REQUIRE(dart_heap_is_arr(&dynarr));
         REQUIRE(!dart_is_finalized(&defin));
         REQUIRE(!dart_is_finalized(&liftd));
         REQUIRE(dart_equal(&defin, &liftd));
@@ -512,8 +526,8 @@ SCENARIO("finalized buffer objects have unique object representations") {
         auto* ownone = dart_buffer_dup_bytes(&finone, &lenone);
         auto* owntwo = dart_buffer_dup_bytes(&fintwo, nullptr);
         auto guard = make_scope_guard([&] {
-          free(owntwo);
-          free(ownone);
+          dart_aligned_free(owntwo);
+          dart_aligned_free(ownone);
         });
         REQUIRE(lenone == lentwo);
         REQUIRE(std::memcmp(ownone, owntwo, lenone) == 0);

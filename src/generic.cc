@@ -553,7 +553,9 @@ namespace {
   dart_err_t dart_take_bytes_rc_err_impl(dart_packet_t* dst, dart_rc_type_t rc, void* bytes) {
     using owner_type = std::unique_ptr<gsl::byte const[], void (*) (gsl::byte const*)>;
 
-    auto* del = +[] (gsl::byte const* ptr) { free(const_cast<gsl::byte*>(ptr)); };
+    // We need to use dart_aligned_free here for the destructor as on windows, aligned alloc
+    // must be paired with a call to aligned free. Linux/Mac are just fine with normal free
+    auto* del = +[] (gsl::byte const* ptr) { dart_aligned_free(const_cast<gsl::byte*>(ptr)); };
     owner_type owner {reinterpret_cast<gsl::byte const*>(bytes), del};
     return packet_typed_constructor_access(
       [&] (auto& dst) {
@@ -1642,6 +1644,10 @@ extern "C" {
 
   char const* dart_get_error() {
     return dart::detail::errmsg.data();
+  }
+
+  void dart_aligned_free(void* ptr) {
+    dart::shim::aligned_free(ptr);
   }
 
 }

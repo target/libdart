@@ -1120,8 +1120,8 @@ SCENARIO("finalized objects have unique object representations") {
         auto* ownone = dart_dup_bytes(&finone, &lenone);
         auto* owntwo = dart_dup_bytes(&fintwo, &lentwo);
         auto guard = make_scope_guard([&] {
-          free(owntwo);
-          free(ownone);
+          dart_aligned_free(owntwo);
+          dart_aligned_free(ownone);
         });
         REQUIRE(lenone == lentwo);
         REQUIRE(std::memcmp(ownone, owntwo, lenone) == 0);

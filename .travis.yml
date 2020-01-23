@@ -210,5 +210,5 @@ script:
 after_success:
   - |
     if [ "${TRAVIS_OS_NAME}" = "osx" ] && [ "${GEN_COVERAGE}" = "true" ]; then
-      coveralls -r . -b build/ -i include/ -i src/ -e include/extern/ -e include/dart/support/variant.h --gcov-options '\-lp'
+      coveralls -r . -b build/ -i include/ -i src/ -e include/extern/catch.h -e include/dart/support/variant.h --gcov-options '\-lp'
     fi
