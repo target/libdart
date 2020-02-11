@@ -61,17 +61,18 @@ int main() {
   std::cout << arr << std::endl;
 
   // A more complex example with some complex STL types.
-  using value = std::variant<double, std::string>;
+  using clock = std::chrono::system_clock;
+  using value = std::variant<double, std::string, clock::time_point>;
   using sequence = std::vector<value>;
   using map = std::map<std::string, sequence>;
 
   // Dart recursively decomposes the type and figures it out.
-  arr.push_back(map {{"args", {3.14159, 2.99792, "top", "secret"}}});
+  arr.push_back(map {{"args", {3.14159, 2.99792, "top", "secret", clock::now()}}});
   std::cout << arr << std::endl;
 }
 
 // => [1,"two",3.14159,true,null]
-// => [1,"two",3.14159,true,null,{"args":[3.14159,2.99792,"top","secret"]}]
+// => [1,"two",3.14159,true,null,{"args":[3.14159,2.99792,"top","secret","2020-02-25T10:58:37Z"]}]
 ```
 
 The **Dart** container types (`dart::object` and `dart::array`) model the API
@@ -301,8 +302,12 @@ namespace dart::convert {
   template <>
   struct to_dart<my_string> {
     template <class Packet>
-    static Packet cast(my_string const& s) {
+    Packet cast(my_string const& s) {
       return Packet::make_string(s.str);
+    }
+    template <class Packet>
+    bool compare(Packet const& pkt, my_string const& s) {
+      return pkt.is_str() && pkt.strv() == s.str;
     }
   };
 }

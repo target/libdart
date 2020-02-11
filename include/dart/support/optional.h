@@ -324,6 +324,10 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator ==(optional<T> const& lhs, optional<U> const& rhs) {
@@ -334,6 +338,10 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator !=(optional<T> const& lhs, optional<U> const& rhs) {
@@ -344,6 +352,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator ==(optional<T> const& lhs, U const& rhs) {
@@ -353,6 +363,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_comparable<T const&, U const>::value
+      &&
+      std::is_convertible<T, U>::value
     >
   >
   bool operator ==(T const& lhs, optional<U> const& rhs) {
@@ -361,6 +373,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator !=(optional<T> const& lhs, U const& rhs) {
@@ -369,6 +383,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_comparable<T const&, U const>::value
+      &&
+      std::is_convertible<T, U>::value
     >
   >
   bool operator !=(T const& lhs, optional<U> const& rhs) {
@@ -399,6 +415,10 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_lt_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator <(optional<T> const& lhs, optional<U> const& rhs) {
@@ -409,6 +429,10 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_lte_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator <=(optional<T> const& lhs, optional<U> const& rhs) {
@@ -421,6 +445,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_lt_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator <(optional<T> const& lhs, U const& rhs) {
@@ -430,6 +456,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_lt_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
     >
   >
   bool operator <(T const& lhs, optional<U> const& rhs) {
@@ -439,6 +467,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_lte_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator <=(optional<T> const& lhs, U const& rhs) {
@@ -448,6 +478,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_lte_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
     >
   >
   bool operator <=(T const& lhs, optional<U> const& rhs) {
@@ -477,6 +509,10 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_gt_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator >(optional<T> const& lhs, optional<U> const& rhs) {
@@ -487,6 +523,10 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_gte_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator >=(optional<T> const& lhs, optional<U> const& rhs) {
@@ -499,6 +539,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_gt_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator >(optional<T> const& lhs, U const& rhs) {
@@ -508,6 +550,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_gt_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
     >
   >
   bool operator >(T const& lhs, optional<U> const& rhs) {
@@ -517,6 +561,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_gte_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<U, T>::value
     >
   >
   bool operator >=(optional<T> const& lhs, U const& rhs) {
@@ -526,6 +572,8 @@ namespace dart {
   template <class T, class U, class =
     std::enable_if_t<
       meta::are_gte_comparable<T const&, U const&>::value
+      &&
+      std::is_convertible<T, U>::value
     >
   >
   bool operator >=(T const& lhs, optional<U> const& rhs) {

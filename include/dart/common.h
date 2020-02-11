@@ -103,6 +103,51 @@ namespace dart {
 
   namespace detail {
 
+    template <class T>
+    struct is_dart_type : std::false_type {};
+    template <template <class> class RC>
+    struct is_dart_type<dart::basic_heap<RC>> : std::true_type {};
+    template <template <class> class RC>
+    struct is_dart_type<dart::basic_buffer<RC>> : std::true_type {};
+    template <template <class> class RC>
+    struct is_dart_type<dart::basic_packet<RC>> : std::true_type {};
+
+    template <class T>
+    struct is_wrapper_type : std::false_type {};
+    template <class T>
+    struct is_wrapper_type<dart::basic_object<T>> : std::true_type {};
+    template <class T>
+    struct is_wrapper_type<dart::basic_array<T>> : std::true_type {};
+    template <class T>
+    struct is_wrapper_type<dart::basic_string<T>> : std::true_type {};
+    template <class T>
+    struct is_wrapper_type<dart::basic_number<T>> : std::true_type {};
+    template <class T>
+    struct is_wrapper_type<dart::basic_flag<T>> : std::true_type {};
+    template <class T>
+    struct is_wrapper_type<dart::basic_null<T>> : std::true_type {};
+
+    template <class T>
+    struct is_dart_api_type : std::false_type {};
+    template <template <class> class RC>
+    struct is_dart_api_type<dart::basic_heap<RC>> : std::true_type {};
+    template <template <class> class RC>
+    struct is_dart_api_type<dart::basic_buffer<RC>> : std::true_type {};
+    template <template <class> class RC>
+    struct is_dart_api_type<dart::basic_packet<RC>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_object<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_array<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_string<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_number<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_flag<T>> : std::true_type {};
+    template <class T>
+    struct is_dart_api_type<dart::basic_null<T>> : std::true_type {};
+
     /**
      *  @brief
      *  Enum encodes the type of an individual packet instance.
@@ -1149,16 +1194,6 @@ namespace dart {
         return generic_deref<RefCount>([] (auto& v) { return v.get_sizeof(); }, elem);
       } else {
         return 0;
-      }
-    }
-
-    template <template <class> class RefCount>
-    bool buffer_equal(raw_element lhs, raw_element rhs) {
-      auto lhs_size = find_sizeof<RefCount>(lhs), rhs_size = find_sizeof<RefCount>(rhs);
-      if (lhs_size == rhs_size) {
-        return std::equal(lhs.buffer, lhs.buffer + lhs_size, rhs.buffer);
-      } else {
-        return false;
       }
     }
 

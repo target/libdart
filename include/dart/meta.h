@@ -174,6 +174,15 @@ namespace dart {
     template <class T, std::ptrdiff_t extent>
     struct is_span<gsl::span<T, extent>> : std::true_type {};
 
+    template <class T>
+    struct is_std_smart_ptr : std::false_type {};
+    template <class T, class Del>
+    struct is_std_smart_ptr<std::unique_ptr<T, Del>> : std::true_type {};
+    template <class T>
+    struct is_std_smart_ptr<std::shared_ptr<T>> : std::true_type {};
+    template <class T>
+    struct is_std_smart_ptr<std::weak_ptr<T>> : std::true_type {};
+
     template <size_t pos>
     struct priority_tag : priority_tag<pos - 1> {};
     template <>

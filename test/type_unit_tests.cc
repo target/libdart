@@ -656,7 +656,7 @@ SCENARIO("all objects can inject additional keys", "[type unit]") {
 
       // Generate the final object.
       auto pairs = get_arr(keys);
-      auto obj = object {pairs};
+      auto obj = object {packet::make_object(pairs)};
 
       DYNAMIC_WHEN("we inject the orignal key value pairs", idx) {
         auto injected = obj.inject(pairs);

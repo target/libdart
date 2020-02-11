@@ -60,29 +60,6 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  template <template <class> class OtherRC>
-  bool basic_buffer<RefCount>::operator ==(basic_buffer<OtherRC> const& other) const noexcept {
-    // Check if we're comparing against ourselves.
-    // Cast is necessary to ensure validity if we're comparing
-    // against a different refcounter.
-    if (static_cast<void const*>(this) == static_cast<void const*>(&other)) return true;
-
-    // Check if we're sure we're even the same type.
-    if (is_null() && other.is_null()) return true;
-    else if (get_type() != other.get_type()) return false;
-    else if (raw.buffer == other.raw.buffer) return true;
-
-    // Fall back on a comparison of the underlying buffers.
-    return detail::buffer_equal<RefCount>(raw, other.raw);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class OtherRC>
-  bool basic_buffer<RefCount>::operator !=(basic_buffer<OtherRC> const& other) const noexcept {
-    return !(*this == other);
-  }
-
-  template <template <class> class RefCount>
   auto basic_buffer<RefCount>::operator ->() noexcept -> basic_buffer* {
     return this;
   }

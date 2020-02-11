@@ -26,6 +26,7 @@ SCENARIO("optional values can be created", "[optional unit]") {
       REQUIRE(!opt.has_value());
       REQUIRE_THROWS_AS(opt.value(), dart::bad_optional_access);
       REQUIRE(opt.value_or(-1) == -1);
+      REQUIRE(-1 == opt.value_or(-1));
     }
   }
 
@@ -35,9 +36,13 @@ SCENARIO("optional values can be created", "[optional unit]") {
     THEN("its basic properties make sense") {
       REQUIRE(!!opt);
       REQUIRE(opt == "hello world");
+      REQUIRE("hello world" == opt);
       REQUIRE(*opt == "hello world");
+      REQUIRE("hello world" == *opt);
       REQUIRE(opt.value() == "hello world");
+      REQUIRE("hello world" == opt.value());
       REQUIRE(opt.value_or("nope") == "hello world");
+      REQUIRE("hello world" == opt.value_or("nope"));
     }
   }
 }
