@@ -147,7 +147,7 @@ namespace dart {
           // Cleanup anything allocated for this event.
           yaml_event_delete(&event);
         } while (event_type != YAML_STREAM_END_EVENT && event_type != YAML_DOCUMENT_END_EVENT);
-      } catch (std::exception) {
+      } catch (std::exception const&) {
         // Release memory and rethrow;
         yaml_event_delete(&event);
         yaml_parser_delete(&parser);

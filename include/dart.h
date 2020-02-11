@@ -49,8 +49,8 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 /*----- Local Includes -----*/
 
 #include "dart/common.h"
+#include "dart/conversions.h"
 #include "dart/refcount_traits.h"
-#include "dart/conversion_traits.h"
 
 /*----- Macro Definitions -----*/
 
@@ -102,6 +102,8 @@ namespace dart {
     // Type aliases used to SFINAE away member functions we shouldn't have.
     template <class Obj, class... As>
     using make_object_t = decltype(Obj::make_object(std::declval<As>()...));
+    template <class Obj, class M>
+    using assignment_operator_t = decltype(std::declval<Obj>() = std::declval<M>());
     template <class Obj, class K>
     using subscript_operator_t = decltype(std::declval<Obj>()[std::declval<K>()]);
     template <class Obj, class K, class V>
@@ -246,9 +248,8 @@ namespace dart {
        */
       template <class Arg,
         std::enable_if_t<
-          !meta::is_specialization_of<
-            Arg,
-            dart::basic_object
+          !detail::is_wrapper_type<
+            std::decay_t<Arg>
           >::value
           &&
           std::is_convertible<
@@ -389,6 +390,82 @@ namespace dart {
 
       /**
        *  @brief
+       *  Converting copy-assignment operator from std::map.
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::map<Key, Value, Comp, Alloc> const&
+          >::value
+        >
+      >
+      basic_object& operator =(std::map<Key, Value, Comp, Alloc> const& map) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::map.
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::map<Key, Value, Comp, Alloc>&&
+          >::value
+        >
+      >
+      basic_object& operator =(std::map<Key, Value, Comp, Alloc>&& map) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::unordered_map.
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_map<Key, Value, Hash, Equal, Alloc> const&
+          >::value
+        >
+      >
+      basic_object& operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::unordered_map.
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_map<Key, Value, Hash, Equal, Alloc>&&
+          >::value
+        >
+      >
+      basic_object& operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) &;
+
+      /**
+       *  @brief
        *  Object subscript operator.
        *
        *  @details
@@ -441,40 +518,6 @@ namespace dart {
         >
       >
       decltype(auto) operator [](KeyType const& key) &&;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherObject>
-      bool operator ==(basic_object<OtherObject> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherObject>
-      bool operator !=(basic_object<OtherObject> const& other) const noexcept;
 
       /**
        *  @brief
@@ -1099,7 +1142,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -1445,9 +1498,6 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-
       // We're friends of all other basic_object specializations.
       template <class>
       friend class basic_object;
@@ -1476,6 +1526,8 @@ namespace dart {
     // Type aliases used to SFINAE away member functions we shouldn't have.
     template <class Arr, class... Args>
     using make_array_t = decltype(Arr::make_array(std::declval<Args>()...));
+    template <class Arr, class V>
+    using assignment_operator_t = decltype(std::declval<Arr>() = std::declval<V>());
     template <class Arr, class I>
     using subscript_operator_t = decltype(std::declval<Arr>()[std::declval<I>()]);
     template <class Arr, class V>
@@ -1715,6 +1767,74 @@ namespace dart {
 
       /**
        *  @brief
+       *  Converting copy-assignment operator from std::vector
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::vector<T, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::vector<T, Alloc> const& vec) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::vector
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::vector<T, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::vector<T, Alloc>&& vec) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::array
+       */
+      template <class T, size_t len, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::array<T, len> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::array<T, len> const& vec) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::array
+       */
+      template <class T, size_t len, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::array<T, len>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::array<T, len>&& vec) &;
+
+      /**
+       *  @brief
        *  Array subscript operator.
        *
        *  @details
@@ -1776,40 +1896,6 @@ namespace dart {
         >
       >
       decltype(auto) operator [](Index const& idx) &&;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherArray>
-      bool operator ==(basic_array<OtherArray> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherArray>
-      bool operator !=(basic_array<OtherArray> const& other) const noexcept;
 
       /**
        *  @brief
@@ -2435,7 +2521,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -2632,9 +2728,6 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-
       // We're friends of all other basic_array specializations.
       template <class>
       friend class basic_array;
@@ -2658,8 +2751,10 @@ namespace dart {
    *  constraints/preconditions where applicable.
    */
   template <class String>
-  class basic_string {
+  class basic_string final {
 
+    template <class Str, class S>
+    using assignment_operator_t = decltype(std::declval<Str>() = std::declval<S>());
     template <class Str, class... Args>
     using make_string_t = decltype(Str::make_string(std::declval<Args>()...));
 
@@ -2855,37 +2950,18 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
+       *  Converting copy-assignment operator from shim::string_view
        */
-      template <class OtherString>
-      bool operator ==(basic_string<OtherString> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherString>
-      bool operator !=(basic_string<OtherString> const& other) const noexcept;
+      template <class Str = shim::string_view, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            Str
+          >::value
+        >
+      >
+      basic_string& operator =(shim::string_view str) &;
 
       /**
        *  @brief
@@ -3010,7 +3086,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -3101,9 +3187,6 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-
       // We're friends of all other basic_string specializations.
       template <class>
       friend class basic_string;
@@ -3127,8 +3210,10 @@ namespace dart {
    *  constraints/preconditions where applicable.
    */
   template <class Number>
-  class basic_number {
+  class basic_number final {
     
+    template <class Num, class N>
+    using assignment_operator_t = decltype(std::declval<Num>() = std::declval<N>());
     template <class Num, class... Args>
     using make_integer_t = decltype(Num::make_integer(std::declval<Args>()...));
     template <class Num, class... Args>
@@ -3340,37 +3425,33 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
+       *  Converting copy-assigment operator from ints and doubles.
        */
-      template <class OtherNumber>
-      bool operator ==(basic_number<OtherNumber> const& other) const noexcept;
+      template <class Num, class EnableIf =
+        std::enable_if_t<
+          // Assignment is allowed if...
+          meta::conjunction<
+            // The underlying type would allow it
+            meta::is_detected<
+              assignment_operator_t,
+              value_type&,
+              Num
+            >,
 
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherNumber>
-      bool operator !=(basic_number<OtherNumber> const& other) const noexcept;
+            // And the type is either an int or float but NOT a bool
+            meta::disjunction<
+              meta::conjunction<
+                std::is_integral<Num>,
+                meta::negation<
+                  std::is_same<Num, bool>
+                >
+              >,
+              std::is_floating_point<Num>
+            >
+          >::value
+        >
+      >
+      basic_number& operator =(Num val) &;
 
       /**
        *  @brief
@@ -3486,7 +3567,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -3577,9 +3668,6 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-
       // We're friends of all other basic_number specializations.
       template <class>
       friend class basic_number;
@@ -3603,8 +3691,10 @@ namespace dart {
    *  constraints/preconditions where applicable.
    */
   template <class Boolean>
-  class basic_flag {
+  class basic_flag final {
 
+    template <class Bool, class B>
+    using assignment_operator_t = decltype(std::declval<Bool>() = std::declval<B>());
     template <class Bool, class... Args>
     using make_boolean_t = decltype(Bool::make_boolean(std::declval<Args>()...));
 
@@ -3800,37 +3890,18 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
+       *  Converting copy-assignment operator from bool.
        */
-      template <class OtherBoolean>
-      bool operator ==(basic_flag<OtherBoolean> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <class OtherBoolean>
-      bool operator !=(basic_flag<OtherBoolean> const& other) const noexcept;
+      template <class Bool = bool, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            Bool
+          >::value
+        >
+      >
+      basic_flag& operator =(bool val) &;
 
       /**
        *  @brief
@@ -3918,7 +3989,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -4009,9 +4090,6 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-
       // We're friends of all other basic_flag specializations.
       template <class>
       friend class basic_flag;
@@ -4039,7 +4117,7 @@ namespace dart {
    *  doubt it will ever be of significant use.
    */
   template <class Null>
-  class basic_null {
+  class basic_null final {
 
     public:
 
@@ -4193,25 +4271,12 @@ namespace dart {
 
       /**
        *  @brief
-       *  Equality operator.
-       *  
+       *  Converting copy-assignment operator from std::nullptr_t.
+       *
        *  @details
-       *  For strongly typed null packets, always returns true as all
-       *  null instances are considered equal to each other.
+       *  Function is a no-op and exists for API uniformity.
        */
-      template <class OtherNull>
-      constexpr bool operator ==(basic_null<OtherNull> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  For strongly typed null packets, always returns true as all
-       *  null instances are considered equal to each other.
-       */
-      template <class OtherNull>
-      constexpr bool operator !=(basic_null<OtherNull> const& other) const noexcept;
+      basic_null& operator =(std::nullptr_t) &;
 
       /**
        *  @brief
@@ -4266,7 +4331,17 @@ namespace dart {
        *  Can be useful for efficiently implementing wrapper API behavior
        *  in some spots.
        */
-      auto dynamic() const noexcept -> value_type const&;
+      auto dynamic() const& noexcept -> value_type const&;
+
+      /**
+       *  @brief
+       *  Helper function returns a const& to the underlying dynamic type.
+       *
+       *  @details
+       *  Can be useful for efficiently implementing wrapper API behavior
+       *  in some spots.
+       */
+      auto dynamic() && noexcept -> value_type&&;
 
       /*----- Introspection Functions -----*/
 
@@ -4355,11 +4430,6 @@ namespace dart {
 
       value_type val;
 
-      /*----- Friends -----*/
-
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::wrapper_tag>;
-
   };
 
   template <template <class> class RefCount>
@@ -4411,11 +4481,35 @@ namespace dart {
   template <template <class> class RefCount>
   class basic_heap final {
 
+    template <class T>
+    struct generic_constructor_constraints :
+      meta::conjunction<
+        meta::negation<
+          detail::is_dart_api_type<std::decay_t<T>>
+        >,
+        convert::is_castable<T, basic_heap>
+      >
+    {};
+
     public:
 
       /*----- Public Types -----*/
 
+      class iterator;
+
       using type = detail::type;
+
+      // For situations where a Dart type is masquerading as a std type.
+      using size_type = size_t;
+      using difference_type = ssize_t;
+      using value_type = basic_heap;
+      using reference = basic_heap;
+      using pointer = basic_heap;
+      using const_reference = basic_heap;
+      using const_pointer = basic_heap;
+      using const_iterator = basic_heap;
+      using reverse_iterator = std::reverse_iterator<iterator>;
+      using const_reverse_iterator = reverse_iterator;
 
       /**
        *  @brief
@@ -4444,11 +4538,11 @@ namespace dart {
 
           /*----- Public Types -----*/
 
-          using difference_type = ssize_t;
-          using value_type = basic_heap;
-          using reference = value_type;
-          using pointer = value_type;
-          using iterator_category = std::input_iterator_tag;
+          using difference_type = basic_heap::difference_type;
+          using value_type = basic_heap::value_type;
+          using reference = basic_heap::value_type;
+          using pointer = basic_heap::value_type;
+          using iterator_category = std::bidirectional_iterator_tag;
 
           /*----- Lifecycle Functions -----*/
 
@@ -4513,9 +4607,6 @@ namespace dart {
         basic_heap
       >;
 
-      using size_type = size_t;
-      using reverse_iterator = std::reverse_iterator<iterator>;
-
       /*----- Lifecycle Functions -----*/
 
       /**
@@ -4524,6 +4615,23 @@ namespace dart {
        *  Creates a null packet.
        */
       basic_heap() noexcept = default;
+
+      /**
+       *  @brief
+       *  Generic converting constructor.
+       *
+       *  @details
+       *  Hands off to the conversion API for any type with
+       *  a registered conversion.
+       */
+      template <class T, class =
+        std::enable_if_t<
+          generic_constructor_constraints<T>::value
+        >
+      >
+      explicit basic_heap(T&& val) :
+        basic_heap(convert::cast<basic_heap>(std::forward<T>(val)))
+      {}
 
       /**
        *  @brief
@@ -4578,6 +4686,20 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_heap& operator =(basic_heap&&) && = delete;
 #endif
+
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !std::is_same<
+            std::decay_t<T>,
+            basic_heap
+          >::value
+          &&
+          refcount::is_owner<RefCount>::value
+          &&
+          convert::is_castable<T, basic_heap>::value
+        >
+      >
+      basic_heap& operator =(T&& other) &;
 
       /**
        *  @brief
@@ -4636,36 +4758,6 @@ namespace dart {
         >
       >
       basic_heap operator [](KeyType const& identifier) const;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator ==(basic_heap<OtherRC> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator !=(basic_heap<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -6994,18 +7086,12 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::null_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::boolean_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::integer_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::string_tag>;
-
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_buffer<LhsRC> const&, basic_heap<RhsRC> const&);
       friend size_t detail::sso_bytes<RefCount>();
       friend class detail::object<RefCount>;
       friend class detail::array<RefCount>;
+
+      template <class PacketType>
+      friend struct convert::detail::typed_compare;
       
       template <template <class> class RC>
       friend class basic_heap;
@@ -7038,11 +7124,42 @@ namespace dart {
   template <template <class> class RefCount>
   class basic_buffer final {
 
+    // Really pin this thing down as we're adding this constructor
+    // quite late, and I'm afraid of unforeseen overload resolution paths.
+    template <class T>
+    struct generic_constructor_constraints :
+      meta::conjunction<
+        meta::negation<
+          meta::disjunction<
+            meta::is_span<std::decay_t<T>>,
+            meta::is_std_smart_ptr<std::decay_t<T>>,
+            meta::is_specialization_of<std::decay_t<T>, shareable_ptr>,
+            detail::is_dart_api_type<std::decay_t<T>>
+          >
+        >,
+        convert::is_castable<T, basic_heap<RefCount>>
+      >
+    {};
+
     public:
 
       /*----- Public Types -----*/
 
+      class iterator;
+
       using type = detail::type;
+
+      // For situations where a Dart type is masquerading as a std type.
+      using size_type = size_t;
+      using difference_type = ssize_t;
+      using value_type = basic_buffer;
+      using reference = basic_buffer;
+      using pointer = basic_buffer;
+      using const_reference = basic_buffer;
+      using const_pointer = basic_buffer;
+      using const_iterator = basic_buffer;
+      using reverse_iterator = std::reverse_iterator<iterator>;
+      using const_reverse_iterator = reverse_iterator;
 
       /**
        *  @brief
@@ -7071,11 +7188,11 @@ namespace dart {
 
           /*----- Public Types -----*/
 
-          using difference_type = ssize_t;
-          using value_type = basic_buffer;
-          using reference = value_type;
-          using pointer = value_type;
-          using iterator_category = std::input_iterator_tag;
+          using difference_type = basic_buffer::difference_type;
+          using value_type = basic_buffer::value_type;
+          using reference = basic_buffer::value_type;
+          using pointer = basic_buffer::value_type;
+          using iterator_category = std::bidirectional_iterator_tag;
 
           /*----- Lifecycle Functions -----*/
 
@@ -7144,9 +7261,6 @@ namespace dart {
         basic_buffer
       >;
 
-      using size_type = size_t;
-      using reverse_iterator = std::reverse_iterator<iterator>;
-
       /*----- Lifecycle Functions -----*/
 
       /**
@@ -7157,6 +7271,23 @@ namespace dart {
       basic_buffer() noexcept :
         raw({detail::raw_type::null, nullptr}),
         buffer_ref(nullptr)
+      {}
+
+      /**
+       *  @brief
+       *  Generic converting constructor.
+       *
+       *  @details
+       *  Hands off to the conversion API for any type with
+       *  a registered conversion.
+       */
+      template <class T, class =
+        std::enable_if_t<
+          generic_constructor_constraints<T>::value
+        >
+      >
+      explicit basic_buffer(T&& val) :
+        basic_buffer(convert::cast<basic_heap<RefCount>>(std::forward<T>(val)))
       {}
 
       /**
@@ -7506,38 +7637,6 @@ namespace dart {
         >
       >
       basic_buffer&& operator [](KeyType const& identifier) &&;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  For finalized packets like dart::buffer, this is implemented as memcmp
-       *  of the underlying buffer, and is _stupdendously_ fast (think gigabytes
-       *  per/second).
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator ==(basic_buffer<OtherRC> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  For finalized packets like dart::buffer, this is implemented as memcmp
-       *  of the underlying buffer, and is _stupdendously_ fast (think gigabytes
-       *  per/second).
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator !=(basic_buffer<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -9332,9 +9431,9 @@ namespace dart {
       friend class basic_buffer;
       template <template <class> class RC>
       friend class basic_packet;
+      template <class PacketType>
+      friend struct convert::detail::typed_compare;
       friend struct detail::buffer_builder<RefCount>;
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_buffer<LhsRC> const&, basic_heap<RhsRC> const&);
 
   };
 
@@ -9384,12 +9483,43 @@ namespace dart {
   template <template <class> class RefCount>
   class basic_packet final {
 
+    // Really pin this thing down as we're adding this constructor
+    // quite late, and I'm afraid of unforeseen overload resolution paths.
+    template <class T>
+    struct generic_constructor_constraints :
+      meta::conjunction<
+        meta::negation<
+          meta::disjunction<
+            meta::is_span<std::decay_t<T>>,
+            meta::is_std_smart_ptr<std::decay_t<T>>,
+            meta::is_specialization_of<std::decay_t<T>, shareable_ptr>,
+            detail::is_dart_api_type<std::decay_t<T>>
+          >
+        >,
+        convert::is_castable<T, basic_packet>
+      >
+    {};
+
     public:
 
       /*----- Public Types -----*/
 
+      class iterator;
+
       // Bring into the scope of the main class.
       using type = detail::type;
+
+      // For situations where a Dart type is masquerading as a std type.
+      using size_type = size_t;
+      using difference_type = ssize_t;
+      using value_type = basic_packet;
+      using reference = value_type;
+      using pointer = value_type;
+      using const_reference = value_type;
+      using const_pointer = value_type;
+      using const_iterator = iterator;
+      using reverse_iterator = std::reverse_iterator<iterator>;
+      using const_reverse_iterator = reverse_iterator;
 
       /**
        *  @brief
@@ -9418,11 +9548,11 @@ namespace dart {
 
           /*----- Publicly Declared Types -----*/
 
-          using difference_type = ssize_t;
-          using value_type = basic_packet;
-          using reference = value_type;
-          using pointer = value_type;
-          using iterator_category = std::input_iterator_tag;
+          using difference_type = basic_packet::difference_type;
+          using value_type = basic_packet::value_type;
+          using reference = basic_packet::value_type;
+          using pointer = basic_packet::value_type;
+          using iterator_category = std::bidirectional_iterator_tag;
 
           /*----- Lifecycle Functions -----*/
 
@@ -9492,9 +9622,6 @@ namespace dart {
         basic_packet
       >;
 
-      using size_type = size_t;
-      using reverse_iterator = std::reverse_iterator<iterator>;
-
       /*----- Lifecycle Functions -----*/
 
       /**
@@ -9525,6 +9652,23 @@ namespace dart {
        *  allowed implicitly.
        */
       basic_packet(basic_buffer<RefCount> impl) noexcept : impl(std::move(impl)) {}
+
+      /**
+       *  @brief
+       *  Generic converting constructor.
+       *
+       *  @details
+       *  Hands off to the conversion API for any type with
+       *  a registered conversion.
+       */
+      template <class T, class =
+        std::enable_if_t<
+          generic_constructor_constraints<T>::value
+        >
+      >
+      explicit basic_packet(T&& val) :
+        basic_packet(convert::cast<basic_packet>(std::forward<T>(val)))
+      {}
 
       /**
        *  @brief
@@ -9662,6 +9806,20 @@ namespace dart {
 #if !DART_USING_MSVC
       basic_packet& operator =(basic_packet&&) && = delete;
 #endif
+
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !std::is_same<
+            std::decay_t<T>,
+            basic_packet
+          >::value
+          &&
+          refcount::is_owner<RefCount>::value
+          &&
+          convert::is_castable<T, basic_packet>::value
+        >
+      >
+      basic_packet& operator =(T&& other) &;
 
       /**
        *  @brief
@@ -9846,80 +10004,6 @@ namespace dart {
         >
       >
       basic_packet&& operator [](KeyType const& identifier) &&;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       *  Operator == is overloaded to ensure comparability with the rest of
-       *  the dart types.
-       *  We want comparability across refcounters, but conversions aren't
-       *  considered for template parameters.
-       */
-      bool operator ==(basic_packet const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator ==(basic_packet<OtherRC> const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Equality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic for C++, this means that non-finalized object comparisons
-       *  can be reasonably expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and is _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       *  Operator == is overloaded to ensure comparability with the rest of
-       *  the dart types.
-       *  We want comparability across refcounters, but conversions aren't
-       *  considered for template parameters.
-       */
-      bool operator !=(basic_packet const& other) const noexcept;
-
-      /**
-       *  @brief
-       *  Inequality operator.
-       *  
-       *  @details
-       *  All packet types always return deep equality (aggregates included).
-       *  While idiomatic C++, this means that non-finalized object/array comparisons
-       *  can be arbitrarily expensive.
-       *  Finalized comparisons, however, use memcmp to compare the underlying
-       *  byte buffers, and are _stupendously_ fast.
-       *  
-       *  @remarks
-       *  "Do as vector does"
-       */
-      template <template <class> class OtherRC>
-      bool operator !=(basic_packet<OtherRC> const& other) const noexcept;
 
       /**
        *  @brief
@@ -12578,20 +12662,12 @@ namespace dart {
 
       /*----- Friends -----*/
 
-      // Allow type conversion logic to work.
-      friend struct convert::detail::caster_impl<convert::detail::null_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::boolean_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::integer_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::decimal_tag>;
-      friend struct convert::detail::caster_impl<convert::detail::string_tag>;
-
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_buffer<LhsRC> const&, basic_packet<RhsRC> const&);
-      template <template <class> class LhsRC, template <class> class RhsRC>
-      friend bool operator ==(basic_heap<LhsRC> const&, basic_packet<RhsRC> const&);
       template <template <class> class RC>
       friend class dart::basic_packet;
       friend class detail::object<RefCount>;
+
+      template <class PacketType>
+      friend struct convert::detail::typed_compare;
       friend struct detail::buffer_builder<RefCount>;
 
   };
@@ -12605,6 +12681,7 @@ namespace dart {
   using string = packet::string;
   using number = packet::number;
   using flag = packet::flag;
+  using null = packet::null;
 
   // Make sure everything has noexcept moves as expected to avoid unnecessary bottlenecks.
   static_assert(std::is_nothrow_move_constructible<heap>::value

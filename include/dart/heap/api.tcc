@@ -26,42 +26,16 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  basic_heap<RefCount>& basic_heap<RefCount>::operator =(T&& other) & {
+    *this = convert::cast<basic_heap>(std::forward<T>(other));
+    return *this;
+  }
+
+  template <template <class> class RefCount>
   template <class KeyType, class EnableIf>
   basic_heap<RefCount> basic_heap<RefCount>::operator [](KeyType const& identifier) const {
     return get(identifier);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class OtherRC>
-  bool basic_heap<RefCount>::operator ==(basic_heap<OtherRC> const& other) const noexcept {
-    // Check if we're comparing against ourselves.
-    // Cast is necessary to ensure validity if we're comparing
-    // against a different refcounter.
-    if (static_cast<void const*>(this) == static_cast<void const*>(&other)) return true;
-
-    // Check if we're even the same type.
-    if (is_null() && other.is_null()) return true;
-    else if (get_type() != other.get_type()) return false;
-
-    // Defer to our underlying representation.
-    return shim::visit([] (auto& lhs, auto& rhs) {
-      using Lhs = std::decay_t<decltype(lhs)>;
-      using Rhs = std::decay_t<decltype(rhs)>;
-
-      // Have to compare through pointers here, and we make the decision purely off of the
-      // ability to dereference the incoming type to try to allow compatibility with custom
-      // external smart-pointers that otherwise conform to the std::shared_ptr interface.
-      auto comparator = detail::typeless_comparator {};
-      auto& lval = detail::maybe_dereference(lhs, meta::is_dereferenceable<Lhs> {});
-      auto& rval = detail::maybe_dereference(rhs, meta::is_dereferenceable<Rhs> {});
-      return comparator(lval, rval);
-    }, data, other.data);
-  }
-
-  template <template <class> class RefCount>
-  template <template <class> class OtherRC>
-  bool basic_heap<RefCount>::operator !=(basic_heap<OtherRC> const& other) const noexcept {
-    return !(*this == other);
   }
 
   template <template <class> class RefCount>

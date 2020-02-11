@@ -35,9 +35,8 @@ namespace dart {
   template <class Object>
   template <class Arg,
     std::enable_if_t<
-      !meta::is_specialization_of<
-        Arg,
-        dart::basic_object
+      !detail::is_wrapper_type<
+        std::decay_t<Arg>
       >::value
       &&
       std::is_convertible<

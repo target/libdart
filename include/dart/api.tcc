@@ -14,75 +14,85 @@
 namespace dart {
 
   template <class Object>
-  template <class OtherObject>
-  bool basic_object<Object>::operator ==(basic_object<OtherObject> const& other) const noexcept {
-    return val == other.val;
-  }
-
-  template <class Array>
-  template <class OtherArray>
-  bool basic_array<Array>::operator ==(basic_array<OtherArray> const& other) const noexcept {
-    return val == other.val;
-  }
-
-  template <class String>
-  template <class OtherString>
-  bool basic_string<String>::operator ==(basic_string<OtherString> const& other) const noexcept {
-    return val == other.val;
-  }
-
-  template <class Number>
-  template <class OtherNumber>
-  bool basic_number<Number>::operator ==(basic_number<OtherNumber> const& other) const noexcept {
-    return val == other.val;
-  }
-
-  template <class Boolean>
-  template <class OtherBoolean>
-  bool basic_flag<Boolean>::operator ==(basic_flag<OtherBoolean> const& other) const noexcept {
-    return val == other.val;
-  }
-
-  template <class Null>
-  template <class OtherNull>
-  constexpr bool basic_null<Null>::operator ==(basic_null<OtherNull> const&) const noexcept {
-    return true;
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::map<Key, Value, Comp, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
+    return *this;
   }
 
   template <class Object>
-  template <class OtherObject>
-  bool basic_object<Object>::operator !=(basic_object<OtherObject> const& other) const noexcept {
-    return !(*this == other);
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::map<Key, Value, Comp, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
   }
 
   template <class Array>
-  template <class OtherArray>
-  bool basic_array<Array>::operator !=(basic_array<OtherArray> const& other) const noexcept {
-    return !(*this == other);
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::vector<T, Alloc> const& vec) & {
+    val = convert::cast<value_type>(vec);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::vector<T, Alloc>&& vec) & {
+    val = convert::cast<value_type>(std::move(vec));
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, size_t len, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::array<T, len> const& arr) & {
+    val = convert::cast<value_type>(arr);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, size_t len, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::array<T, len>&& arr) & {
+    val = convert::cast<value_type>(std::move(arr));
+    return *this;
   }
 
   template <class String>
-  template <class OtherString>
-  bool basic_string<String>::operator !=(basic_string<OtherString> const& other) const noexcept {
-    return !(*this == other);
+  template <class Str, class EnableIf>
+  basic_string<String>& basic_string<String>::operator =(shim::string_view str) & {
+    val = convert::cast<value_type>(str);
+    return *this;
   }
 
   template <class Number>
-  template <class OtherNumber>
-  bool basic_number<Number>::operator !=(basic_number<OtherNumber> const& other) const noexcept {
-    return !(*this == other);
+  template <class Num, class EnableIf>
+  basic_number<Number>& basic_number<Number>::operator =(Num val) & {
+    this->val = convert::cast<value_type>(val);
+    return *this;
   }
 
   template <class Boolean>
-  template <class OtherBoolean>
-  bool basic_flag<Boolean>::operator !=(basic_flag<OtherBoolean> const& other) const noexcept {
-    return !(*this == other);
+  template <class Bool, class EnableIf>
+  basic_flag<Boolean>& basic_flag<Boolean>::operator =(bool val) & {
+    this->val = convert::cast<value_type>(val);
+    return *this;
   }
 
   template <class Null>
-  template <class OtherNull>
-  constexpr bool basic_null<Null>::operator !=(basic_null<OtherNull> const& other) const noexcept {
-    return !(*this == other);
+  basic_null<Null>& basic_null<Null>::operator =(std::nullptr_t) & {
+    return *this;
   }
 
   template <class String>
@@ -312,33 +322,63 @@ namespace dart {
   }
 
   template <class Object>
-  auto basic_object<Object>::dynamic() const noexcept -> value_type const& {
+  auto basic_object<Object>::dynamic() const& noexcept -> value_type const& {
+    return val;
+  }
+
+  template <class Object>
+  auto basic_object<Object>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Array>
+  auto basic_array<Array>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Array>
-  auto basic_array<Array>::dynamic() const noexcept -> value_type const& {
+  auto basic_array<Array>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class String>
+  auto basic_string<String>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class String>
-  auto basic_string<String>::dynamic() const noexcept -> value_type const& {
+  auto basic_string<String>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Number>
+  auto basic_number<Number>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Number>
-  auto basic_number<Number>::dynamic() const noexcept -> value_type const& {
+  auto basic_number<Number>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Boolean>
+  auto basic_flag<Boolean>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Boolean>
-  auto basic_flag<Boolean>::dynamic() const noexcept -> value_type const& {
+  auto basic_flag<Boolean>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
+  }
+
+  template <class Null>
+  auto basic_null<Null>::dynamic() const& noexcept -> value_type const& {
     return val;
   }
 
   template <class Null>
-  auto basic_null<Null>::dynamic() const noexcept -> value_type const& {
-    return val;
+  auto basic_null<Null>::dynamic() && noexcept -> value_type&& {
+    return std::move(val);
   }
 
   template <class Object>
