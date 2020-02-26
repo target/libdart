@@ -28,6 +28,20 @@ namespace dart {
   }
 
   template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::multimap<Key, Value, Comp, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::multimap<Key, Value, Comp, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
+  }
+
+  template <class Object>
   template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
   basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) & {
     val = convert::cast<value_type>(map);
@@ -37,6 +51,20 @@ namespace dart {
   template <class Object>
   template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
   basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_multimap<Key, Value, Hash, Equal, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_multimap<Key, Value, Hash, Equal, Alloc>&& map) & {
     val = convert::cast<value_type>(std::move(map));
     return *this;
   }
@@ -56,6 +84,20 @@ namespace dart {
   }
 
   template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::deque<T, Alloc> const& deq) & {
+    val = convert::cast<value_type>(deq);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::deque<T, Alloc>&& deq) & {
+    val = convert::cast<value_type>(std::move(deq));
+    return *this;
+  }
+
+  template <class Array>
   template <class T, size_t len, class EnableIf>
   basic_array<Array>& basic_array<Array>::operator =(std::array<T, len> const& arr) & {
     val = convert::cast<value_type>(arr);
@@ -66,6 +108,76 @@ namespace dart {
   template <class T, size_t len, class EnableIf>
   basic_array<Array>& basic_array<Array>::operator =(std::array<T, len>&& arr) & {
     val = convert::cast<value_type>(std::move(arr));
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::list<T, Alloc> const& lst) & {
+    val = convert::cast<value_type>(lst);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::list<T, Alloc>&& lst) & {
+    val = convert::cast<value_type>(std::move(lst));
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::forward_list<T, Alloc> const& flst) & {
+    val = convert::cast<value_type>(flst);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::forward_list<T, Alloc>&& flst) & {
+    val = convert::cast<value_type>(std::move(flst));
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::set<Key, Compare, Alloc> const& set) & {
+    val = convert::cast<value_type>(set);
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::set<Key, Compare, Alloc>&& set) & {
+    val = convert::cast<value_type>(std::move(set));
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::unordered_set<Key, Hash, KeyEq, Alloc> const& set) & {
+    val = convert::cast<value_type>(set);
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::unordered_set<Key, Hash, KeyEq, Alloc>&& set) & {
+    val = convert::cast<value_type>(std::move(set));
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::multiset<Key, Compare, Alloc> const& set) & {
+    val = convert::cast<value_type>(set);
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::multiset<Key, Compare, Alloc>&& set) & {
+    val = convert::cast<value_type>(std::move(set));
     return *this;
   }
 
@@ -193,6 +305,30 @@ namespace dart {
   template <class Null>
   constexpr basic_null<Null>::operator bool() const noexcept {
     return false;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::map<Key, Value, Comp, Alloc>() const {
+    return convert::cast<std::map<Key, Value, Comp, Alloc>>(val);
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::multimap<Key, Value, Comp, Alloc>() const {
+    return convert::cast<std::multimap<Key, Value, Comp, Alloc>>(val);
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::unordered_map<Key, Value, Hash, Equal, Alloc>() const {
+    return convert::cast<std::unordered_map<Key, Value, Hash, Equal, Alloc>>(val);
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::unordered_multimap<Key, Value, Hash, Equal, Alloc>() const {
+    return convert::cast<std::unordered_multimap<Key, Value, Hash, Equal, Alloc>>(val);
   }
 
   template <class String>

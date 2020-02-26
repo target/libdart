@@ -49,34 +49,20 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_heap<RefCount>::operator bool() const noexcept {
-    if (!is_boolean()) return !is_null();
-    else return boolean();
-  }
-
-  template <template <class> class RefCount>
   basic_heap<RefCount>::operator view() const& noexcept {
     return view {detail::view_tag {}, data};
   }
 
   template <template <class> class RefCount>
-  basic_heap<RefCount>::operator std::string() const {
-    return std::string {strv()};
+  template <class T, class EnableIf>
+  basic_heap<RefCount>::operator T() const& {
+    return convert::cast<T>(*this);
   }
 
   template <template <class> class RefCount>
-  basic_heap<RefCount>::operator shim::string_view() const {
-    return strv();
-  }
-
-  template <template <class> class RefCount>
-  basic_heap<RefCount>::operator int64_t() const {
-    return integer();
-  }
-
-  template <template <class> class RefCount>
-  basic_heap<RefCount>::operator double() const {
-    return decimal();
+  template <class T, class EnableIf>
+  basic_heap<RefCount>::operator T() && {
+    return convert::cast<T>(std::move(*this));
   }
 
   template <template <class> class RefCount>

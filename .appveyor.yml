@@ -26,6 +26,6 @@ build_script:
   - cd ..
   - mkdir build
   - cd build
-  - cmake .. -G "%GENERATOR%" -A x64 -Dbuild_abi=ON -Dextended_test=ON
+  - cmake .. -G "%GENERATOR%" -A x64 -Dbuild_abi=ON
   - cmake --build . --config %BUILD_TYPE%
   - ctest --output-on-failure --build-config %BUILD_TYPE%

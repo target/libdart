@@ -193,10 +193,16 @@ matrix:
             - g++-8
 
 # Build and run.
+# XXX: Hack for mac below is due to
+# increasingly lengthy travis build times
+# Don't know what's up with mac on travis,
+# but it takes AGES
+# I develop primarily on mac so it should
+# pretty well covered anyways
 script:
   - mkdir build
   - cd build
-  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
+  - cmake .. -Dbenchmark=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
   - make VERBOSE=1
   - ctest --output-on-failure
   - cd ..

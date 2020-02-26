@@ -85,7 +85,7 @@ SCENARIO("dart heaps are regular types", "[heap abi unit]") {
         REQUIRE(dart_heap_is_dcm(&key_three));
         REQUIRE(dart_heap_dcm_get(&key_three) == 3.14159);
         REQUIRE(dart_heap_is_bool(&key_four));
-        REQUIRE(static_cast<bool>(dart_heap_bool_get(&key_four)) == true);
+        REQUIRE(dart_heap_bool_get(&key_four) == 1);
       }
 
       WHEN("it's finalized, and split along APIs") {
@@ -121,8 +121,8 @@ SCENARIO("dart heaps are regular types", "[heap abi unit]") {
           REQUIRE(dart_heap_int_get(&heap_two) == 5);
           REQUIRE(dart_dcm_get(&low_three) == 3.14159);
           REQUIRE(dart_heap_dcm_get(&heap_three) == 3.14159);
-          REQUIRE(static_cast<bool>(dart_bool_get(&low_four)) == true);
-          REQUIRE(static_cast<bool>(dart_heap_bool_get(&heap_four)) == true);
+          REQUIRE(dart_bool_get(&low_four) == 1);
+          REQUIRE(dart_heap_bool_get(&heap_four) == 1);
         }
       }
     }
@@ -393,7 +393,7 @@ SCENARIO("dart heaps are regular types", "[heap abi unit]") {
     WHEN("the bool is queried") {
       THEN("its basic properties make sense") {
         REQUIRE(dart_heap_is_bool(&pktone));
-        REQUIRE(dart_heap_bool_get(&pktone) == false);
+        REQUIRE(dart_heap_bool_get(&pktone) == 0);
         REQUIRE(pktone.rtti.p_id == DART_HEAP);
         REQUIRE(pktone.rtti.rc_id == DART_RC_SAFE);
         REQUIRE(dart_heap_get_type(&pktone) == DART_BOOLEAN);
@@ -416,7 +416,7 @@ SCENARIO("dart heaps are regular types", "[heap abi unit]") {
       THEN("the new bool steals the contents of the old") {
         REQUIRE(dart_heap_is_bool(&moved));
         REQUIRE(dart_heap_get_type(&moved) == DART_BOOLEAN);
-        REQUIRE(dart_heap_bool_get(&moved) == false);
+        REQUIRE(dart_heap_bool_get(&moved) == 0);
         REQUIRE(!dart_heap_is_bool(&pktone));
         REQUIRE(dart_heap_is_null(&pktone));
         REQUIRE(dart_heap_get_type(&pktone) == DART_NULL);
@@ -432,7 +432,7 @@ SCENARIO("dart heaps are regular types", "[heap abi unit]") {
     WHEN("the null is queried") {
       THEN("its basic properties make sense") {
         REQUIRE(dart_heap_is_null(&pkt));
-        REQUIRE(dart_heap_bool_get(&pkt) == false);
+        REQUIRE(dart_heap_bool_get(&pkt) == 0);
         REQUIRE(pkt.rtti.p_id == DART_HEAP);
         REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
         REQUIRE(dart_heap_get_type(&pkt) == DART_NULL);
@@ -493,7 +493,7 @@ SCENARIO("heap objects can be constructed with many values", "[heap abi unit]") 
 
         REQUIRE(dart_heap_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_heap_str_get(&str) == "string"s);
-        REQUIRE(static_cast<bool>(dart_heap_bool_get(&boolean)) == true);
+        REQUIRE(dart_heap_bool_get(&boolean) == 1);
         REQUIRE(dart_heap_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_heap_int_get(&integer) == 1337);
       }
@@ -647,7 +647,7 @@ SCENARIO("heap objects can insert any type", "[heap abi unit]") {
         auto guard = make_scope_guard([&] { dart_heap_destroy(&boolean); });
 
         REQUIRE(dart_heap_is_bool(&boolean));
-        REQUIRE(dart_heap_bool_get(&boolean) == true);
+        REQUIRE(dart_heap_bool_get(&boolean) == 1);
       }
     }
 
@@ -789,7 +789,7 @@ SCENARIO("heap objects can assign to existing indices", "[heap abi unit]") {
         auto boolean = dart_heap_obj_get(&obj, "lies");
         auto guard = make_scope_guard([&] { dart_heap_destroy(&boolean); });
         REQUIRE(dart_heap_is_bool(&boolean));
-        REQUIRE(dart_heap_bool_get(&boolean) == true);
+        REQUIRE(dart_heap_bool_get(&boolean) == 1);
       }
     }
 
@@ -919,7 +919,7 @@ SCENARIO("heap objects can be iterated over", "[heap abi unit]") {
         REQUIRE(dart_is_str(&three));
         REQUIRE(dart_str_get(&three) == "fixed"s);
         REQUIRE(dart_is_bool(&four));
-        REQUIRE(dart_bool_get(&four) == false);
+        REQUIRE(dart_bool_get(&four) == 0);
         REQUIRE(dart_is_dcm(&five));
         REQUIRE(dart_dcm_get(&five) == 3.14159);
       }
@@ -1164,7 +1164,7 @@ SCENARIO("heap arrays can be constructed with many values", "[heap abi unit]") {
 
         REQUIRE(dart_heap_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_heap_str_get(&str) == "string"s);
-        REQUIRE(static_cast<bool>(dart_heap_bool_get(&boolean)) == true);
+        REQUIRE(dart_heap_bool_get(&boolean) == 1);
         REQUIRE(dart_heap_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_heap_int_get(&integer) == 1337);
       }
@@ -1551,7 +1551,7 @@ SCENARIO("heap arrays can be iterated over", "[heap abi unit]") {
         REQUIRE(dart_is_dcm(&two));
         REQUIRE(dart_dcm_get(&two) == Approx(3.14159));
         REQUIRE(dart_is_bool(&three));
-        REQUIRE(dart_bool_get(&three) == false);
+        REQUIRE(dart_bool_get(&three) == 0);
         REQUIRE(dart_is_str(&four));
         REQUIRE(dart_str_get(&four) == "fixed"s);
         REQUIRE(dart_str_get(&five) == "dynamic"s);
