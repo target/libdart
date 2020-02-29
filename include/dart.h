@@ -172,6 +172,8 @@ namespace dart {
       using generic_type = typename value_type::generic_type;
       using reverse_iterator = typename Object::reverse_iterator;
 
+      using view = dart::basic_object<typename value_type::view>;
+
       /*----- Lifecycle Functions -----*/
 
       /**
@@ -466,6 +468,82 @@ namespace dart {
 
       /**
        *  @brief
+       *  Converting copy-assignment operator from std::multimap.
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::multimap<Key, Value, Comp, Alloc> const&
+          >::value
+        >
+      >
+      basic_object& operator =(std::multimap<Key, Value, Comp, Alloc> const& map) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::multimap.
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::multimap<Key, Value, Comp, Alloc>&&
+          >::value
+        >
+      >
+      basic_object& operator =(std::multimap<Key, Value, Comp, Alloc>&& map) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::unordered_map.
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_multimap<Key, Value, Hash, Equal, Alloc> const&
+          >::value
+        >
+      >
+      basic_object& operator =(std::unordered_multimap<Key, Value, Hash, Equal, Alloc> const& map) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::unordered_map.
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          convert::is_castable<Value, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_multimap<Key, Value, Hash, Equal, Alloc>&&
+          >::value
+        >
+      >
+      basic_object& operator =(std::unordered_multimap<Key, Value, Hash, Equal, Alloc>&& map) &;
+
+      /**
+       *  @brief
        *  Object subscript operator.
        *
        *  @details
@@ -521,6 +599,14 @@ namespace dart {
 
       /**
        *  @brief
+       *  Operator allows for converting the current object instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
+
+      /**
+       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -553,6 +639,58 @@ namespace dart {
        *  Always returns true for strongly typed objects.
        */
       explicit operator bool() const noexcept;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::map
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+          &&
+          convert::is_castable<value_type, Value>::value
+        >
+      >
+      explicit operator std::map<Key, Value, Comp, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::multimap
+       */
+      template <class Key, class Value, class Comp, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+          &&
+          convert::is_castable<value_type, Value>::value
+        >
+      >
+      explicit operator std::multimap<Key, Value, Comp, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::unordered_map
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+          &&
+          convert::is_castable<value_type, Value>::value
+        >
+      >
+      explicit operator std::unordered_map<Key, Value, Hash, Equal, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::unordered_multimap
+       */
+      template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+          &&
+          convert::is_castable<value_type, Value>::value
+        >
+      >
+      explicit operator std::unordered_multimap<Key, Value, Hash, Equal, Alloc>() const;
 
       /*----- Public API -----*/
 
@@ -1486,6 +1624,25 @@ namespace dart {
        */
       auto rkvend() const -> std::tuple<reverse_iterator, reverse_iterator>;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <bool enabled = !value_type::is_owning_type::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Helpers -----*/
@@ -1589,6 +1746,8 @@ namespace dart {
       using size_type = typename Array::size_type;
       using generic_type = typename value_type::generic_type;
       using reverse_iterator = typename Array::reverse_iterator;
+
+      using view = dart::basic_array<typename value_type::view>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -1801,6 +1960,40 @@ namespace dart {
 
       /**
        *  @brief
+       *  Converting copy-assignment operator from std::deque
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::deque<T, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::deque<T, Alloc> const& deq) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::deque
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::deque<T, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::deque<T, Alloc>&& deq) &;
+
+      /**
+       *  @brief
        *  Converting copy-assignment operator from std::array
        */
       template <class T, size_t len, class EnableIf =
@@ -1814,7 +2007,7 @@ namespace dart {
           >::value
         >
       >
-      basic_array& operator =(std::array<T, len> const& vec) &;
+      basic_array& operator =(std::array<T, len> const& arr) &;
 
       /**
        *  @brief
@@ -1831,7 +2024,211 @@ namespace dart {
           >::value
         >
       >
-      basic_array& operator =(std::array<T, len>&& vec) &;
+      basic_array& operator =(std::array<T, len>&& arr) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::list
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::list<T, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::list<T, Alloc> const& lst) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::list
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::list<T, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::list<T, Alloc>&& lst) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::forward_list
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::forward_list<T, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::forward_list<T, Alloc> const& flst) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::forward_list
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<T, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::forward_list<T, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::forward_list<T, Alloc>&& flst) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::set
+       */
+      template <class Key, class Compare, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::set<Key, Compare, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::set<Key, Compare, Alloc> const& set) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::set
+       */
+      template <class Key, class Compare, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::set<Key, Compare, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::set<Key, Compare, Alloc>&& set) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::set
+       */
+      template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_set<Key, Hash, KeyEq, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::unordered_set<Key, Hash, KeyEq, Alloc> const& set) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::set
+       */
+      template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_set<Key, Hash, KeyEq, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::unordered_set<Key, Hash, KeyEq, Alloc>&& set) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::set
+       */
+      template <class Key, class Compare, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::multiset<Key, Compare, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::multiset<Key, Compare, Alloc> const& set) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::set
+       */
+      template <class Key, class Compare, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::multiset<Key, Compare, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::multiset<Key, Compare, Alloc>&& set) &;
+
+      /**
+       *  @brief
+       *  Converting copy-assignment operator from std::set
+       */
+      template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_multiset<Key, Hash, KeyEq, Alloc> const&
+          >::value
+        >
+      >
+      basic_array& operator =(std::unordered_multiset<Key, Hash, KeyEq, Alloc> const& set) &;
+
+      /**
+       *  @brief
+       *  Converting move-assignment operator from std::set
+       */
+      template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<Key, value_type>::value
+          &&
+          meta::is_detected<
+            assignment_operator_t,
+            value_type&,
+            std::unordered_multiset<Key, Hash, KeyEq, Alloc>&&
+          >::value
+        >
+      >
+      basic_array& operator =(std::unordered_multiset<Key, Hash, KeyEq, Alloc>&& set) &;
 
       /**
        *  @brief
@@ -1899,6 +2296,14 @@ namespace dart {
 
       /**
        *  @brief
+       *  Operator allows for converting the current array instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
+
+      /**
+       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -1931,6 +2336,105 @@ namespace dart {
        *  Always returns true for strongly typed arrays.
        */
       explicit operator bool() const noexcept;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::vector
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, T>::value
+        >
+      >
+      explicit operator std::vector<T, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::array
+       */
+      template <class T, size_t len, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, T>::value
+        >
+      >
+      explicit operator std::array<T, len>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::deque
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, T>::value
+        >
+      >
+      explicit operator std::deque<T, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::list
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, T>::value
+        >
+      >
+      explicit operator std::list<T, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::forward_list
+       */
+      template <class T, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, T>::value
+        >
+      >
+      explicit operator std::forward_list<T, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::set
+       */
+      template <class Key, class Compare, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+        >
+      >
+      explicit operator std::set<Key, Compare, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::unordered_set
+       */
+      template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+        >
+      >
+      explicit operator std::unordered_set<Key, Hash, KeyEq, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::multiset
+       */
+      template <class Key, class Compare, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+        >
+      >
+      explicit operator std::multiset<Key, Compare, Alloc>() const;
+
+      /**
+       *  @brief
+       *  Conversion operator to allow interoperability with std::unordered_multiset
+       */
+      template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<value_type, Key>::value
+        >
+      >
+      explicit operator std::unordered_multiset<Key, Hash, KeyEq, Alloc>() const;
 
       /*----- Public API -----*/
 
@@ -2720,6 +3224,25 @@ namespace dart {
        */
       auto crend() const -> iterator;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <bool enabled = !value_type::is_owning_type::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Members -----*/
@@ -2766,6 +3289,8 @@ namespace dart {
       using type = typename String::type;
       using size_type = typename String::size_type;
       using generic_type = typename value_type::generic_type;
+
+      using view = dart::basic_string<typename value_type::view>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -2974,6 +3499,14 @@ namespace dart {
 
       /**
        *  @brief
+       *  Operator allows for converting the current string instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
+
+      /**
+       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -3179,6 +3712,25 @@ namespace dart {
        */
       auto refcount() const noexcept -> size_type;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <bool enabled = !value_type::is_owning_type::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Members -----*/
@@ -3227,6 +3779,8 @@ namespace dart {
       using type = typename Number::type;
       using size_type = typename Number::size_type;
       using generic_type = typename value_type::generic_type;
+
+      using view = dart::basic_number<typename value_type::view>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -3464,6 +4018,14 @@ namespace dart {
 
       /**
        *  @brief
+       *  Operator allows for converting the current number instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
+
+      /**
+       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -3660,6 +4222,25 @@ namespace dart {
        */
       auto refcount() const noexcept -> size_type;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <bool enabled = !value_type::is_owning_type::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Members -----*/
@@ -3706,6 +4287,8 @@ namespace dart {
       using type = typename Boolean::type;
       using size_type = typename Boolean::size_type;
       using generic_type = typename value_type::generic_type;
+
+      using view = dart::basic_flag<typename value_type::view>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -3914,6 +4497,14 @@ namespace dart {
 
       /**
        *  @brief
+       *  Operator allows for converting the current flag instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
+
+      /**
+       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -4082,6 +4673,25 @@ namespace dart {
        */
       auto refcount() const noexcept -> size_type;
 
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <bool enabled = !value_type::is_owning_type::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      auto as_owner() const noexcept;
+
     private:
 
       /*----- Private Members -----*/
@@ -4127,6 +4737,8 @@ namespace dart {
       using type = typename Null::type;
       using size_type = typename Null::size_type;
       using generic_type = typename value_type::generic_type;
+
+      using view = dart::basic_null<typename value_type::view>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -4280,6 +4892,14 @@ namespace dart {
 
       /**
        *  @brief
+       *  Operator allows for converting the current null instance into a
+       *  non-owning, read-only, view
+       */
+      operator view() const& noexcept;
+      operator view() && = delete;
+
+      /**
+       *  @brief
        *  Implicit conversion operator to underlying implementation type.
        *
        *  @details
@@ -4423,6 +5043,25 @@ namespace dart {
        *  Returns the current reference count of the underlying reference counter.
        */
       auto refcount() const noexcept -> size_type;
+
+      /*----- Member Ownership Helpers -----*/
+
+      /**
+       *  @brief
+       *  Function calculates whether the current type is a non-owning view or not.
+       */
+      constexpr bool is_view() const noexcept;
+
+      /**
+       *  @brief
+       *  Function allows one to explicitly grab full ownership of the current view.
+       */
+      template <bool enabled = !value_type::is_owning_type::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      auto as_owner() const noexcept;
 
     private:
 
@@ -4607,6 +5246,12 @@ namespace dart {
         basic_heap
       >;
 
+      // Whether this type can be assigned to safely
+      using is_mutable_type = refcount::is_owner<RefCount>;
+
+      // Finally gave up and added a trait to identify a view type.
+      using is_owning_type = refcount::is_owner<RefCount>;
+
       /*----- Lifecycle Functions -----*/
 
       /**
@@ -4783,16 +5428,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Existential operator (bool conversion operator).
-       *
-       *  @details
-       *  Operator returns false if the current packet is null or false.
-       *  Returns true in all other situations.
-       */
-      explicit operator bool() const noexcept;
-
-      /**
-       *  @brief
        *  Operator allows for converting the current heap instance into a
        *  non-owning, read-only, view
        */
@@ -4801,43 +5436,29 @@ namespace dart {
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator std::string() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_heap, T>::value
+        >
+      >
+      explicit operator T() const&;
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator shim::string_view() const;
-
-      /**
-       *  @brief
-       *  Integer conversion operator.
-       *
-       *  @details
-       *  Returns the integer value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator int64_t() const;
-
-      /**
-       *  @brief
-       *  Decimal conversion operator.
-       *
-       *  @details
-       *  Returns the decimal value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator double() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_heap, T>::value
+        >
+      >
+      explicit operator T() &&;
 
       /*----- Public API -----*/
 
@@ -6995,21 +7616,6 @@ namespace dart {
 
       /*----- Private Types -----*/
 
-      struct dynamic_string_layout {
-        bool operator ==(dynamic_string_layout const& other) const noexcept;
-        bool operator !=(dynamic_string_layout const& other) const noexcept;
-
-        std::shared_ptr<char> ptr;
-        size_type len;
-      };
-      struct inline_string_layout {
-        bool operator ==(inline_string_layout const& other) const noexcept;
-        bool operator !=(inline_string_layout const& other) const noexcept;
-
-        std::array<char, sizeof(dynamic_string_layout) - sizeof(uint8_t)> buffer;
-        uint8_t left;
-      };
-
       using packet_fields = detail::packet_fields<RefCount>;
       using packet_elements = detail::packet_elements<RefCount>;
 
@@ -7023,8 +7629,8 @@ namespace dart {
         shim::monostate,
         fields_type,
         elements_type,
-        dynamic_string_layout,
-        inline_string_layout,
+        detail::dynamic_string_layout,
+        detail::inline_string_layout,
         int64_t,
         double,
         bool
@@ -7081,7 +7687,7 @@ namespace dart {
 
       type_data data;
 
-      static constexpr auto sso_bytes = sizeof(inline_string_layout::buffer);
+      static constexpr auto sso_bytes = sizeof(detail::inline_string_layout::buffer);
       static constexpr auto max_aggregate_size = detail::object_layout::max_offset;
 
       /*----- Friends -----*/
@@ -7092,6 +7698,8 @@ namespace dart {
 
       template <class PacketType>
       friend struct convert::detail::typed_compare;
+      template <class From, class To>
+      friend struct convert::detail::api_converter;
       
       template <template <class> class RC>
       friend class basic_heap;
@@ -7261,6 +7869,12 @@ namespace dart {
         basic_buffer
       >;
 
+      // Whether this type can be assigned to safely
+      using is_mutable_type = std::false_type;
+
+      // Finally gave up and added a trait to identify a view type.
+      using is_owning_type = refcount::is_owner<RefCount>;
+
       /*----- Lifecycle Functions -----*/
 
       /**
@@ -7289,18 +7903,6 @@ namespace dart {
       explicit basic_buffer(T&& val) :
         basic_buffer(convert::cast<basic_heap<RefCount>>(std::forward<T>(val)))
       {}
-
-      /**
-       *  @brief
-       *  Converting constructor.
-       *  Explicitly converts a dart::heap into a dart::buffer.
-       */
-      template <bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
-        std::enable_if_t<
-          enabled
-        >
-      >
-      explicit basic_buffer(basic_heap<RefCount> const& heap);
 
       /**
        *  @brief
@@ -7662,16 +8264,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Existential operator (bool conversion operator).
-       *
-       *  @details
-       *  Operator returns false if the current packet is null or false.
-       *  Returns true in all other situations.
-       */
-      explicit operator bool() const noexcept;
-
-      /**
-       *  @brief
        *  Operator allows for converting the current buffer instance into a
        *  non-owning, read-only, view
        */
@@ -7680,54 +8272,29 @@ namespace dart {
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator std::string() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_buffer, T>::value
+        >
+      >
+      explicit operator T() const&;
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator shim::string_view() const;
-
-      /**
-       *  @brief
-       *  Integer conversion operator.
-       *
-       *  @details
-       *  Returns the integer value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator int64_t() const;
-
-      /**
-       *  @brief
-       *  Decimal conversion operator.
-       *
-       *  @details
-       *  Returns the decimal value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator double() const;
-
-      /**
-       *  @brief
-       *  dart::heap conversion operator.
-       *
-       *  @details
-       *  Function walks across the flattened object tree and lifts it
-       *  into a dynamic heap representation, making at least as many
-       *  allocations as nodes in the tree during the process.
-       */
-      explicit operator basic_heap<RefCount>() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          !meta::is_higher_specialization_of<T, basic_packet>::value
+          &&
+          convert::is_castable<basic_buffer, T>::value
+        >
+      >
+      explicit operator T() &&;
 
       /*----- Public API -----*/
 
@@ -9433,6 +10000,8 @@ namespace dart {
       friend class basic_packet;
       template <class PacketType>
       friend struct convert::detail::typed_compare;
+      template <class From, class To>
+      friend struct convert::detail::api_converter;
       friend struct detail::buffer_builder<RefCount>;
 
   };
@@ -9536,11 +10105,14 @@ namespace dart {
        *  iterators, and can be used very naturally with structured bindings in C++17.
        *
        *  @remarks
-       *  Although dart::packet::iterator logically supports the operations and
-       *  semantics of a Bidirectional Iterator (multipass guarantees, both incrementable
-       *  and decrementable, etc), for implementation reasons, its dereference operator
-       *  returns a temporary packet instance, which requires it to claim the weakest
-       *  iterator category, the Input Iterator.
+       *  dart::packet::iterator logically supports the operations and semantics of
+       *  a bidirectional iterator (multipass guarantees, both incrementable
+       *  and decrementable, etc), but, for core design reasons, returns a prvalue
+       *  from its dereference operator, which requires it to claim to be an
+       *  input iterator.
+       *  However, this breaks many common algorithms that would otherwise operate
+       *  correctly, so Dart claims to be a bidirectional iterator.
+       *  I apologize to anyone who is bitten by this.
        */
       class iterator final {
 
@@ -9621,6 +10193,12 @@ namespace dart {
         basic_packet<view_ptr_context<RefCount>::template view_ptr>,
         basic_packet
       >;
+
+      // Whether this type can be assigned to safely
+      using is_mutable_type = refcount::is_owner<RefCount>;
+
+      // Finally gave up and added a trait to identify a view type.
+      using is_owning_type = refcount::is_owner<RefCount>;
 
       /*----- Lifecycle Functions -----*/
 
@@ -10029,16 +10607,6 @@ namespace dart {
 
       /**
        *  @brief
-       *  Existential operator (bool conversion operator).
-       *
-       *  @details
-       *  Operator returns false if the current packet is null or false.
-       *  Returns true in all other situations.
-       */
-      explicit operator bool() const noexcept;
-
-      /**
-       *  @brief
        *  Operator allows for converting the current packet instance into a
        *  non-owning, read-only, view
        */
@@ -10047,101 +10615,25 @@ namespace dart {
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator std::string() const;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet, T>::value
+        >
+      >
+      explicit operator T() const&;
 
       /**
        *  @brief
-       *  String conversion operator.
-       *
-       *  @details
-       *  Returns the string value of the current packet or throws
-       *  if no such value exists.
+       *  Generic conversion operator.
        */
-      explicit operator shim::string_view() const;
-
-      /**
-       *  @brief
-       *  Integer conversion operator.
-       *
-       *  @details
-       *  Returns the integer value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator int64_t() const;
-
-      /**
-       *  @brief
-       *  Decimal conversion operator.
-       *
-       *  @details
-       *  Returns the decimal value of the current packet or throws
-       *  if no such value exists.
-       */
-      explicit operator double() const;
-
-      /**
-       *  @brief
-       *  dart::heap conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function simply unwraps and returns
-       *  a copy of the current instance (incrementing the reference counter).
-       *  If the current packet IS finalized, function walks across the flattened
-       *  object tree and lifts it into a dynamic heap representation,
-       *  making at least as many allocations as nodes in the tree during the process.
-       */
-      explicit operator basic_heap<RefCount>() const&;
-
-      /**
-       *  @brief
-       *  dart::heap conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function simply unwraps and returns
-       *  a copy of the current instance (incrementing the reference counter).
-       *  If the current packet IS finalized, function walks across the flattened
-       *  object tree and lifts it into a dynamic heap representation,
-       *  making at least as many allocations as nodes in the tree during the process.
-       *
-       *  @remarks
-       *  Rvalue ref overload exists to forward through conversions.
-       */
-      explicit operator basic_heap<RefCount>() &&;
-
-      /**
-       *  @brief
-       *  dart::buffer conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function walks across the dynamic
-       *  object tree and lowers it into a flattened buffer of bytes, making precisely
-       *  one allocation during the process.
-       *  If the current packet IS finalized, function simply unwraps and returns a copy
-       *  of the current instance (incrementing the reference counter).
-       */
-      explicit operator basic_buffer<RefCount>() const&;
-
-      /**
-       *  @brief
-       *  dart::buffer conversion operator.
-       *
-       *  @details
-       *  If the current packet isn't finalized, function walks across the dynamic
-       *  object tree and lowers it into a flattened buffer of bytes, making precisely
-       *  one allocation during the process.
-       *  If the current packet IS finalized, function simply unwraps and returns a copy
-       *  of the current instance (incrementing the reference counter).
-       *
-       *  @remarks
-       *  Rvalue ref overload exists to forward through conversions.
-       */
-      explicit operator basic_buffer<RefCount>() &&;
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet, T>::value
+        >
+      >
+      explicit operator T() &&;
 
       /*----- Public API -----*/
 
@@ -12668,6 +13160,8 @@ namespace dart {
 
       template <class PacketType>
       friend struct convert::detail::typed_compare;
+      template <class From, class To>
+      friend struct convert::detail::api_converter;
       friend struct detail::buffer_builder<RefCount>;
 
   };

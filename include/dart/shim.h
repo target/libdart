@@ -10,6 +10,13 @@
 #define DART_USING_MSVC 1
 #endif
 
+#ifdef DART_USING_MSVC
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
+
+#include <ctime>
+#include <cstring>
+
 #if DART_USING_CLANG && __clang_major__ >= 5 && __clang_major__ <= 7
 // Side-step a disagreement between clang (5/6) and GNU std::variant.
 #define DART_USE_MPARK_VARIANT 1
@@ -122,6 +129,10 @@ namespace dart {
     inline void aligned_free(void* ptr) {
       _aligned_free(ptr);
     }
+
+    inline void localtime(time_t const* src, std::tm* out) {
+      localtime_s(out, src);
+    }
 #else
     inline int aligned_alloc(void** memptr, size_t alignment, size_t size) {
       return posix_memalign(memptr, alignment, size);
@@ -130,15 +141,21 @@ namespace dart {
     inline void aligned_free(void* ptr) {
       free(ptr);
     }
+
+    inline void localtime(time_t const* src, std::tm* out) {
+      localtime_r(src, out);
+    }
 #endif
 
 #ifdef DART_HAS_CPP17
+
     // Pull in names of types.
     using std::optional;
     using std::nullopt_t;
     using std::variant;
     using std::monostate;
     using std::string_view;
+    using std::basic_string_view;
 
     // Pull in constants.
     static inline constexpr auto nullopt = std::nullopt;
@@ -165,10 +182,12 @@ namespace dart {
       return compose {std::forward<Ls>(lambdas)...};
     }
 #else
+
     // Pull in names of types.
     using dart::optional;
     using dart::nullopt_t;
     using dart::string_view;
+    using dart::basic_string_view;
     using mpark::variant;
     using mpark::monostate;
 

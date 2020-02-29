@@ -288,7 +288,6 @@ However, in addition to the pre-defined conversions, **Dart** exposes an API to 
 user defined conversions like so:
 ```c++
 #include <dart.h>
-#include <string>
 #include <iostream>
 
 // A simple custom string class that Dart doesn't know about.
@@ -296,14 +295,18 @@ struct my_string {
   std::string str;
 };
 
-// We define an explicit specialization of the struct dart::convert::to_dart,
-// which Dart will call to perform our conversion
+// We define an explicit specialization of dart::convert::conversion_traits,
+// which Dart will call to perform our conversion. All functions are optional
 namespace dart::convert {
   template <>
-  struct to_dart<my_string> {
+  struct conversion_traits<my_string> {
     template <class Packet>
-    Packet cast(my_string const& s) {
+    Packet to_dart(my_string const& s) {
       return Packet::make_string(s.str);
+    }
+    template <class Packet>
+    my_string from_dart(Packet const& pkt) {
+      return my_string {pkt.str()};
     }
     template <class Packet>
     bool compare(Packet const& pkt, my_string const& s) {
@@ -312,21 +315,25 @@ namespace dart::convert {
   };
 }
 
-// Example usage
 int main() {
-  // If dart::convert::to_dart had not been specialized, this line would fail to
-  // compile with an error about an undefined overload of dart::packet::push_back.
+  // If dart::convert::conversion_traits had not been specialized, this line would fail to
+  // compile with an error about an undefined overload of dart::packet::make_array.
   auto arr = dart::packet::make_array(my_string {"one"}, my_string {"two"});
 
   // The conversions are applied recursively, so we can also use STL containers
-  // of our custom type.
   arr.push_back(std::optional<my_string> {});
   arr.push_back(std::vector {my_string {"three"}, my_string {"four"}});
-
-  // Will print:
-  // ["one", "two", null, ["three", "four"]]
   std::cout << arr << std::endl;
+
+  // Since we implemented all of dart::convert::conversion_traits, we can also convert
+  // Dart types back into our own or compare between the two.
+  my_string mystr(arr[0]);
+  assert(mystr == arr[0]);
+  std::cout << mystr.str << std::endl;
 }
+
+// => ["one", "two", null, ["three", "four"]]
+// => one
 ```
 For those who are meta-programming inclined, you can test if a **Dart** conversion is
 defined by using the type trait `dart::convert::is_castable`.

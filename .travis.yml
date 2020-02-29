@@ -12,9 +12,8 @@ branches:
 # Common external dependencies.
 before_install:
   # Install GSL, rapidjson, sajson, and Google Benchmark
-  # Brew is so slow, but it makes it easy
   - |
-    if [ "${TRAVIS_OS_NAME}" = "linux" ] && [ -z "$ARCH" ]; then
+    if [ -z "$ARCH" ]; then
       BUILD_DIR=$(mktemp -d)
       pushd $BUILD_DIR
       curl -sL "https://github.com/microsoft/GSL/archive/v2.0.0.tar.gz" | tar xzf -
@@ -38,18 +37,9 @@ before_install:
       sudo cp include/sajson.h /usr/local/include
       popd
       rm -rf $BUILD_DIR
-    elif [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      brew update
-      brew install cpp-gsl rapidjson google-benchmark
-      BUILD_DIR=$(mktemp -d)
-      pushd $BUILD_DIR
-      curl -sL "https://github.com/Cfretz244/sajson/archive/stable.tar.gz" | tar xzf -
-      cd sajson-stable
-      sudo cp include/sajson.h /usr/local/include
-      popd
-      rm -rf $BUILD_DIR
-      brew install python@2
-      pip2 install cpp-coveralls
+      if [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+        pip install --user cpp-coveralls
+      fi
     fi
 
 # Final environment configs.
@@ -64,17 +54,48 @@ install:
 # Build matrix
 matrix:
   include:
-    - os: osx
-      compiler: clang
-      osx_image: xcode8.3
-    - os: osx
-      compiler: clang
-      osx_image: xcode9.4
-    - os: osx
-      compiler: clang
-      osx_image: xcode10.1
-      env:
+    - env: VERSION=5
+      os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - g++-5
+    - env: VERSION=6
+      os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - g++-6
+    - env:
+        VERSION: 7
         GEN_COVERAGE: true
+      os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - g++-7
+    - env: VERSION=8
+      os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - g++-8
     - env: VERSION=5 ARCH=powerpc-linux
       os: linux
       compiler: gcc
@@ -84,7 +105,9 @@ matrix:
         - docker cp build_results:/root/libdart/build/test/unit_tests .
         - docker build -f Dockerfile.harness -t test_harness .
         - sudo docker run --privileged test_harness
-    - env: VERSION=3.8
+    - env:
+        VERSION: 3.8
+        IS_SLOW_AS_MOLASSES: true
       os: linux
       compiler: clang
       addons:
@@ -95,7 +118,9 @@ matrix:
             - rapidjson-dev
             - clang-3.8
             - g++-7
-    - env: VERSION=3.9
+    - env:
+        VERSION: 3.9
+        IS_SLOW_AS_MOLASSES: true
       os: linux
       compiler: clang
       addons:
@@ -151,64 +176,41 @@ matrix:
             - rapidjson-dev
             - clang-7
             - g++-7
-    - env: VERSION=5
-      os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - rapidjson-dev
-            - g++-5
-    - env: VERSION=6
-      os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - rapidjson-dev
-            - g++-6
-    - env: VERSION=7
-      os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - rapidjson-dev
-            - g++-7
-    - env: VERSION=8
-      os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - rapidjson-dev
-            - g++-8
+    - os: osx
+      compiler: clang
+      osx_image: xcode8.3
+      env:
+        IS_SLOW_AS_MOLASSES: true
+    - os: osx
+      compiler: clang
+      osx_image: xcode9.4
+      env:
+        IS_SLOW_AS_MOLASSES: true
+    - os: osx
+      compiler: clang
+      osx_image: xcode10.1
+      env:
+        IS_SLOW_AS_MOLASSES: true
 
 # Build and run.
 script:
   - mkdir build
   - cd build
-  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
+  - while true; do sleep 60; echo 'still here!'; done &
+  - KEEPALIVE_PID=$!
+  - |
+    if [ "${IS_SLOW_AS_MOLASSES}" = "true" ]; then
+      cmake .. -Dbenchmark=ON -Duse_sajson=ON -Dbuild_abi=ON -Duse_asan=ON
+    else
+      cmake .. -Dbenchmark=ON -Duse_sajson=ON -Dextended_test=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
+    fi
   - make VERBOSE=1
-  - ctest --output-on-failure
-  - cd ..
-  - mkdir build2
-  - cd build2
-  - cmake .. -Duse_sajson=ON -Dbenchmark=ON -Dbuild_abi=ON
-  - make VERBOSE=1
+  - kill -9 $KEEPALIVE_PID
   - ctest --output-on-failure
   - cd ..
 
 after_success:
   - |
-    if [ "${TRAVIS_OS_NAME}" = "osx" ] && [ "${GEN_COVERAGE}" = "true" ]; then
-      coveralls -r . -b build/ -i include/ -i src/ -e include/extern/catch.h -e include/dart/support/variant.h --gcov-options '\-lp'
+    if [ "${TRAVIS_OS_NAME}" = "linux" ] && [ "${GEN_COVERAGE}" = "true" ]; then
+      coveralls --gcov gcov-7 -r . -b build/ -i include/ -i src/ -E '.*(catch|variant).*' --gcov-options '\-lp'
     fi

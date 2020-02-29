@@ -28,6 +28,20 @@ namespace dart {
   }
 
   template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::multimap<Key, Value, Comp, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::multimap<Key, Value, Comp, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
+  }
+
+  template <class Object>
   template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
   basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc> const& map) & {
     val = convert::cast<value_type>(map);
@@ -37,6 +51,20 @@ namespace dart {
   template <class Object>
   template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
   basic_object<Object>& basic_object<Object>::operator =(std::unordered_map<Key, Value, Hash, Equal, Alloc>&& map) & {
+    val = convert::cast<value_type>(std::move(map));
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_multimap<Key, Value, Hash, Equal, Alloc> const& map) & {
+    val = convert::cast<value_type>(map);
+    return *this;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>& basic_object<Object>::operator =(std::unordered_multimap<Key, Value, Hash, Equal, Alloc>&& map) & {
     val = convert::cast<value_type>(std::move(map));
     return *this;
   }
@@ -56,6 +84,20 @@ namespace dart {
   }
 
   template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::deque<T, Alloc> const& deq) & {
+    val = convert::cast<value_type>(deq);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::deque<T, Alloc>&& deq) & {
+    val = convert::cast<value_type>(std::move(deq));
+    return *this;
+  }
+
+  template <class Array>
   template <class T, size_t len, class EnableIf>
   basic_array<Array>& basic_array<Array>::operator =(std::array<T, len> const& arr) & {
     val = convert::cast<value_type>(arr);
@@ -66,6 +108,76 @@ namespace dart {
   template <class T, size_t len, class EnableIf>
   basic_array<Array>& basic_array<Array>::operator =(std::array<T, len>&& arr) & {
     val = convert::cast<value_type>(std::move(arr));
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::list<T, Alloc> const& lst) & {
+    val = convert::cast<value_type>(lst);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::list<T, Alloc>&& lst) & {
+    val = convert::cast<value_type>(std::move(lst));
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::forward_list<T, Alloc> const& flst) & {
+    val = convert::cast<value_type>(flst);
+    return *this;
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::forward_list<T, Alloc>&& flst) & {
+    val = convert::cast<value_type>(std::move(flst));
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::set<Key, Compare, Alloc> const& set) & {
+    val = convert::cast<value_type>(set);
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::set<Key, Compare, Alloc>&& set) & {
+    val = convert::cast<value_type>(std::move(set));
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::unordered_set<Key, Hash, KeyEq, Alloc> const& set) & {
+    val = convert::cast<value_type>(set);
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::unordered_set<Key, Hash, KeyEq, Alloc>&& set) & {
+    val = convert::cast<value_type>(std::move(set));
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::multiset<Key, Compare, Alloc> const& set) & {
+    val = convert::cast<value_type>(set);
+    return *this;
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>& basic_array<Array>::operator =(std::multiset<Key, Compare, Alloc>&& set) & {
+    val = convert::cast<value_type>(std::move(set));
     return *this;
   }
 
@@ -108,6 +220,36 @@ namespace dart {
   template <class Boolean>
   bool basic_flag<Boolean>::operator *() const noexcept {
     return boolean();
+  }
+
+  template <class Object>
+  basic_object<Object>::operator view() const& noexcept {
+    return view {typename value_type::view {val}};
+  }
+
+  template <class Array>
+  basic_array<Array>::operator view() const& noexcept {
+    return view {typename value_type::view {val}};
+  }
+
+  template <class String>
+  basic_string<String>::operator view() const& noexcept {
+    return view {typename value_type::view {val}};
+  }
+
+  template <class Number>
+  basic_number<Number>::operator view() const& noexcept {
+    return view {typename value_type::view {val}};
+  }
+
+  template <class Boolean>
+  basic_flag<Boolean>::operator view() const& noexcept {
+    return view {typename value_type::view {val}};
+  }
+
+  template <class Null>
+  basic_null<Null>::operator view() const& noexcept {
+    return view {nullptr};
   }
 
   template <class Object>
@@ -193,6 +335,84 @@ namespace dart {
   template <class Null>
   constexpr basic_null<Null>::operator bool() const noexcept {
     return false;
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::map<Key, Value, Comp, Alloc>() const {
+    return convert::cast<std::map<Key, Value, Comp, Alloc>>(val);
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Comp, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::multimap<Key, Value, Comp, Alloc>() const {
+    return convert::cast<std::multimap<Key, Value, Comp, Alloc>>(val);
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::unordered_map<Key, Value, Hash, Equal, Alloc>() const {
+    return convert::cast<std::unordered_map<Key, Value, Hash, Equal, Alloc>>(val);
+  }
+
+  template <class Object>
+  template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf>
+  basic_object<Object>::operator std::unordered_multimap<Key, Value, Hash, Equal, Alloc>() const {
+    return convert::cast<std::unordered_multimap<Key, Value, Hash, Equal, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::vector<T, Alloc>() const {
+    return convert::cast<std::vector<T, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class T, size_t len, class EnableIf>
+  basic_array<Array>::operator std::array<T, len>() const {
+    return convert::cast<std::array<T, len>>(val);
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::deque<T, Alloc>() const {
+    return convert::cast<std::deque<T, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::list<T, Alloc>() const {
+    return convert::cast<std::list<T, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class T, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::forward_list<T, Alloc>() const {
+    return convert::cast<std::forward_list<T, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::set<Key, Compare, Alloc>() const {
+    return convert::cast<std::set<Key, Compare, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::unordered_set<Key, Hash, KeyEq, Alloc>() const {
+    return convert::cast<std::unordered_set<Key, Hash, KeyEq, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class Key, class Compare, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::multiset<Key, Compare, Alloc>() const {
+    return convert::cast<std::multiset<Key, Compare, Alloc>>(val);
+  }
+
+  template <class Array>
+  template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf>
+  basic_array<Array>::operator std::unordered_multiset<Key, Hash, KeyEq, Alloc>() const {
+    return convert::cast<std::unordered_multiset<Key, Hash, KeyEq, Alloc>>(val);
   }
 
   template <class String>
@@ -869,6 +1089,78 @@ namespace dart {
   template <class Object>
   auto basic_object<Object>::rkvend() const -> std::tuple<reverse_iterator, reverse_iterator> {
     return val.rkvend();
+  }
+
+  template <class Object>
+  constexpr bool basic_object<Object>::is_view() const noexcept {
+    return val.is_view();
+  }
+
+  template <class Array>
+  constexpr bool basic_array<Array>::is_view() const noexcept {
+    return val.is_view();
+  }
+
+  template <class String>
+  constexpr bool basic_string<String>::is_view() const noexcept {
+    return val.is_view();
+  }
+
+  template <class Number>
+  constexpr bool basic_number<Number>::is_view() const noexcept {
+    return val.is_view();
+  }
+
+  template <class Boolean>
+  constexpr bool basic_flag<Boolean>::is_view() const noexcept {
+    return val.is_view();
+  }
+
+  template <class Null>
+  constexpr bool basic_null<Null>::is_view() const noexcept {
+    return val.is_view();
+  }
+
+  template <class Object>
+  template <bool enabled, class EnableIf>
+  auto basic_object<Object>::as_owner() const noexcept {
+    using owning_value_t = std::decay_t<decltype(std::declval<value_type>().as_owner())>;
+    return basic_object<owning_value_t> {val.as_owner()};
+  }
+
+  template <class Array>
+  template <bool enabled, class EnableIf>
+  auto basic_array<Array>::as_owner() const noexcept {
+    using owning_value_t = std::decay_t<decltype(std::declval<value_type>().as_owner())>;
+    return basic_array<owning_value_t> {val.as_owner()};
+  }
+
+  template <class String>
+  template <bool enabled, class EnableIf>
+  auto basic_string<String>::as_owner() const noexcept {
+    using owning_value_t = std::decay_t<decltype(std::declval<value_type>().as_owner())>;
+    return basic_string<owning_value_t> {val.as_owner()};
+  }
+
+  template <class Number>
+  template <bool enabled, class EnableIf>
+  auto basic_number<Number>::as_owner() const noexcept {
+    using owning_value_t = std::decay_t<decltype(std::declval<value_type>().as_owner())>;
+    return basic_number<owning_value_t> {val.as_owner()};
+  }
+
+  template <class Boolean>
+  template <bool enabled, class EnableIf>
+  auto basic_flag<Boolean>::as_owner() const noexcept {
+    using owning_value_t = std::decay_t<decltype(std::declval<value_type>().as_owner())>;
+    return basic_flag<owning_value_t> {val.as_owner()};
+  }
+
+  template <class Null>
+  template <bool enabled, class EnableIf>
+  auto basic_null<Null>::as_owner() const noexcept {
+    using owning_value_t = std::decay_t<decltype(std::declval<value_type>().as_owner())>;
+    return basic_null<owning_value_t> {nullptr};
   }
 
   inline namespace literals {

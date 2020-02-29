@@ -39,12 +39,6 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_packet<RefCount>::operator bool() const noexcept {
-    if (!is_boolean()) return !is_null();
-    else return boolean();
-  }
-
-  template <template <class> class RefCount>
   basic_packet<RefCount>::operator view() const& noexcept {
     return shim::visit([] (auto& impl) -> view {
       return typename std::decay_t<decltype(impl)>::view {impl};
@@ -52,51 +46,15 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_packet<RefCount>::operator std::string() const {
-    return std::string {strv()};
+  template <class T, class EnableIf>
+  basic_packet<RefCount>::operator T() const& {
+    return convert::cast<T>(*this);
   }
 
   template <template <class> class RefCount>
-  basic_packet<RefCount>::operator shim::string_view() const {
-    return strv();
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount>::operator int64_t() const {
-    return integer();
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount>::operator double() const {
-    return decimal();
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount>::operator basic_heap<RefCount>() const& {
-    auto* pkt = shim::get_if<basic_heap<RefCount>>(&impl);
-    if (pkt) return *pkt;
-    else return basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount>::operator basic_heap<RefCount>() && {
-    auto* pkt = shim::get_if<basic_heap<RefCount>>(&impl);
-    if (pkt) return std::move(*pkt);
-    else return basic_heap<RefCount> {shim::get<basic_buffer<RefCount>>(impl)};
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount>::operator basic_buffer<RefCount>() const& {
-    auto* pkt = shim::get_if<basic_buffer<RefCount>>(&impl);
-    if (pkt) return *pkt;
-    else return basic_buffer<RefCount> {shim::get<basic_heap<RefCount>>(impl)};
-  }
-
-  template <template <class> class RefCount>
-  basic_packet<RefCount>::operator basic_buffer<RefCount>() && {
-    auto* pkt = shim::get_if<basic_buffer<RefCount>>(&impl);
-    if (pkt) return std::move(*pkt);
-    else return basic_buffer<RefCount> {shim::get<basic_heap<RefCount>>(impl)};
+  template <class T, class EnableIf>
+  basic_packet<RefCount>::operator T() && {
+    return convert::cast<T>(std::move(*this));
   }
 
   template <template <class> class RefCount>

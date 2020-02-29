@@ -9,7 +9,7 @@
 #include <flatbuffers/flexbuffers.h>
 #endif
 
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
 #include <sajson.h>
 #endif
 
@@ -243,7 +243,7 @@ BENCHMARK_DEFINE_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields) 
 BENCHMARK_REGISTER_F(benchmark_helper, flexbuffer_lookup_finalized_random_fields)->Ranges({{1, 255}, {4, 255}});
 #endif
 
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
 BENCHMARK_DEFINE_F(benchmark_helper, sajson_lookup_finalized_random_fields) (benchmark::State& state) {
   // Generate some random strings.
   std::vector<std::string> keys(state.range(0));

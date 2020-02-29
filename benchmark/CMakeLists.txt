@@ -70,8 +70,8 @@ endif ()
 
 # Handle sajson
 if (libsajson)
-  target_compile_options(static_bench PUBLIC -DDART_HAS_SAJSON -Wno-unused-parameter)
+  target_compile_options(static_bench PUBLIC -DDART_USE_SAJSON -Wno-unused-parameter)
   if (librj)
-    target_compile_options(configurable_bench PUBLIC -DDART_HAS_SAJSON -Wno-unused-parameter)
+    target_compile_options(configurable_bench PUBLIC -DDART_USE_SAJSON -Wno-unused-parameter)
   endif ()
 endif ()

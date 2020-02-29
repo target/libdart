@@ -20,9 +20,11 @@ namespace dart {
     // Struct can be specialized to allow Dart to
     // interoperate with arbitrary types.
     template <class T>
-    struct to_dart {
+    struct conversion_traits {
       template <class Packet>
-      Packet cast(meta::nonesuch);
+      Packet to_dart(meta::nonesuch);
+      template <class Packet>
+      T from_dart(meta::nonesuch);
       template <class Packet>
       bool compare(Packet const&, meta::nonesuch);
     };
@@ -37,6 +39,175 @@ namespace dart {
       struct wrapper_tag {};
       struct dart_tag {};
       struct user_tag {};
+
+      inline std::string type_to_string(dart::detail::type t) {
+        switch (t) {
+          case dart::detail::type::object:
+            return "object";
+          case dart::detail::type::array:
+            return "array";
+          case dart::detail::type::string:
+            return "string";
+          case dart::detail::type::integer:
+            return "integer";
+          case dart::detail::type::decimal:
+            return "decimal";
+          case dart::detail::type::boolean:
+            return "boolean";
+          default:
+            DART_ASSERT(t == dart::detail::type::null);
+            return "null";
+        }
+      }
+
+      inline void report_type_mismatch(dart::detail::type expected, dart::detail::type encountered) {
+        std::string errmsg = "Encountered type \"";
+        errmsg += type_to_string(encountered);
+        errmsg += "\" when expecting \"";
+        errmsg += type_to_string(expected);
+        errmsg += "\" during serialization";
+        throw type_error(errmsg.c_str());
+      }
+
+      // Struct is basically a switch table of different internal Dart conversion
+      // operations.
+      // Allows Dart conversion operations to run via the same operator T() that
+      // everything else uses.
+      template <class From, class To>
+      struct api_converter;
+      template <template <class> class RefCount>
+      struct api_converter<basic_buffer<RefCount>, basic_heap<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+
+        template <class Buffer>
+        static heap convert(Buffer&& buff) {
+          switch (buff.get_type()) {
+            case dart::detail::type::object:
+              {
+                typename buffer::iterator k, v;
+                std::tie(k, v) = buff.kvbegin();
+                auto obj = heap::make_object();
+                while (v != buff.end()) {
+                  obj.add_field(heap {*k}, heap {*v});
+                  ++k, ++v;
+                }
+                return obj;
+              }
+            case dart::detail::type::array:
+              {
+                auto arr = heap::make_array();
+                for (auto elem : buff) arr.push_back(heap {std::move(elem)});
+                return arr;
+              }
+            case dart::detail::type::string:
+              return heap::make_string(buff.strv());
+            case dart::detail::type::integer:
+              return heap::make_integer(buff.integer());
+            case dart::detail::type::decimal:
+              return heap::make_decimal(buff.decimal());
+            case dart::detail::type::boolean:
+              return heap::make_boolean(buff.boolean());
+            default:
+              DART_ASSERT(buff.get_type() == dart::detail::type::null);
+              return heap::make_null();
+          }
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_heap<RefCount>, basic_buffer<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+
+        template <class Heap>
+        static buffer convert(Heap&& hp) {
+          if (!hp.is_object()) {
+            throw type_error("dart::buffer can only be constructed from an object heap");
+          }
+
+          // Calculate the maximum amount of memory that could be required to represent this dart::packet and
+          // allocate the whole thing in one go.
+          buffer buff;
+          size_t bytes = hp.upper_bound();
+          auto buftype = dart::detail::raw_type::object;
+          buff.buffer_ref = dart::detail::aligned_alloc<RefCount>(bytes, buftype, [&] (auto* buff) {
+            std::fill_n(buff, bytes, gsl::byte {});
+            hp.layout(buff);
+          });
+          buff.raw = {dart::detail::raw_type::object, buff.buffer_ref.get()};
+          return buff;
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_packet<RefCount>, basic_heap<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        inline static heap convert(packet const& pkt) {
+          auto* h = shim::get_if<heap>(&pkt.impl);
+          if (h) return *h;
+          else return heap {shim::get<buffer>(pkt.impl)};
+        }
+
+        inline static heap convert(packet&& pkt) {
+          auto* h = shim::get_if<heap>(&pkt.impl);
+          if (h) return std::move(*h);
+          else return heap {shim::get<buffer>(std::move(pkt.impl))};
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_heap<RefCount>, basic_packet<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        template <class Heap>
+        static packet convert(Heap&& hp) {
+          return packet {std::forward<Heap>(hp)};
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_packet<RefCount>, basic_buffer<RefCount>> {
+        using heap = basic_heap<RefCount>;
+        using buffer = basic_buffer<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        inline static buffer convert(packet const& pkt) {
+          auto* b = shim::get_if<buffer>(&pkt.impl);
+          if (b) return *b;
+          else return buffer {shim::get<heap>(pkt.impl)};
+        }
+
+        inline static buffer convert(packet&& pkt) {
+          auto* b = shim::get_if<buffer>(&pkt.impl);
+          if (b) return std::move(*b);
+          else return buffer {shim::get<heap>(std::move(pkt.impl))};
+        }
+      };
+      template <template <class> class RefCount>
+      struct api_converter<basic_buffer<RefCount>, basic_packet<RefCount>> {
+        using buffer = basic_buffer<RefCount>;
+        using packet = basic_packet<RefCount>;
+
+        template <class Buffer>
+        static packet convert(Buffer&& buff) {
+          return packet {std::forward<Buffer>(buff)};
+        }
+      };
+
+      // Handles the case of converting a view type back into
+      // its corresponding packet type
+      template <class TargetPacket, class Packet>
+      TargetPacket view_convert(Packet&& pkt, std::true_type) {
+        return TargetPacket {std::forward<Packet>(pkt).as_owner()};
+      }
+
+      // Handles the case of converting a packet type into its
+      // corresponding view type.
+      template <class TargetPacket, class Packet>
+      TargetPacket view_convert(Packet&& pkt, std::false_type) {
+        return TargetPacket {std::forward<Packet>(pkt)};
+      }
 
       // Struct is basically a switch table of different Dart comparison operations
       // where both lhs and rhs are known to be specializations of the same Dart
@@ -202,10 +373,7 @@ namespace dart {
         static decimal_tag detect(meta::priority_tag<3>);
         template <class U, class =
           std::enable_if_t<
-            std::is_convertible<
-              U,
-              shim::string_view
-            >::value
+            meta::is_string<U>::value
           >
         >
         static string_tag detect(meta::priority_tag<2>);
@@ -243,18 +411,23 @@ namespace dart {
       // Makes the question of whether a user conversion is defined SFINAEable
       // so that it can be used in meta::is_detected.
       template <class T, class Packet>
-      using user_cast_t =
-          decltype(std::declval<to_dart<std::decay_t<T>>>().template cast<Packet>(std::declval<T>()));
+      using user_cast_in_t =
+          decltype(std::declval<conversion_traits<std::decay_t<T>>>().
+                template to_dart<Packet>(std::declval<T>()));
+
+      template <class T, class Packet>
+      using user_cast_out_t =
+          decltype(std::declval<conversion_traits<std::decay_t<T>>>().from_dart(std::declval<Packet>()));
 
       // Makes the question of whether a user comparison is defined SFINAEable
       // so that it can be used in meta::is_detected.
       template <class T, class Packet>
       using user_compare_t =
-          decltype(std::declval<to_dart<std::decay_t<T>>>().compare(std::declval<Packet const&>(), std::declval<T>()));
+          decltype(std::declval<conversion_traits<std::decay_t<T>>>().compare(std::declval<Packet const&>(), std::declval<T>()));
 
       template <class T, class Packet>
       using nothrow_user_compare_t = std::enable_if_t<
-        noexcept(std::declval<to_dart<std::decay_t<T>>>().compare(std::declval<Packet const&>(), std::declval<T>()))
+        noexcept(std::declval<conversion_traits<std::decay_t<T>>>().compare(std::declval<Packet const&>(), std::declval<T>()))
       >;
 
       // Calculates if two dart types are using the same reference counter
@@ -289,6 +462,48 @@ namespace dart {
         Wrapper<PacketTwo<RefCount>>
       > : std::true_type {};
 
+      // Assuming that BOTH From and To are Dart packet types,
+      // calculates whether one type is the view type of the other.
+      // If one or both of the two types are NOT Dart packet types,
+      // will likely generate a syntax error
+      template <class From, class To>
+      struct are_view_compatible :
+        meta::disjunction<
+          meta::conjunction<
+            std::is_lvalue_reference<
+              From
+            >,
+            std::is_same<
+              typename std::decay_t<From>::view,
+              To
+            >
+          >,
+          std::is_same<
+            std::decay_t<From>,
+            typename To::view
+          >
+        >
+      {};
+
+      // Calculates whether MaybeView is the view type of Base.
+      // If Base is not a Dart packet type, will likely generate
+      // a syntax error
+      template <class MaybeView, class Base>
+      struct is_view_of :
+        std::is_same<
+          typename Base::view,
+          MaybeView
+        >
+      {};
+
+      // Calculates whether the given dart type is a view type.
+      template <class MaybeView>
+      struct is_view :
+        meta::negation<
+          typename MaybeView::is_owning_type
+        >
+      {};
+
       // Checks if a user defined comparison is guaranteed
       // to never throw an exception
       template <class T, class Packet>
@@ -309,12 +524,12 @@ namespace dart {
           meta::conjunction<
             std::is_same<
               Category,
-              convert::detail::user_tag
+              user_tag
             >,
 
             // And the user has specialized the user equality struct.
             meta::is_detected<
-              detail::user_compare_t,
+              user_compare_t,
               T,
               Packet
             >
@@ -324,7 +539,7 @@ namespace dart {
           meta::negation<
             std::is_same<
               Category,
-              convert::detail::user_tag
+              user_tag
             >
           >
         >
@@ -345,12 +560,158 @@ namespace dart {
             meta::negation<
               std::is_same<
                 Category,
-                convert::detail::user_tag
+                user_tag
               >
             >,
             
             // Or the user defined comparison is nothrow.
             user_compare_is_nothrow<T, Packet>
+          >
+        >
+      {};
+
+      // XXX: This has turned into a mess. In need of refactoring
+      // This struct enforces conversion constraints when To is known to be
+      // a Dart type (we're casting "into" the Dart API).
+      // From: Can be ANY type, including cv-qualified reference types (must be decayed)
+      // To: Known to be a canonical Dart type (doesn't need to be decayed)
+      // Category: Calculated type category for From.
+      template <class From, class To, class Category>
+      struct is_incoming_castable :
+        // The given type can be converted into a Dart type if...
+        meta::disjunction<
+          // It is a built in type...
+          meta::conjunction<
+            meta::contained<
+              Category,
+              string_tag,
+              decimal_tag,
+              integer_tag,
+              boolean_tag,
+              null_tag
+            >,
+
+            // And our chosen Dart type is capable of
+            // representing it.
+            typename To::is_mutable_type
+          >,
+
+          // It is a dart type...
+          meta::conjunction<
+            std::is_same<
+              Category,
+              dart_tag
+            >,
+
+            meta::disjunction<
+              meta::conjunction<
+                // A view type...
+                is_view<
+                  std::decay_t<From>
+                >,
+
+                // And the refcounters are the same.
+                same_refcounter<
+                  std::decay_t<From>,
+                  typename To::view
+                >
+              >,
+
+              // The refcounters are the same...
+              same_refcounter<
+                std::decay_t<From>,
+                To
+              >,
+
+              // Or one is the view type for the other.
+              are_view_compatible<
+                From,
+                To
+              >
+            >
+          >,
+
+          // It is a dart wrapper type...
+          meta::conjunction<
+            std::is_same<
+              Category,
+              wrapper_tag
+            >,
+
+            // And the reference counters are the same.
+            same_wrapped_refcounter<
+              To,
+              std::decay_t<From>
+            >
+          >,
+
+          // It is a user type...
+          meta::conjunction<
+            std::is_same<
+              Category,
+              user_tag
+            >,
+
+            // And the user has specialized the user conversion struct.
+            meta::is_detected<
+              user_cast_in_t,
+              From,
+              To
+            >
+          >
+        >
+      {};
+
+      // This struct enforces conversion constraints when To is known to not be
+      // a Dart type (we're casting "out of" the Dart API).
+      // From: Known to be a Dart type, may be a cv-qualified reference to Dart (must be decayed)
+      // To: Known NOT to be a Dart type. Assumed to be a canonical type (doesn't need to be decayed)
+      // Category: Calculated type category for To.
+      template <class From, class To, class Category>
+      struct is_outgoing_castable :
+        // We can convert from a Dart type to the given type if...
+        meta::disjunction<
+          // It is a primitive type other than a string.
+          meta::negation<
+            meta::contained<
+              Category,
+              user_tag,
+              dart_tag,
+              wrapper_tag,
+              string_tag
+            >
+          >,
+
+          // The target type is a string...
+          meta::conjunction<
+            std::is_same<
+              Category,
+              string_tag
+            >,
+
+            // And it is either NOT a character pointer,
+            // or it is a CONST character pointer.
+            meta::disjunction<
+              meta::negation<
+                std::is_pointer<To>
+              >,
+              meta::is_ptr_to_const<To>
+            >
+          >,
+
+          // The target type is a user type...
+          meta::conjunction<
+            std::is_same<
+              Category,
+              user_tag
+            >,
+
+            // And the user has specialized the user conversion struct.
+            meta::is_detected<
+              user_cast_out_t,
+              To,
+              From
+            >
           >
         >
       {};
@@ -412,11 +773,48 @@ namespace dart {
         Impl<Lhs, typename std::decay_t<Rhs>::value_type, FreeCat>
       {};
 
+      template <class FromCat, class ToCat, class From, class To>
+      struct is_castable_dispatch;
+
+      template <class From, class To>
+      struct is_castable_dispatch<dart_tag, dart_tag, From, To> :
+        is_incoming_castable<From, To, dart_tag>
+      {};
+      template <class From, class To>
+      struct is_castable_dispatch<dart_tag, wrapper_tag, From, To> :
+        is_incoming_castable<From, typename To::value_type, dart_tag>
+      {};
+      template <class From, class To>
+      struct is_castable_dispatch<wrapper_tag, dart_tag, From, To> :
+        is_incoming_castable<From, To, wrapper_tag>
+      {};
+      template <class From, class To>
+      struct is_castable_dispatch<wrapper_tag, wrapper_tag, From, To> :
+        is_incoming_castable<From, typename To::value_type, wrapper_tag>
+      {};
+
+      template <class FreeCat, class From, class To>
+      struct is_castable_dispatch<dart_tag, FreeCat, From, To> :
+        is_outgoing_castable<From, To, FreeCat>
+      {};
+      template <class FreeCat, class From, class To>
+      struct is_castable_dispatch<wrapper_tag, FreeCat, From, To> :
+        is_outgoing_castable<typename std::decay_t<From>::value_type, To, FreeCat>
+      {};
+      template <class FreeCat, class From, class To>
+      struct is_castable_dispatch<FreeCat, dart_tag, From, To> :
+        is_incoming_castable<From, To, FreeCat>
+      {};
+      template <class FreeCat, class From, class To>
+      struct is_castable_dispatch<FreeCat, wrapper_tag, From, To> :
+        is_incoming_castable<From, typename To::value_type, FreeCat>
+      {};
+
       // Switch table implementation for type conversions.
       template <class T>
-      struct caster_impl;
+      struct incoming_caster;
       template <>
-      struct caster_impl<null_tag> {
+      struct incoming_caster<null_tag> {
         // This handles the case where we were given nullptr
         template <class Packet>
         static Packet cast(std::nullptr_t) {
@@ -424,7 +822,7 @@ namespace dart {
         }
       };
       template <>
-      struct caster_impl<boolean_tag> {
+      struct incoming_caster<boolean_tag> {
         // This handles the case where we were given bool.
         template <class Packet>
         static Packet cast(bool val) {
@@ -432,7 +830,7 @@ namespace dart {
         }
       };
       template <>
-      struct caster_impl<integer_tag> {
+      struct incoming_caster<integer_tag> {
         // This handles the case where we were given int anything.
         template <class Packet>
         static Packet cast(int64_t val) {
@@ -440,7 +838,7 @@ namespace dart {
         }
       };
       template <>
-      struct caster_impl<decimal_tag> {
+      struct incoming_caster<decimal_tag> {
         // This handles the case where we were given float/double anything.
         template <class Packet>
         static Packet cast(double val) {
@@ -448,7 +846,7 @@ namespace dart {
         }
       };
       template <>
-      struct caster_impl<string_tag> {
+      struct incoming_caster<string_tag> {
         // This handles the case where we given anything convertible to
         // std::string_view
         template <class Packet>
@@ -457,14 +855,174 @@ namespace dart {
         }
       };
       template <>
-      struct caster_impl<dart_tag> {
+      struct incoming_caster<dart_tag> {
         // This handles the case that we were given
         // the right type to start with.
         // Forwards whatever it was given back out.
-        template <class TargetPacket, class Packet,
+        template <class TargetPacket, class Packet, class =
           std::enable_if_t<
             std::is_same<
               TargetPacket,
+              std::decay_t<Packet>
+            >::value
+          >
+        >
+        static Packet&& cast_impl(Packet&& pkt, meta::priority_tag<3>) {
+          return std::forward<Packet>(pkt);
+        }
+
+        // This handles the case where we were given two packet types
+        // where one is the view type of the other
+        template <class TargetPacket, class Packet, class =
+          std::enable_if_t<
+            are_view_compatible<
+              Packet,
+              TargetPacket
+            >::value
+          >
+        >
+        static TargetPacket cast_impl(Packet&& pkt, meta::priority_tag<2>) {
+          // Calculates whether Packet is the view type
+          // of TargetPacket
+          using view_check = is_view_of<
+            std::decay_t<Packet>,
+            TargetPacket
+          >;
+          return view_convert<TargetPacket>(std::forward<Packet>(pkt), view_check {});
+        }
+
+        // This handles the case where we're converting FROM a view type
+        // to a NON-view type of a disparate base template
+        template <class TargetPacket, class Packet, class =
+          std::enable_if_t<
+            is_view<std::decay_t<Packet>>::value
+          >
+        >
+        static TargetPacket cast_impl(Packet&& pkt, meta::priority_tag<1>) {
+          return TargetPacket {pkt.as_owner()};
+        }
+
+        // This handles the generic case where we
+        // were given two otherwise unrelated Dart types that are not views
+        template <class TargetPacket, class Packet>
+        static TargetPacket cast_impl(Packet&& pkt, meta::priority_tag<0>) {
+          return api_converter<std::decay_t<Packet>, TargetPacket>::convert(std::forward<Packet>(pkt));
+        }
+
+        // Have to take manual control of overload resolution for a bit here
+        template <class TargetPacket, class Packet>
+        static decltype(auto) cast(Packet&& pkt) {
+          return cast_impl<TargetPacket>(std::forward<Packet>(pkt), meta::priority_tag<3> {});
+        }
+      };
+      template <>
+      struct incoming_caster<wrapper_tag> {
+        // Handles the case where we were given a Dart wrapper
+        // type like basic_object or basic_array.
+        // Hands off to the conversion logic for the underlying implementation type.
+        template <class Packet, class Wrapper>
+        static Packet cast(Wrapper&& wrapper) {
+          return incoming_caster<dart_tag>::cast<Packet>(std::forward<Wrapper>(wrapper).dynamic());
+        }
+      };
+      template <>
+      struct incoming_caster<user_tag> {
+        // Handles the case where we were given a user type
+        // that has a defined conversion.
+        template <class Packet, class T>
+        static Packet cast(T&& val) {
+          return conversion_traits<std::decay_t<T>> {}.template to_dart<Packet>(std::forward<T>(val));
+        }
+      };
+
+      template <class T>
+      struct outgoing_caster;
+      template <>
+      struct outgoing_caster<null_tag> {
+        template <class, class Packet>
+        static std::nullptr_t cast(Packet const& pkt) {
+          if (!pkt.is_null()) {
+            report_type_mismatch(dart::detail::type::null, pkt.get_type());
+          }
+          return nullptr;
+        }
+      };
+      template <>
+      struct outgoing_caster<boolean_tag> {
+        template <class, class Packet>
+        static bool cast(Packet const& pkt) {
+          if (pkt.is_boolean()) {
+            return pkt.boolean();
+          } else {
+            return !pkt.is_null();
+          }
+        }
+      };
+      template <>
+      struct outgoing_caster<integer_tag> {
+        template <class T, class Packet>
+        static T cast(Packet const& pkt) {
+          if (!pkt.is_integer()) {
+            report_type_mismatch(dart::detail::type::integer, pkt.get_type());
+          }
+          return static_cast<T>(pkt.integer());
+        }
+      };
+      template <>
+      struct outgoing_caster<decimal_tag> {
+        template <class T, class Packet>
+        static T cast(Packet const& pkt) {
+          if (!pkt.is_decimal()) {
+            report_type_mismatch(dart::detail::type::decimal, pkt.get_type());
+          }
+          return static_cast<T>(pkt.decimal());
+        }
+      };
+      template <>
+      struct outgoing_caster<string_tag> {
+        template <class T, class Packet,
+          std::enable_if_t<
+            meta::contained<
+              T,
+              std::string,
+              shim::string_view
+            >::value
+          >* = nullptr
+        >
+        static T cast(Packet const& pkt) {
+          return static_cast<T>(pkt.strv());
+        }
+        template <class T, class Packet,
+          std::enable_if_t<
+            !meta::contained<
+              T,
+              std::string,
+              shim::string_view
+            >::value
+          >* = nullptr
+        >
+        static T cast(Packet const& pkt) {
+          static_assert(
+            meta::disjunction<
+              meta::negation<
+                std::is_pointer<T>
+              >,
+              meta::is_ptr_to_const<T>
+            >::value,
+            "Dart cannot safely discard const for string"
+          );
+          return pkt.str();
+        }
+      };
+      template <>
+      struct outgoing_caster<dart_tag> {
+        // This handles the case that we were given
+        // the right type to start with.
+        // Forwards whatever it was given back out.
+        template <class T, class Packet,
+          std::enable_if_t<
+            std::is_same<
+              T,
               std::decay_t<Packet>
             >::value
           >* = nullptr
@@ -474,35 +1032,30 @@ namespace dart {
         }
         // This handles the case where we were given
         // another dart type, but not the correct type.
-        template <class TargetPacket, class Packet,
+        template <class T, class Packet,
           std::enable_if_t<
             !std::is_same<
-              TargetPacket,
+              T,
               std::decay_t<Packet>
             >::value
           >* = nullptr
         >
-        static TargetPacket cast(Packet&& pkt) {
-          return TargetPacket {std::forward<Packet>(pkt)};
+        static T cast(Packet&& pkt) {
+          return T {std::forward<Packet>(pkt)};
         }
       };
       template <>
-      struct caster_impl<wrapper_tag> {
-        // Handles the case where we were given a Dart wrapper
-        // type like basic_object or basic_array.
-        // Hands off to the conversion logic for the underlying implementation type.
-        template <class Packet, class Wrapper>
-        static Packet cast(Wrapper&& wrapper) {
-          return caster_impl<dart_tag>::cast<Packet>(std::forward<Wrapper>(wrapper).dynamic());
+      struct outgoing_caster<wrapper_tag> {
+        template <class T, class Packet>
+        static T cast(Packet&& pkt) {
+          return T {outgoing_caster<dart_tag>::cast<typename T::value_type>(std::forward<Packet>(pkt))};
         }
       };
       template <>
-      struct caster_impl<user_tag> {
-        // Handles the case where we were given a user type
-        // that has a defined conversion.
-        template <class Packet, class T>
-        static Packet cast(T&& val) {
-          return to_dart<std::decay_t<T>> {}.template cast<Packet>(std::forward<T>(val));
+      struct outgoing_caster<user_tag> {
+        template <class T, class Packet>
+        static T cast(Packet&& pkt) {
+          return conversion_traits<std::decay_t<T>> {}.from_dart(std::forward<Packet>(pkt));
         }
       };
 
@@ -597,20 +1150,19 @@ namespace dart {
       struct compare_impl<user_tag> {
         template <class Packet, class T>
         static bool compare(Packet const& pkt, T const& val) noexcept(user_compare_is_nothrow<Packet, T>::value) {
-          return to_dart<std::decay_t<T>> {}.compare(pkt, val);
+          return conversion_traits<std::decay_t<T>> {}.compare(pkt, val);
         }
       };
 
       // These overloads have to exist to avoid overload ambiguity.
       // Argument order is not enormously significant.
-      // Performs all calls in terms of dart_tag as wrapper_tag just defers to dart_tag.
       template <class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
         return detail::compare_impl<dart_tag>::compare(lhs, rhs);
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(dart_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::compare(lhs, rhs.dynamic());
+        return detail::compare_impl<wrapper_tag>::compare(lhs, rhs);
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, dart_tag, Lhs const& lhs, Rhs const& rhs) {
@@ -618,7 +1170,7 @@ namespace dart {
       }
       template <class Lhs, class Rhs>
       bool compare_dispatch(wrapper_tag, wrapper_tag, Lhs const& lhs, Rhs const& rhs) {
-        return detail::compare_impl<dart_tag>::compare(lhs.dynamic(), rhs.dynamic());
+        return detail::compare_impl<wrapper_tag>::compare(lhs.dynamic(), rhs);
       }
 
       // These are the actual important calls, and argument order is significant as
@@ -643,6 +1195,42 @@ namespace dart {
         return detail::compare_impl<Free>::compare(rhs.dynamic(), lhs);
       }
 
+      // These overloads have to exist to avoid overload ambiguity.
+      // Argument order is not enormously significant.
+      template <class To, class From>
+      decltype(auto) cast_dispatch(dart_tag, dart_tag, From&& val) {
+        return detail::incoming_caster<dart_tag>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From>
+      decltype(auto) cast_dispatch(dart_tag, wrapper_tag, From&& val) {
+        return To {detail::incoming_caster<dart_tag>::template cast<typename To::value_type>(std::forward<From>(val))};
+      }
+      template <class To, class From>
+      decltype(auto) cast_dispatch(wrapper_tag, dart_tag, From&& val) {
+        return detail::incoming_caster<wrapper_tag>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From>
+      decltype(auto) cast_dispatch(wrapper_tag, wrapper_tag, From&& val) {
+        return To {detail::incoming_caster<wrapper_tag>::template cast<typename To::value_type>(std::forward<From>(val))};
+      }
+
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(dart_tag, Free, From&& val) {
+        return detail::outgoing_caster<Free>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(wrapper_tag, Free, From&& val) {
+        return detail::outgoing_caster<Free>::template cast<To>(std::forward<From>(val).dynamic());
+      }
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(Free, dart_tag, From&& val) {
+        return detail::incoming_caster<Free>::template cast<To>(std::forward<From>(val));
+      }
+      template <class To, class From, class Free>
+      decltype(auto) cast_dispatch(Free, wrapper_tag, From&& val) {
+        return To {detail::incoming_caster<Free>::template cast<typename To::value_type>(std::forward<From>(val))};
+      }
+
     }
 
     /**
@@ -660,61 +1248,17 @@ namespace dart {
      *  a conversion has been defined using the conversion API, or is an STL container
      *  of such a user type.
      */
-    template <class T, class TargetPacket, class Normalized = detail::normalize_t<T>>
+    template <class From, class To>
     struct is_castable : 
-      // The given type is castable if...
-      meta::disjunction<
-        // It is a built in type.
-        meta::contained<
-          Normalized,
-          convert::detail::string_tag,
-          convert::detail::decimal_tag,
-          convert::detail::integer_tag,
-          convert::detail::boolean_tag,
-          convert::detail::null_tag
+      meta::conjunction<
+        meta::negation<
+          std::is_reference<To>
         >,
-
-        // It is a dart type...
-        meta::conjunction<
-          std::is_same<
-            Normalized,
-            convert::detail::dart_tag
-          >,
-
-          // And the reference counters are the same.
-          detail::same_refcounter<
-            TargetPacket,
-            std::decay_t<T>
-          >
-        >,
-
-        // It is a dart wrapper type...
-        meta::conjunction<
-          std::is_same<
-            Normalized,
-            convert::detail::wrapper_tag
-          >,
-
-          // And the reference counters are the same.
-          detail::same_wrapped_refcounter<
-            TargetPacket,
-            std::decay_t<T>
-          >
-        >,
-
-        // It is a user type...
-        meta::conjunction<
-          std::is_same<
-            Normalized,
-            convert::detail::user_tag
-          >,
-
-          // And the user has specialized the user conversion struct.
-          meta::is_detected<
-            detail::user_cast_t,
-            T,
-            TargetPacket
-          >
+        detail::is_castable_dispatch<
+          detail::normalize_t<From>,
+          detail::normalize_t<To>,
+          From,
+          To
         >
       >
     {};
@@ -737,12 +1281,20 @@ namespace dart {
      */
     template <class Lhs, class Rhs>
     struct are_comparable :
-      detail::are_comparable_dispatch<
-        detail::are_comparable_impl,
-        detail::normalize_t<Lhs>,
-        detail::normalize_t<Rhs>,
-        Lhs,
-        Rhs
+      meta::conjunction<
+        meta::negation<
+          std::is_reference<Lhs>
+        >,
+        meta::negation<
+          std::is_reference<Rhs>
+        >,
+        detail::are_comparable_dispatch<
+          detail::are_comparable_impl,
+          detail::normalize_t<Lhs>,
+          detail::normalize_t<Rhs>,
+          Lhs,
+          Rhs
+        >
       >
     {};
 
@@ -764,12 +1316,20 @@ namespace dart {
      */
     template <class Lhs, class Rhs>
     struct are_nothrow_comparable :
-      detail::are_comparable_dispatch<
-        detail::are_nothrow_comparable_impl,
-        detail::normalize_t<Lhs>,
-        detail::normalize_t<Rhs>,
-        Lhs,
-        Rhs
+      meta::conjunction<
+        meta::negation<
+          std::is_reference<Lhs>
+        >,
+        meta::negation<
+          std::is_reference<Rhs>
+        >,
+        detail::are_comparable_dispatch<
+          detail::are_nothrow_comparable_impl,
+          detail::normalize_t<Lhs>,
+          detail::normalize_t<Rhs>,
+          Lhs,
+          Rhs
+        >
       >
     {};
 
@@ -797,18 +1357,24 @@ namespace dart {
      *  ```
      *  namespace dart::convert {
      *    template <>
-     *    struct to_dart<my_string> {
+     *    struct conversion_traits<my_string> {
      *      template <class Packet>
-     *      Packet cast(my_string const& s) {
+     *      Packet to_dart(my_string const& s) {
      *        return Packet::make_string(s.str);
      *      }
      *    };
      *  }
      *  ```
      */
-    template <class Packet = dart::basic_packet<std::shared_ptr>, class T>
-    decltype(auto) cast(T&& val) {
-      return detail::caster_impl<detail::normalize_t<T>>::template cast<Packet>(std::forward<T>(val));
+    template <class To = dart::basic_packet<std::shared_ptr>, class From>
+    decltype(auto) cast(From&& val) {
+      using to_cat = detail::normalize_t<To>;
+      using from_cat = detail::normalize_t<From>;
+      static_assert(
+        !std::is_reference<To>::value,
+        "Cannot cast to a reference type"
+      );
+      return detail::cast_dispatch<To>(from_cat {}, to_cat {}, std::forward<From>(val));
     }
 
     /**
@@ -833,7 +1399,7 @@ namespace dart {
      *  ```
      *  namespace dart::convert {
      *    template <>
-     *    struct to_dart<my_string> {
+     *    struct conversion_traits<my_string> {
      *      template <class Packet>
      *      bool compare(Packet const& pkt, my_string const& s) {
      *        return pkt.strv() == s.str;

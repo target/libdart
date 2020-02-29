@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <benchmark/benchmark.h>
 
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
 #include <sajson.h>
 #endif
 
@@ -214,7 +214,7 @@ struct benchmark_helper : benchmark::Fixture {
   std::vector<std::string> load_input(dart::shim::string_view path) const;
   std::vector<unsafe_buffer> parse_input_dart(gsl::span<std::string const> packets) const;
   std::vector<rj::Document> parse_input_rj(gsl::span<std::string const> packets) const;
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
   std::vector<sajson::document> parse_input_sajson(gsl::span<std::string const> packets) const;
 #endif
 #ifdef DART_HAS_NLJSON
@@ -233,7 +233,7 @@ struct benchmark_helper : benchmark::Fixture {
   std::vector<std::string> input;
   std::vector<unsafe_buffer> parsed_dart;
   std::vector<rj::Document> parsed_rj;
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
   std::vector<sajson::document> parsed_sajson;
 #endif
 #ifdef DART_HAS_NLJSON
@@ -392,7 +392,7 @@ BENCHMARK_F(benchmark_helper, rapidjson_nontrivial_json_generation_test) (benchm
   state.counters["serialized packets"] = rate_counter;
 }
 
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
 BENCHMARK_F(benchmark_helper, sajson_nontrivial_json_test) (benchmark::State& state) {
   auto chunk = input.size();
   for (auto _ : state) {
@@ -566,7 +566,7 @@ void benchmark_helper::SetUp(benchmark::State const&) {
   input = load_input(json_input);
   parsed_dart = parse_input_dart(input);
   parsed_rj = parse_input_rj(input);
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
   parsed_sajson = parse_input_sajson(input);
 #endif
 #ifdef DART_HAS_NLJSON
@@ -611,7 +611,7 @@ std::vector<rj::Document> benchmark_helper::parse_input_rj(gsl::span<std::string
   return parsed;
 }
 
-#ifdef DART_HAS_SAJSON
+#ifdef DART_USE_SAJSON
 std::vector<sajson::document> benchmark_helper::parse_input_sajson(gsl::span<std::string const> packets) const {
   std::vector<sajson::document> parsed;
   parsed.reserve(packets.size());

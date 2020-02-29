@@ -5,11 +5,23 @@
 
 #include <cassert>
 #include <utility>
+#include <stdexcept>
 #include <type_traits>
 
-/*----- Local Includes -----*/
+/*----- Macros -----*/
 
-#include "../meta.h"
+// This should be declared in meta.h, but including meta.h in
+// the support libraries creates a circular dependency between
+// meta.h and shim.h
+#define DART_COMPARE_HELPER(name, op)                                     \
+  template <class Lhs, class Rhs, class = void>                           \
+  struct name : std::false_type {};                                       \
+  template <class Lhs, class Rhs>                                         \
+  struct name<                                                            \
+    Lhs,                                                                  \
+    Rhs,                                                                  \
+    void_t<decltype(std::declval<Lhs>() op std::declval<Rhs>())>          \
+  > : std::true_type {};
 
 /*----- Type Declarations -----*/
 
@@ -19,6 +31,19 @@ namespace dart {
   class optional;
 
   namespace detail {
+
+    // This is unfortunately duplicated from meta.h
+    // because we can't include it here without forming
+    // a circular include.
+    template <class...>
+    using void_t = void;
+
+    DART_COMPARE_HELPER(are_comparable, ==);
+    DART_COMPARE_HELPER(are_negated_comparable, !=);
+    DART_COMPARE_HELPER(are_lt_comparable, <);
+    DART_COMPARE_HELPER(are_lte_comparable, <=);
+    DART_COMPARE_HELPER(are_gt_comparable, >);
+    DART_COMPARE_HELPER(are_gte_comparable, >=);
 
     template <class T, class U>
     struct constructor_conversion_check {
@@ -323,7 +348,7 @@ namespace dart {
   // Optional equality.
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_comparable<T const&, U const&>::value
+      detail::are_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
       &&
@@ -337,7 +362,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_comparable<T const&, U const&>::value
+      detail::are_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
       &&
@@ -351,7 +376,7 @@ namespace dart {
   // Optional vs value equality
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_comparable<T const&, U const&>::value
+      detail::are_comparable<T const&, U const&>::value
       &&
       std::is_convertible<U, T>::value
     >
@@ -362,7 +387,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_comparable<T const&, U const>::value
+      detail::are_comparable<T const&, U const>::value
       &&
       std::is_convertible<T, U>::value
     >
@@ -372,7 +397,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_comparable<T const&, U const&>::value
+      detail::are_comparable<T const&, U const&>::value
       &&
       std::is_convertible<U, T>::value
     >
@@ -382,7 +407,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_comparable<T const&, U const>::value
+      detail::are_comparable<T const&, U const>::value
       &&
       std::is_convertible<T, U>::value
     >
@@ -414,7 +439,7 @@ namespace dart {
   // Optional less than ordering
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_lt_comparable<T const&, U const&>::value
+      detail::are_lt_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
       &&
@@ -428,7 +453,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_lte_comparable<T const&, U const&>::value
+      detail::are_lte_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
       &&
@@ -444,7 +469,7 @@ namespace dart {
   // Optional vs value less than ordering
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_lt_comparable<T const&, U const&>::value
+      detail::are_lt_comparable<T const&, U const&>::value
       &&
       std::is_convertible<U, T>::value
     >
@@ -455,7 +480,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_lt_comparable<T const&, U const&>::value
+      detail::are_lt_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
     >
@@ -466,7 +491,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_lte_comparable<T const&, U const&>::value
+      detail::are_lte_comparable<T const&, U const&>::value
       &&
       std::is_convertible<U, T>::value
     >
@@ -477,7 +502,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_lte_comparable<T const&, U const&>::value
+      detail::are_lte_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
     >
@@ -508,7 +533,7 @@ namespace dart {
   // Optional greater than ordering.
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_gt_comparable<T const&, U const&>::value
+      detail::are_gt_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
       &&
@@ -522,7 +547,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_gte_comparable<T const&, U const&>::value
+      detail::are_gte_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
       &&
@@ -538,7 +563,7 @@ namespace dart {
   // Optional vs value greater than ordering.
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_gt_comparable<T const&, U const&>::value
+      detail::are_gt_comparable<T const&, U const&>::value
       &&
       std::is_convertible<U, T>::value
     >
@@ -549,7 +574,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_gt_comparable<T const&, U const&>::value
+      detail::are_gt_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
     >
@@ -560,7 +585,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_gte_comparable<T const&, U const&>::value
+      detail::are_gte_comparable<T const&, U const&>::value
       &&
       std::is_convertible<U, T>::value
     >
@@ -571,7 +596,7 @@ namespace dart {
   }
   template <class T, class U, class =
     std::enable_if_t<
-      meta::are_gte_comparable<T const&, U const&>::value
+      detail::are_gte_comparable<T const&, U const&>::value
       &&
       std::is_convertible<T, U>::value
     >
