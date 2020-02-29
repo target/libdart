@@ -27,11 +27,11 @@ namespace dart {
 
   template <template <class> class RefCount>
   shim::string_view basic_heap<RefCount>::strv() const {
-    auto* sso = shim::get_if<inline_string_layout>(&data);
+    auto* sso = shim::get_if<detail::inline_string_layout>(&data);
     if (sso) {
       return {sso->buffer.data(), sso_bytes - sso->left};
     } else {
-      auto* str = shim::get_if<dynamic_string_layout>(&data);
+      auto* str = shim::get_if<detail::dynamic_string_layout>(&data);
       if (str) return {str->ptr.get(), str->len};
       else throw type_error("dart::heap has no string value");
     }
@@ -59,7 +59,7 @@ namespace dart {
           // FIXME: Turns out there's no portable way to use std::make_shared
           // to allocate an array of characters in C++14.
           auto shared = std::shared_ptr<char> {ptr.release(), +[] (char* ptr) { delete[] ptr; }};
-          data = dynamic_string_layout {std::move(shared), val.size()};
+          data = detail::dynamic_string_layout {std::move(shared), val.size()};
           break;
         }
       default:
@@ -67,7 +67,7 @@ namespace dart {
           DART_ASSERT(type == detail::raw_type::small_string);
 
           // String is small enough for SSO, copy the string contents into the in-situ buffer.
-          inline_string_layout layout;
+          detail::inline_string_layout layout;
           std::copy(val.begin(), val.end(), layout.buffer.begin());
 
           // Terminate the string and set the number of remaining bytes.
@@ -80,28 +80,6 @@ namespace dart {
           data = layout;
         }
     }
-  }
-
-  template <template <class> class RefCount>
-  bool basic_heap<RefCount>::dynamic_string_layout::operator ==(dynamic_string_layout const& other) const noexcept {
-    if (len != other.len) return false;
-    else return !strcmp(ptr.get(), other.ptr.get());
-  }
-
-  template <template <class> class RefCount>
-  bool basic_heap<RefCount>::dynamic_string_layout::operator !=(dynamic_string_layout const& other) const noexcept {
-    return !(*this == other);
-  }
-
-  template <template <class> class RefCount>
-  bool basic_heap<RefCount>::inline_string_layout::operator ==(inline_string_layout const& other) const noexcept {
-    if (left != other.left) return false;
-    else return !strcmp(buffer.data(), other.buffer.data());
-  }
-
-  template <template <class> class RefCount>
-  bool basic_heap<RefCount>::inline_string_layout::operator !=(inline_string_layout const& other) const noexcept {
-    return !(*this == other);
   }
 
 }

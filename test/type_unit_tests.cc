@@ -73,6 +73,29 @@ SCENARIO("objects are regular types", "[type unit]") {
         }
       }
 
+      DYNAMIC_WHEN("a view of the object is created", idx) {
+        typename object::view vw = obj;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(!obj.is_view());
+          REQUIRE(vw.is_view());
+          REQUIRE(vw == obj);
+          REQUIRE(obj == vw);
+        }
+
+        DYNAMIC_WHEN("the view is returned to a full object", idx) {
+          auto dup = vw.as_owner();
+          DYNAMIC_THEN("it compares equal with all", idx) {
+            REQUIRE(!dup.is_view());
+            REQUIRE(!obj.is_view());
+            REQUIRE(vw.is_view());
+            REQUIRE(dup == obj);
+            REQUIRE(obj == dup);
+            REQUIRE(vw == dup);
+            REQUIRE(dup == vw);
+          }
+        }
+      }
+
       DYNAMIC_WHEN("the object is compared against an equivalent, disparate, object", idx) {
         object dup;
         DYNAMIC_THEN("the two compare equal", idx) {
@@ -744,6 +767,29 @@ SCENARIO("arrays are regular types", "[type unit]") {
         }
       }
 
+      DYNAMIC_WHEN("a view of the array is created", idx) {
+        typename array::view vw = arr;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(!arr.is_view());
+          REQUIRE(vw.is_view());
+          REQUIRE(vw == arr);
+          REQUIRE(arr== vw);
+        }
+
+        DYNAMIC_WHEN("the view is returned to a full array", idx) {
+          auto dup = vw.as_owner();
+          DYNAMIC_THEN("it compares equal with all", idx) {
+            REQUIRE(!dup.is_view());
+            REQUIRE(!arr.is_view());
+            REQUIRE(vw.is_view());
+            REQUIRE(dup == arr);
+            REQUIRE(arr == dup);
+            REQUIRE(vw == dup);
+            REQUIRE(dup == vw);
+          }
+        }
+      }
+
       DYNAMIC_WHEN("the array is compared against an equivalent, disparate, array", idx) {
         array dup;
         DYNAMIC_THEN("the two compare equal", idx) {
@@ -1312,6 +1358,29 @@ SCENARIO("strings are regular types", "[type unit]") {
         }
       }
 
+      DYNAMIC_WHEN("a view of the string is created", idx) {
+        typename string::view vw = str;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(!str.is_view());
+          REQUIRE(vw.is_view());
+          REQUIRE(vw == str);
+          REQUIRE(str == vw);
+        }
+
+        DYNAMIC_WHEN("the view is returned to a full string", idx) {
+          auto dup = vw.as_owner();
+          DYNAMIC_THEN("it compares equal with all", idx) {
+            REQUIRE(!dup.is_view());
+            REQUIRE(!str.is_view());
+            REQUIRE(vw.is_view());
+            REQUIRE(dup == str);
+            REQUIRE(str == dup);
+            REQUIRE(vw == dup);
+            REQUIRE(dup == vw);
+          }
+        }
+      }
+
       DYNAMIC_WHEN("the string is compared against an equivalent, disparate, string", idx) {
         string dup;
         DYNAMIC_THEN("the two compare equal", idx) {
@@ -1447,6 +1516,29 @@ SCENARIO("numbers are regular types", "[type unit]") {
         }
       }
 
+      DYNAMIC_WHEN("a view of the number is created", idx) {
+        typename number::view vw = num;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(!num.is_view());
+          REQUIRE(vw.is_view());
+          REQUIRE(vw == num);
+          REQUIRE(num == vw);
+        }
+
+        DYNAMIC_WHEN("the view is returned to a full number", idx) {
+          auto dup = vw.as_owner();
+          DYNAMIC_THEN("it compares equal with all", idx) {
+            REQUIRE(!dup.is_view());
+            REQUIRE(!num.is_view());
+            REQUIRE(vw.is_view());
+            REQUIRE(dup == num);
+            REQUIRE(num == dup);
+            REQUIRE(vw == dup);
+            REQUIRE(dup == vw);
+          }
+        }
+      }
+
       DYNAMIC_WHEN("the number is compared against an equivalent, disparate, number", idx) {
         number dup;
         DYNAMIC_THEN("the two compare equal", idx) {
@@ -1575,6 +1667,29 @@ SCENARIO("flags are regular types", "[type unit]") {
         }
       }
 
+      DYNAMIC_WHEN("a view of the flag is created", idx) {
+        typename flag::view vw = cond;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(!cond.is_view());
+          REQUIRE(vw.is_view());
+          REQUIRE(vw == cond);
+          REQUIRE(cond == vw);
+        }
+
+        DYNAMIC_WHEN("the view is returned to a full flag", idx) {
+          auto dup = vw.as_owner();
+          DYNAMIC_THEN("it compares equal with all", idx) {
+            REQUIRE(!dup.is_view());
+            REQUIRE(!cond.is_view());
+            REQUIRE(vw.is_view());
+            REQUIRE(dup == cond);
+            REQUIRE(cond == dup);
+            REQUIRE(vw == dup);
+            REQUIRE(dup == vw);
+          }
+        }
+      }
+
       DYNAMIC_WHEN("the flag is compared against an equivalent, disparate, flag", idx) {
         flag dup;
         DYNAMIC_THEN("the two compare equal", idx) {
@@ -1687,6 +1802,29 @@ SCENARIO("nulls are regular types", "[type unit]") {
           REQUIRE(dup == none);
           REQUIRE(none == moved);
           REQUIRE(moved == none);
+        }
+      }
+
+      DYNAMIC_WHEN("a view of the null is created", idx) {
+        typename null::view vw = none;
+        DYNAMIC_THEN("the two compare equal", idx) {
+          REQUIRE(!none.is_view());
+          REQUIRE(vw.is_view());
+          REQUIRE(vw == none);
+          REQUIRE(none== vw);
+        }
+
+        DYNAMIC_WHEN("the view is returned to a full null", idx) {
+          auto dup = vw.as_owner();
+          DYNAMIC_THEN("it compares equal with all", idx) {
+            REQUIRE(!dup.is_view());
+            REQUIRE(!none.is_view());
+            REQUIRE(vw.is_view());
+            REQUIRE(dup == none);
+            REQUIRE(none == dup);
+            REQUIRE(vw == dup);
+            REQUIRE(dup == vw);
+          }
         }
       }
 

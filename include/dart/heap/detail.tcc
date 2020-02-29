@@ -33,10 +33,10 @@ namespace dart {
           data = elements_type {elems.raw()};
         },
         [this] (shim::variant_alternative_t<3, TypeData> const& str) {
-          data = dynamic_string_layout {str.ptr, str.len};
+          data = str;
         },
         [this] (shim::variant_alternative_t<4, TypeData> const& str) {
-          data = inline_string_layout {str.buffer, str.left};
+          data = str;
         },
         [this] (shim::variant_alternative_t<5, TypeData> const& num) {
           data = num;

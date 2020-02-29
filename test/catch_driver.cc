@@ -1,5 +1,5 @@
-/*----- System Includes -----*/
+/*----- Local Includes -----*/
 
 #define CATCH_CONFIG_MAIN
 
-#include <extern/catch.h>
+#include "../include/extern/catch.h"

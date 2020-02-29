@@ -280,6 +280,31 @@ namespace dart {
       bool operator ()(basic_pair<LhsPacket<RefCount>> const& lhs, basic_pair<RhsPacket<RefCount>> const& rhs) const;
     };
 
+    struct dynamic_string_layout {
+      bool operator ==(dynamic_string_layout const& other) const noexcept {
+        if (len != other.len) return false;
+        else return !strcmp(ptr.get(), other.ptr.get());
+      }
+      bool operator !=(dynamic_string_layout const& other) const noexcept {
+        return !(*this == other);
+      }
+
+      std::shared_ptr<char> ptr;
+      size_t len;
+    };
+    struct inline_string_layout {
+      bool operator ==(inline_string_layout const& other) const noexcept {
+        if (left != other.left) return false;
+        else return !strcmp(buffer.data(), other.buffer.data());
+      }
+      bool operator !=(inline_string_layout const& other) const noexcept {
+        return !(*this == other);
+      }
+
+      std::array<char, sizeof(dynamic_string_layout) - sizeof(uint8_t)> buffer;
+      uint8_t left;
+    };
+
     /**
      *  @brief
      *  Helper-struct for safely comparing objects of any type.

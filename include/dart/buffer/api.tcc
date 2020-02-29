@@ -10,23 +10,6 @@
 namespace dart {
 
   template <template <class> class RefCount>
-  template <bool enabled, class EnableIf>
-  basic_buffer<RefCount>::basic_buffer(basic_heap<RefCount> const& heap) {
-    if (!heap.is_object()) {
-      throw type_error("dart::buffer can only be constructed from an object heap");
-    }
-
-    // Calculate the maximum amount of memory that could be required to represent this dart::packet and
-    // allocate the whole thing in one go.
-    size_t bytes = heap.upper_bound();
-    buffer_ref = detail::aligned_alloc<RefCount>(bytes, detail::raw_type::object, [&] (auto* buff) {
-      std::fill_n(buff, bytes, gsl::byte {});
-      heap.layout(buff);
-    });
-    raw = {detail::raw_type::object, buffer_ref.get()};
-  }
-
-  template <template <class> class RefCount>
   basic_buffer<RefCount>::basic_buffer(basic_buffer&& other) noexcept :
     raw(other.raw),
     buffer_ref(std::move(other.buffer_ref))
@@ -70,12 +53,6 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_buffer<RefCount>::operator bool() const noexcept {
-    if (!is_boolean()) return !is_null();
-    else return boolean();
-  }
-
-  template <template <class> class RefCount>
   basic_buffer<RefCount>::operator view() const& noexcept {
     view tmp;
     tmp.raw = raw;
@@ -84,57 +61,15 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_buffer<RefCount>::operator std::string() const {
-    return std::string {strv()};
+  template <class T, class EnableIf>
+  basic_buffer<RefCount>::operator T() const& {
+    return convert::cast<T>(*this);
   }
 
   template <template <class> class RefCount>
-  basic_buffer<RefCount>::operator shim::string_view() const {
-    return strv();
-  }
-
-  template <template <class> class RefCount>
-  basic_buffer<RefCount>::operator int64_t() const {
-    return integer();
-  }
-
-  template <template <class> class RefCount>
-  basic_buffer<RefCount>::operator double() const {
-    return decimal();
-  }
-
-  template <template <class> class RefCount>
-  basic_buffer<RefCount>::operator basic_heap<RefCount>() const {
-    switch (get_type()) {
-      case type::object:
-        {
-          iterator k, v;
-          std::tie(k, v) = kvbegin();
-          auto obj = basic_heap<RefCount>::make_object();
-          while (v != end()) {
-            obj.add_field(basic_heap<RefCount> {*k}, basic_heap<RefCount> {*v});
-            ++k, ++v;
-          }
-          return obj;
-        }
-      case type::array:
-        {
-          auto arr = basic_heap<RefCount>::make_array();
-          for (auto elem : *this) arr.push_back(basic_heap<RefCount> {std::move(elem)});
-          return arr;
-        }
-      case type::string:
-        return basic_heap<RefCount>::make_string(strv());
-      case type::integer:
-        return basic_heap<RefCount>::make_integer(integer());
-      case type::decimal:
-        return basic_heap<RefCount>::make_decimal(decimal());
-      case type::boolean:
-        return basic_heap<RefCount>::make_boolean(boolean());
-      default:
-        DART_ASSERT(get_type() == type::null);
-        return basic_heap<RefCount>::make_null();
-    }
+  template <class T, class EnableIf>
+  basic_buffer<RefCount>::operator T() && {
+    return convert::cast<T>(std::move(*this));
   }
 
   template <template <class> class RefCount>
