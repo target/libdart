@@ -351,7 +351,7 @@ void compare_rj_dart_abi(rj::Value const& obj, AbiType const* pkt) {
     case rj::kFalseType:
       // We're validating a boolean.
       REQUIRE(dart_is_bool(pkt));
-      REQUIRE(obj.GetBool() == dart_bool_get(pkt));
+      REQUIRE(static_cast<int>(obj.GetBool()) == dart_bool_get(pkt));
       break;
     default:
       // We're validating a null.

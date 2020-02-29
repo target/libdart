@@ -7,15 +7,9 @@
 #include <gsl/span>
 #include <type_traits>
 
-#define DART_COMPARE_HELPER(name, op)                                     \
-  template <class Lhs, class Rhs, class = void>                           \
-  struct name : std::false_type {};                                       \
-  template <class Lhs, class Rhs>                                         \
-  struct name<                                                            \
-    Lhs,                                                                  \
-    Rhs,                                                                  \
-    void_t<decltype(std::declval<Lhs>() op std::declval<Rhs>())>          \
-  > : std::true_type {};
+/*----- Local Includes -----*/
+
+#include "shim.h"
 
 /*----- Type Declarations -----*/
 
@@ -31,13 +25,108 @@ namespace dart {
       using type = T;
     };
 
+    // Removes one level of "pointer to const", "pointer to volatile"
+    // "reference to const", "reference to volatile", etc,
+    // to make working with strings easier.
+    // Like std::decay except it doesn't decay C arrays,
+    // but it otherwise much stronger.
+    template <class T>
+    struct canonical_type {
+      using type = T;
+    };
+    template <class T>
+    struct canonical_type<T const> {
+      using type = T;
+    };
+    template <class T>
+    struct canonical_type<T volatile> {
+      using type = T;
+    };
+    template <class T>
+    struct canonical_type<T const volatile> {
+      using type = T;
+    };
+    template <class T>
+    struct canonical_type<T&> {
+      using type = T&;
+    };
+    template <class T>
+    struct canonical_type<T const&> {
+      using type = T&;
+    };
+    template <class T>
+    struct canonical_type<T volatile&> {
+      using type = T&;
+    };
+    template <class T>
+    struct canonical_type<T const volatile&> {
+      using type = T&;
+    };
+    template <class T>
+    struct canonical_type<T*> {
+      using type = T*;
+    };
+    template <class T>
+    struct canonical_type<T const*> {
+      using type = T*;
+    };
+    template <class T>
+    struct canonical_type<T volatile*> {
+      using type = T*;
+    };
+    template <class T>
+    struct canonical_type<T const volatile*> {
+      using type = T*;
+    };
+    template <class T, size_t len>
+    struct canonical_type<T (&)[len]> {
+      using type = T (&)[len];
+    };
+    template <class T, size_t len>
+    struct canonical_type<T const (&)[len]> {
+      using type = T (&)[len];
+    };
+    template <class T, size_t len>
+    struct canonical_type<T volatile (&)[len]> {
+      using type = T (&)[len];
+    };
+    template <class T, size_t len>
+    struct canonical_type<T const volatile (&)[len]> {
+      using type = T (&)[len];
+    };
+    template <class T, size_t len>
+    struct canonical_type<T (*)[len]> {
+      using type = T (*)[len];
+    };
+    template <class T, size_t len>
+    struct canonical_type<T const (*)[len]> {
+      using type = T (*)[len];
+    };
+    template <class T, size_t len>
+    struct canonical_type<T volatile (*)[len]> {
+      using type = T (*)[len];
+    };
+    template <class T, size_t len>
+    struct canonical_type<T const volatile (*)[len]> {
+      using type = T (*)[len];
+    };
+    template <class T>
+    using canonical_type_t = typename canonical_type<T>::type;
+
+    template <class T>
+    struct is_ptr_to_const : std::false_type {};
+    template <class T>
+    struct is_ptr_to_const<T const*> : std::true_type {};
+
     // Create type traits to check for each type of comparison.
-    DART_COMPARE_HELPER(are_comparable, ==);
-    DART_COMPARE_HELPER(are_negated_comparable, !=);
-    DART_COMPARE_HELPER(are_lt_comparable, <);
-    DART_COMPARE_HELPER(are_lte_comparable, <=);
-    DART_COMPARE_HELPER(are_gt_comparable, >);
-    DART_COMPARE_HELPER(are_gte_comparable, >=);
+    template <class Lhs, class Rhs, class = void>
+    struct are_comparable : std::false_type {};
+    template <class Lhs, class Rhs>
+    struct are_comparable<
+      Lhs,
+      Rhs,
+      void_t<decltype(std::declval<Lhs>() == std::declval<Rhs>())>
+    > : std::true_type {};
 
     template <class T, class = void>
     struct is_dereferenceable : std::false_type {};
@@ -153,11 +242,15 @@ namespace dart {
     using get_type_t = decltype(std::declval<T>().get_type());
 
     template <class T>
-    struct is_dartlike {
-      static constexpr auto value =
-        is_detected<strv_t, T>::value && is_detected<integer_t, T>::value
-        && is_detected<decimal_t, T>::value && is_detected<boolean_t, T>::value && is_detected<get_type_t, T>::value;
-    };
+    struct is_dartlike :
+      meta::conjunction<
+        is_detected<strv_t, T>,
+        is_detected<integer_t, T>,
+        is_detected<decimal_t, T>,
+        is_detected<boolean_t, T>,
+        is_detected<get_type_t, T>
+      >
+    {};
 
     template <class T, template <class> class Template>
     struct is_specialization_of : std::false_type {};
@@ -187,6 +280,49 @@ namespace dart {
     struct priority_tag : priority_tag<pos - 1> {};
     template <>
     struct priority_tag<0> {};
+
+    namespace detail {
+      template <class T>
+      struct is_builtin_string_impl : std::false_type {};
+      template <>
+      struct is_builtin_string_impl<char*> : std::true_type {};
+      template <>
+      struct is_builtin_string_impl<wchar_t*> : std::true_type {};
+      template <>
+      struct is_builtin_string_impl<char16_t*> : std::true_type {};
+      template <>
+      struct is_builtin_string_impl<char32_t*> : std::true_type {};
+      template <size_t len>
+      struct is_builtin_string_impl<char (&)[len]> : std::true_type {};
+      template <size_t len>
+      struct is_builtin_string_impl<wchar_t (&)[len]> : std::true_type {};
+      template <size_t len>
+      struct is_builtin_string_impl<char16_t (&)[len]> : std::true_type {};
+      template <size_t len>
+      struct is_builtin_string_impl<char32_t (&)[len]> : std::true_type {};
+    }
+
+    template <class T>
+    struct is_builtin_string : detail::is_builtin_string_impl<canonical_type_t<T>> {};
+
+    template <class T>
+    struct is_std_string : std::false_type {};
+    template <class CharT, class Traits, class Allocator>
+    struct is_std_string<std::basic_string<CharT, Traits, Allocator>> : std::true_type {};
+
+    template <class T>
+    struct is_std_string_view : std::false_type {};
+    template <class CharT, class Traits>
+    struct is_std_string_view<shim::basic_string_view<CharT, Traits>> : std::true_type {};
+
+    template <class T>
+    struct is_string :
+      meta::disjunction<
+        is_builtin_string<T>,
+        is_std_string<T>,
+        is_std_string_view<T>
+      >
+    {};
 
   }
 

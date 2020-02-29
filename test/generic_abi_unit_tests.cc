@@ -85,7 +85,7 @@ SCENARIO("dart packets are regular types", "[generic abi unit]") {
         REQUIRE(dart_is_dcm(&key_three));
         REQUIRE(dart_dcm_get(&key_three) == 3.14159);
         REQUIRE(dart_is_bool(&key_four));
-        REQUIRE(static_cast<bool>(dart_bool_get(&key_four)) == true);
+        REQUIRE(dart_bool_get(&key_four) == 1);
       }
 
       WHEN("it's finalized, and split along APIs") {
@@ -140,9 +140,9 @@ SCENARIO("dart packets are regular types", "[generic abi unit]") {
           REQUIRE(dart_dcm_get(&low_three) == 3.14159);
           REQUIRE(dart_dcm_get(&heap_three) == 3.14159);
           REQUIRE(dart_dcm_get(&buffer_three) == 3.14159);
-          REQUIRE(static_cast<bool>(dart_bool_get(&low_four)) == true);
-          REQUIRE(static_cast<bool>(dart_bool_get(&heap_four)) == true);
-          REQUIRE(static_cast<bool>(dart_bool_get(&buffer_four)) == true);
+          REQUIRE(dart_bool_get(&low_four) == 1);
+          REQUIRE(dart_bool_get(&heap_four) == 1);
+          REQUIRE(dart_bool_get(&buffer_four) == 1);
         }
       }
     }
@@ -394,7 +394,7 @@ SCENARIO("dart packets are regular types", "[generic abi unit]") {
     WHEN("the bool is queried") {
       THEN("its basic properties make sense") {
         REQUIRE(dart_is_bool(&pktone));
-        REQUIRE(dart_bool_get(&pktone) == false);
+        REQUIRE(dart_bool_get(&pktone) == 0);
         REQUIRE(pktone.rtti.p_id == DART_PACKET);
         REQUIRE(pktone.rtti.rc_id == DART_RC_SAFE);
         REQUIRE(dart_get_type(&pktone) == DART_BOOLEAN);
@@ -417,7 +417,7 @@ SCENARIO("dart packets are regular types", "[generic abi unit]") {
       THEN("the new bool steals the contents of the old") {
         REQUIRE(dart_is_bool(&moved));
         REQUIRE(dart_get_type(&moved) == DART_BOOLEAN);
-        REQUIRE(dart_bool_get(&moved) == false);
+        REQUIRE(dart_bool_get(&moved) == 0);
         REQUIRE(!dart_is_bool(&pktone));
         REQUIRE(dart_is_null(&pktone));
         REQUIRE(dart_get_type(&pktone) == DART_NULL);
@@ -437,7 +437,7 @@ SCENARIO("dart packets are regular types", "[generic abi unit]") {
     WHEN("the null is queried") {
       THEN("its basic properties make sense") {
         REQUIRE(dart_is_null(&pktone));
-        REQUIRE(dart_bool_get(&pktone) == false);
+        REQUIRE(dart_bool_get(&pktone) == 0);
         REQUIRE(pktone.rtti.p_id == DART_PACKET);
         REQUIRE(pktone.rtti.rc_id == DART_RC_SAFE);
         REQUIRE(dart_get_type(&pktone) == DART_NULL);
@@ -495,7 +495,7 @@ SCENARIO("objects can be constructed with many values", "[generic abi unit]") {
 
         REQUIRE(dart_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_str_get(&str) == "string"s);
-        REQUIRE(static_cast<bool>(dart_bool_get(&boolean)) == true);
+        REQUIRE(dart_bool_get(&boolean) == 1);
         REQUIRE(dart_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_int_get(&integer) == 1337);
       }
@@ -649,10 +649,10 @@ SCENARIO("objects can insert any type", "[generic abi unit]") {
         auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
 
         REQUIRE(dart_is_bool(&boolean));
-        REQUIRE(dart_bool_get(&boolean) == true);
+        REQUIRE(dart_bool_get(&boolean) == 1);
       }
     }
-
+    
     WHEN("we insert a null") {
       dart_obj_insert_null(&obj, "none");
       THEN("the null is reachable") {
@@ -791,7 +791,7 @@ SCENARIO("objects can assign to existing indices", "[generic abi unit]") {
         auto boolean = dart_obj_get(&obj, "lies");
         auto guard = make_scope_guard([&] { dart_destroy(&boolean); });
         REQUIRE(dart_is_bool(&boolean));
-        REQUIRE(dart_bool_get(&boolean) == true);
+        REQUIRE(dart_bool_get(&boolean) == 1);
       }
     }
 
@@ -921,7 +921,7 @@ SCENARIO("objects can be iterated over", "[generic abi unit]") {
         REQUIRE(dart_is_str(&three));
         REQUIRE(dart_str_get(&three) == "fixed"s);
         REQUIRE(dart_is_bool(&four));
-        REQUIRE(dart_bool_get(&four) == false);
+        REQUIRE(dart_bool_get(&four) == 0);
         REQUIRE(dart_is_dcm(&five));
         REQUIRE(dart_dcm_get(&five) == 3.14159);
       }
@@ -1173,7 +1173,7 @@ SCENARIO("arrays can be constructed with many values", "[generic abi unit]") {
 
         REQUIRE(dart_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_str_get(&str) == "string"s);
-        REQUIRE(static_cast<bool>(dart_bool_get(&boolean)) == true);
+        REQUIRE(dart_bool_get(&boolean) == 1);
         REQUIRE(dart_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_int_get(&integer) == 1337);
       }
@@ -1560,7 +1560,7 @@ SCENARIO("arrays can be iterated over", "[generic abi unit]") {
         REQUIRE(dart_is_dcm(&two));
         REQUIRE(dart_dcm_get(&two) == Approx(3.14159));
         REQUIRE(dart_is_bool(&three));
-        REQUIRE(dart_bool_get(&three) == false);
+        REQUIRE(dart_bool_get(&three) == 0);
         REQUIRE(dart_is_str(&four));
         REQUIRE(dart_str_get(&four) == "fixed"s);
         REQUIRE(dart_str_get(&five) == "dynamic"s);

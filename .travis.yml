@@ -196,19 +196,15 @@ matrix:
 script:
   - mkdir build
   - cd build
-  - cmake .. -Dextended_test=ON -Dbenchmark=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
+  - while true; do sleep 60; echo 'still here!'; done &
+  - KEEPALIVE_PID=$!
+  - cmake .. -Dbenchmark=ON -Duse_sajson=ON -Dextended_test=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
   - make VERBOSE=1
+  - kill -9 $KEEPALIVE_PID
   - ctest --output-on-failure
-  - cd ..
-  - mkdir build2
-  - cd build2
-  - cmake .. -Duse_sajson=ON -Dbenchmark=ON -Dbuild_abi=ON
-  - make VERBOSE=1
-  - ctest --output-on-failure
-  - cd ..
 
 after_success:
   - |
-    if [ "${TRAVIS_OS_NAME}" = "osx" ] && [ "${GEN_COVERAGE}" = "true" ]; then
+    if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
       coveralls -r . -b build/ -i include/ -i src/ -e include/extern/catch.h -e include/dart/support/variant.h --gcov-options '\-lp'
     fi

@@ -93,7 +93,7 @@ SCENARIO("dart buffers are regular types", "[buffer abi unit]") {
         REQUIRE(dart_buffer_is_dcm(&key_three));
         REQUIRE(dart_buffer_dcm_get(&key_three) == 3.14159);
         REQUIRE(dart_is_bool(&key_four));
-        REQUIRE(static_cast<bool>(dart_buffer_bool_get(&key_four)) == true);
+        REQUIRE(dart_buffer_bool_get(&key_four) == 1);
       }
     }
 
@@ -165,7 +165,7 @@ SCENARIO("dart buffers are regular types", "[buffer abi unit]") {
     WHEN("the null is queried") {
       THEN("its basic properties make sense") {
         REQUIRE(dart_buffer_is_null(&pkt));
-        REQUIRE(dart_bool_get(&pkt) == false);
+        REQUIRE(dart_bool_get(&pkt) == 0);
         REQUIRE(pkt.rtti.p_id == DART_BUFFER);
         REQUIRE(pkt.rtti.rc_id == DART_RC_SAFE);
         REQUIRE(dart_buffer_get_type(&pkt) == DART_NULL);
@@ -227,7 +227,7 @@ SCENARIO("buffer objects can be constructed with many values", "[buffer abi unit
 
         REQUIRE(dart_buffer_str_get(&sized_str) == "runtime"s);
         REQUIRE(dart_buffer_str_get(&str) == "string"s);
-        REQUIRE(static_cast<bool>(dart_buffer_bool_get(&boolean)) == true);
+        REQUIRE(dart_buffer_bool_get(&boolean) == 1);
         REQUIRE(dart_buffer_dcm_get(&decimal) == Approx(2.99792));
         REQUIRE(dart_buffer_int_get(&integer) == 1337);
       }
@@ -330,7 +330,7 @@ SCENARIO("buffer objects can be iterated over", "[buffer abi unit]") {
         REQUIRE(dart_is_str(&three));
         REQUIRE(dart_str_get(&three) == "fixed"s);
         REQUIRE(dart_is_bool(&four));
-        REQUIRE(dart_bool_get(&four) == false);
+        REQUIRE(dart_bool_get(&four) == 0);
         REQUIRE(dart_is_dcm(&five));
         REQUIRE(dart_dcm_get(&five) == 3.14159);
       }
