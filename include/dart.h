@@ -233,6 +233,24 @@ namespace dart {
 
       /**
        *  @brief
+       *  Constructor allows an existing packet instance to be wrapped
+       *  under the strongly typed API.
+       *
+       *  @details
+       *  If the passed packet is not an object, will throw an exception.
+       */
+      template <class Arg,
+        std::enable_if_t<
+          std::is_same<
+            std::decay_t<Arg>,
+            Object
+          >::value
+        >* EnableIf = nullptr
+      >
+      explicit basic_object(Arg&& arg);
+
+      /**
+       *  @brief
        *  Function is responsible for forwarding any constructors
        *  from the wrapped type up to the wrapper, including the
        *  explicit/implicit declaration.
@@ -256,6 +274,11 @@ namespace dart {
           &&
           std::is_convertible<
             Arg,
+            Object
+          >::value
+          &&
+          !std::is_same<
+            std::decay_t<Arg>,
             Object
           >::value
         >* EnableIf = nullptr
@@ -4783,6 +4806,16 @@ namespace dart {
 
       /**
        *  @brief
+       *  Constructor allows an existing packet instance to be wrapped
+       *  under the strongly typed API.
+       *
+       *  @details
+       *  If the passed packet is not a null, will throw an exception.
+       */
+      explicit basic_null(Null const& null);
+
+      /**
+       *  @brief
        *  Converting constructor to allow interoperability between underlying
        *  packet types for strongly typed nulls.
        *
@@ -5436,11 +5469,19 @@ namespace dart {
 
       /**
        *  @brief
+       *  Conversion operator to finalized type
+       */
+      explicit operator basic_buffer<RefCount>() const;
+
+      /**
+       *  @brief
        *  Generic conversion operator.
        */
       template <class T, class EnableIf =
         std::enable_if_t<
-          !meta::is_higher_specialization_of<T, basic_packet>::value
+          !detail::is_dart_type<T>::value
+          &&
+          !detail::is_wrapper_type<T>::value
           &&
           convert::is_castable<basic_heap, T>::value
         >
@@ -5453,7 +5494,9 @@ namespace dart {
        */
       template <class T, class EnableIf =
         std::enable_if_t<
-          !meta::is_higher_specialization_of<T, basic_packet>::value
+          !detail::is_dart_type<T>::value
+          &&
+          !detail::is_wrapper_type<T>::value
           &&
           convert::is_castable<basic_heap, T>::value
         >
@@ -8272,11 +8315,19 @@ namespace dart {
 
       /**
        *  @brief
+       *  Explicit conversion to non-finalized type
+       */
+      explicit operator basic_heap<RefCount>() const;
+
+      /**
+       *  @brief
        *  Generic conversion operator.
        */
       template <class T, class EnableIf =
         std::enable_if_t<
-          !meta::is_higher_specialization_of<T, basic_packet>::value
+          !detail::is_dart_type<T>::value
+          &&
+          !detail::is_wrapper_type<T>::value
           &&
           convert::is_castable<basic_buffer, T>::value
         >
@@ -8289,7 +8340,9 @@ namespace dart {
        */
       template <class T, class EnableIf =
         std::enable_if_t<
-          !meta::is_higher_specialization_of<T, basic_packet>::value
+          !detail::is_dart_type<T>::value
+          &&
+          !detail::is_wrapper_type<T>::value
           &&
           convert::is_castable<basic_buffer, T>::value
         >
@@ -10615,10 +10668,38 @@ namespace dart {
 
       /**
        *  @brief
+       *  Explicit conversion to non-finalized API.
+       */
+      explicit operator basic_heap<RefCount>() const&;
+
+      /**
+       *  @brief
+       *  Explicit conversion to non-finalized API.
+       */
+      explicit operator basic_heap<RefCount>() &&;
+
+      /**
+       *  @brief
+       *  Explicit conversion to finalized API.
+       */
+      explicit operator basic_buffer<RefCount>() const&;
+
+      /**
+       *  @brief
+       *  Explicit conversion to non-finalized API.
+       */
+      explicit operator basic_buffer<RefCount>() &&;
+
+      /**
+       *  @brief
        *  Generic conversion operator.
        */
       template <class T, class EnableIf =
         std::enable_if_t<
+          !detail::is_dart_type<T>::value
+          &&
+          !detail::is_wrapper_type<T>::value
+          &&
           convert::is_castable<basic_packet, T>::value
         >
       >
@@ -10630,6 +10711,10 @@ namespace dart {
        */
       template <class T, class EnableIf =
         std::enable_if_t<
+          !detail::is_dart_type<T>::value
+          &&
+          !detail::is_wrapper_type<T>::value
+          &&
           convert::is_castable<basic_packet, T>::value
         >
       >

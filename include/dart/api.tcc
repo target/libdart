@@ -13,6 +13,11 @@
 
 namespace dart {
 
+  template <class Null>
+  basic_null<Null>::basic_null(Null const& null) {
+    if (!null.is_null()) throw type_error("dart::packet::null can only be constructed as a null");
+  }
+
   template <class Object>
   template <class Key, class Value, class Comp, class Alloc, class EnableIf>
   basic_object<Object>& basic_object<Object>::operator =(std::map<Key, Value, Comp, Alloc> const& map) & {

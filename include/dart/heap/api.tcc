@@ -54,6 +54,11 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  basic_heap<RefCount>::operator basic_buffer<RefCount>() const {
+    return convert::cast<basic_buffer<RefCount>>(*this);
+  }
+
+  template <template <class> class RefCount>
   template <class T, class EnableIf>
   basic_heap<RefCount>::operator T() const& {
     return convert::cast<T>(*this);
