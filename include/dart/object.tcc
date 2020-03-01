@@ -35,12 +35,30 @@ namespace dart {
   template <class Object>
   template <class Arg,
     std::enable_if_t<
+      std::is_same<
+        std::decay_t<Arg>,
+        Object
+      >::value
+    >* EnableIf
+  >
+  basic_object<Object>::basic_object(Arg&& arg) : val(std::forward<Arg>(arg)) {
+    ensure_object("dart::packet::object can only be constructed as an object");
+  }
+
+  template <class Object>
+  template <class Arg,
+    std::enable_if_t<
       !detail::is_wrapper_type<
         std::decay_t<Arg>
       >::value
       &&
       std::is_convertible<
         Arg,
+        Object
+      >::value
+      &&
+      !std::is_same<
+        std::decay_t<Arg>,
         Object
       >::value
     >* EnableIf

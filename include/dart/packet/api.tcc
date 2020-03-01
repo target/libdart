@@ -46,6 +46,26 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_heap<RefCount>() const& {
+    return convert::cast<basic_heap<RefCount>>(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_heap<RefCount>() && {
+    return convert::cast<basic_heap<RefCount>>(std::move(*this));
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_buffer<RefCount>() const& {
+    return convert::cast<basic_buffer<RefCount>>(*this);
+  }
+
+  template <template <class> class RefCount>
+  basic_packet<RefCount>::operator basic_buffer<RefCount>() && {
+    return convert::cast<basic_buffer<RefCount>>(std::move(*this));
+  }
+
+  template <template <class> class RefCount>
   template <class T, class EnableIf>
   basic_packet<RefCount>::operator T() const& {
     return convert::cast<T>(*this);
