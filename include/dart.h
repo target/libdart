@@ -3344,11 +3344,63 @@ namespace dart {
        */
       template <class Str = String, class EnableIf =
         std::enable_if_t<
+          meta::is_detected<make_string_t, Str, std::string const&>::value
+        >
+      >
+      explicit basic_string(std::string const& str) :
+        val(value_type::make_string(str))
+      {}
+
+      /**
+       *  @brief
+       *  Constructor can be used to directly initialize a strongly
+       *  typed string with an initial value.
+       *
+       *  @details
+       *  Internally calls make_string on the underlying packet type
+       *  (if implemented).
+       */
+      template <class Str = String, class EnableIf =
+        std::enable_if_t<
           meta::is_detected<make_string_t, Str, shim::string_view>::value
         >
       >
       explicit basic_string(shim::string_view str) :
         val(value_type::make_string(str))
+      {}
+
+      /**
+       *  @brief
+       *  Constructor can be used to directly initialize a strongly
+       *  typed string with an initial value.
+       *
+       *  @details
+       *  Internally calls make_string on the underlying packet type
+       *  (if implemented).
+       */
+      template <class Str = String, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_string_t, Str, char const*>::value
+        >
+      >
+      basic_string(char const* str) :
+        val(value_type::make_string(str))
+      {}
+
+      /**
+       *  @brief
+       *  Concatenation constructor.
+       *
+       *  @details
+       *  Powers dart::operator + for the purposes of string concatenation.
+       */
+      template <class Str = String, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_string_t, Str, shim::string_view, shim::string_view>::value
+        >
+      >
+      basic_string(shim::string_view base, shim::string_view app) :
+        val(value_type::make_string(base, app))
       {}
 
       /**
@@ -3513,6 +3565,23 @@ namespace dart {
 
       /**
        *  @brief
+       *  "In place" concatenation operator.
+       *
+       *  @details
+       *  Operator unfortunately does not actually work in place due to the fact
+       *  that Dart strings are always precisely sized, not leaving room for
+       *  additional characters like std::string.
+       *  Concats the given suffix into a new string and assigns to itself
+       */
+      template <class Str = String, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_string_t, Str, shim::string_view, shim::string_view>::value
+        >
+      >
+      basic_string& operator +=(shim::string_view str);
+
+      /**
+       *  @brief
        *  Dereference operator.
        *
        *  @details
@@ -3564,7 +3633,7 @@ namespace dart {
        *  @brief
        *  String conversion operator.
        */
-      explicit operator shim::string_view() const noexcept;
+      operator shim::string_view() const noexcept;
 
       /**
        *  @brief
@@ -3835,7 +3904,7 @@ namespace dart {
           std::is_integral<Arg>::value
         >* = nullptr
       >
-      explicit basic_number(Arg val) :
+      basic_number(Arg val) :
         val(value_type::make_integer(val))
       {}
 
@@ -3851,7 +3920,7 @@ namespace dart {
           std::is_floating_point<Arg>::value
         >* = nullptr
       >
-      explicit basic_number(Arg val) :
+      basic_number(Arg val) :
         val(value_type::make_decimal(val))
       {}
 
@@ -4030,6 +4099,62 @@ namespace dart {
       >
       basic_number& operator =(Num val) &;
 
+      template <class Arg, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Number, Arg>::value
+        >
+      >
+      basic_number& operator +=(Arg val) noexcept;
+
+      template <class Arg, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Number, Arg>::value
+        >
+      >
+      basic_number& operator -=(Arg val) noexcept;
+
+      template <class Arg, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Number, Arg>::value
+        >
+      >
+      basic_number& operator *=(Arg val) noexcept;
+
+      template <class Arg, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Number, Arg>::value
+        >
+      >
+      basic_number& operator /=(Arg val) noexcept;
+
+      template <class Num = Number, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Num, double>::value
+        >
+      >
+      basic_number& operator ++() noexcept;
+
+      template <class Num = Number, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Num, double>::value
+        >
+      >
+      basic_number& operator --() noexcept;
+
+      template <class Num = Number, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Num, double>::value
+        >
+      >
+      basic_number operator ++(int) noexcept;
+
+      template <class Num = Number, class EnableIf =
+        std::enable_if_t<
+          meta::is_detected<make_decimal_t, Num, double>::value
+        >
+      >
+      basic_number operator --(int) noexcept;
+
       /**
        *  @brief
        *  Dereference operator.
@@ -4076,14 +4201,19 @@ namespace dart {
       /**
        *  @brief
        *  Machine type conversion operator.
+       *
+       *  @details
+       *  Operator logically exists to allow conversion into integral types,
+       *  but is written in terms of operator T() to avoid overload ambiguity issues
        */
-      explicit operator int64_t() const noexcept;
-
-      /**
-       *  @brief
-       *  Machine type conversion operator.
-       */
-      explicit operator double() const noexcept;
+      template <class T,
+        std::enable_if_t<
+          std::is_integral<T>::value
+          ||
+          std::is_floating_point<T>::value
+        >* = nullptr
+      >
+      operator T() const noexcept;
 
       /**
        *  @brief
@@ -5649,7 +5779,7 @@ namespace dart {
           enabled
         >
       >
-      static basic_heap make_string(shim::string_view val);
+      static basic_heap make_string(shim::string_view base, shim::string_view app = "");
 
       /**
        *  @brief
@@ -7689,7 +7819,7 @@ namespace dart {
       basic_heap(detail::array_tag) :
         data(make_shareable<RefCount<packet_elements>>())
       {}
-      basic_heap(detail::string_tag, shim::string_view val);
+      basic_heap(detail::string_tag, shim::string_view base, shim::string_view);
       basic_heap(detail::integer_tag, int64_t val) noexcept : data(val) {}
       basic_heap(detail::decimal_tag, double val) noexcept : data(val) {}
       basic_heap(detail::boolean_tag, bool val) noexcept : data(val) {}
@@ -10866,7 +10996,7 @@ namespace dart {
           enabled
         >
       >
-      static basic_packet make_string(shim::string_view val);
+      static basic_packet make_string(shim::string_view base, shim::string_view app = "");
 
       /**
        *  @brief

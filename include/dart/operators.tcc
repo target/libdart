@@ -41,6 +41,60 @@ namespace dart {
     return !(lhs == rhs);
   }
 
+  template <class String, class Str, class =
+    std::enable_if_t<
+      std::is_convertible<
+        std::decay_t<Str>,
+        shim::string_view
+      >::value
+    >
+  >
+  basic_string<String> operator +(basic_string<String> const& lhs, Str const& rhs) {
+    shim::string_view str = rhs;
+    return basic_string<String> {lhs, str};
+  }
+
+  template <class String, class Str, class =
+    std::enable_if_t<
+      std::is_convertible<
+        std::decay_t<Str>,
+        shim::string_view
+      >::value
+    >
+  >
+  basic_string<String> operator +(Str const& lhs, basic_string<String> const& rhs) {
+    shim::string_view str = rhs;
+    return basic_string<String> {lhs, str};
+  }
+
+#define DART_DEFINE_ARITHMETIC_OPERATORS(op)                                              \
+  template <class Number, class T, class =                                                \
+    std::enable_if_t<                                                                     \
+      std::is_integral<T>::value                                                          \
+      ||                                                                                  \
+      std::is_floating_point<T>::value                                                    \
+    >                                                                                     \
+  >                                                                                       \
+  double operator op(basic_number<Number> const& lhs, T rhs) noexcept {                   \
+    return lhs.numeric() op rhs;                                                          \
+  }                                                                                       \
+  template <class Number, class T, class =                                                \
+    std::enable_if_t<                                                                     \
+      std::is_integral<T>::value                                                          \
+      ||                                                                                  \
+      std::is_floating_point<T>::value                                                    \
+    >                                                                                     \
+  >                                                                                       \
+  double operator op(T lhs, basic_number<Number> const& rhs) noexcept {                   \
+    return rhs op lhs;                                                                    \
+  }
+
+  DART_DEFINE_ARITHMETIC_OPERATORS(+);
+  DART_DEFINE_ARITHMETIC_OPERATORS(-);
+  DART_DEFINE_ARITHMETIC_OPERATORS(*);
+  DART_DEFINE_ARITHMETIC_OPERATORS(/);
+#undef DART_DEFINE_ARITHMETIC_OPERATORS
+
 #if DART_HAS_RAPIDJSON
   template <class Packet, class =
     std::enable_if_t<

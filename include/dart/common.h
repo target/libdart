@@ -1228,10 +1228,11 @@ namespace dart {
     }
 
     template <template <class> class RefCount>
-    raw_type identify_string(shim::string_view val) noexcept {
-      if (val.size() > std::numeric_limits<uint16_t>::max()) {
+    raw_type identify_string(shim::string_view base, shim::string_view app = "") noexcept {
+      auto total = base.size() + app.size();
+      if (total > std::numeric_limits<uint16_t>::max()) {
         return detail::raw_type::big_string;
-      } else if (val.size() > sso_bytes<RefCount>()) {
+      } else if (total > sso_bytes<RefCount>()) {
         return detail::raw_type::string;
       } else {
         return detail::raw_type::small_string;

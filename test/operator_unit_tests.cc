@@ -1461,6 +1461,30 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
           static_assert(noexcept(val == str), "Dart is misconfigured");
           static_assert(dart::convert::are_nothrow_comparable<char const*, string>::value, "Dart is misconfigured");
         }
+
+        DYNAMIC_WHEN("the value is concatenated with a string literal", idx) {
+          auto lhs = val + " hello";
+          auto rhs = "hello " + val;
+          DYNAMIC_THEN("it takes on the value we expect", idx) {
+            REQUIRE(lhs == "hello world hello");
+            REQUIRE("hello world hello" == lhs);
+            REQUIRE(rhs == "hello hello world");
+            REQUIRE("hello hello world" == rhs);
+          }
+        }
+
+        DYNAMIC_WHEN("the value is concatenated with a string literal in place", idx) {
+          string second = "hello ";
+          second += val;
+          val += " hello";
+
+          DYNAMIC_THEN("it takes on the value we expect", idx) {
+            REQUIRE(second == "hello hello world");
+            REQUIRE("hello hello world" == second);
+            REQUIRE(val == "hello world hello");
+            REQUIRE("hello world hello" == val);
+          }
+        }
       }
 
       DYNAMIC_WHEN("the value is assigned from a std::string", idx) {
@@ -1478,6 +1502,33 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
           static_assert(noexcept(val == str), "Dart is misconfigured");
           static_assert(dart::convert::are_nothrow_comparable<std::string, string>::value, "Dart is misconfigured");
         }
+
+        DYNAMIC_WHEN("the value is concatenated with a std::string", idx) {
+          std::string lhsstr = " hello";
+          std::string rhsstr = "hello ";
+
+          auto lhs = val + lhsstr;
+          auto rhs = rhsstr + val;
+          DYNAMIC_THEN("it takes on the value we expect", idx) {
+            REQUIRE(lhs == "hello world hello");
+            REQUIRE("hello world hello" == lhs);
+            REQUIRE(rhs == "hello hello world");
+            REQUIRE("hello hello world" == rhs);
+          }
+        }
+
+        DYNAMIC_WHEN("the value is concatenated with a std::string in place", idx) {
+          std::string base = "hello ", app = " hello";
+          string second {base};
+          second += val;
+          val += app;
+          DYNAMIC_THEN("it takes on the value we expect", idx) {
+            REQUIRE(second == "hello hello world");
+            REQUIRE("hello hello world" == second);
+            REQUIRE(val == "hello world hello");
+            REQUIRE("hello world hello" == val);
+          }
+        }
       }
 
       DYNAMIC_WHEN("the value is assigned from a std::string_view", idx) {
@@ -1494,6 +1545,33 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
           static_assert(noexcept(str == val), "Dart is misconfigured");
           static_assert(noexcept(val == str), "Dart is misconfigured");
           static_assert(dart::convert::are_nothrow_comparable<dart::shim::string_view, string>::value, "Dart is misconfigured");
+        }
+
+        DYNAMIC_WHEN("the value is concatenated with a std::string_view", idx) {
+          dart::shim::string_view lhsstr = " hello";
+          dart::shim::string_view rhsstr = "hello ";
+
+          auto lhs = val + lhsstr;
+          auto rhs = rhsstr + val;
+          DYNAMIC_THEN("it takes on the value we expect", idx) {
+            REQUIRE(lhs == "hello world hello");
+            REQUIRE("hello world hello" == lhs);
+            REQUIRE(rhs == "hello hello world");
+            REQUIRE("hello hello world" == rhs);
+          }
+        }
+
+        DYNAMIC_WHEN("the value is concatenated with a std::string_view in place", idx) {
+          dart::shim::string_view base = "hello ", app = " hello";
+          string second {base};
+          second += val;
+          val += app;
+          DYNAMIC_THEN("it takes on the value we expect", idx) {
+            REQUIRE(second == "hello hello world");
+            REQUIRE("hello hello world" == second);
+            REQUIRE(val == "hello world hello");
+            REQUIRE("hello world hello" == val);
+          }
         }
       }
     });
@@ -1530,6 +1608,48 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
           static_assert(noexcept(val == 1337), "Dart is misconfigured");
           static_assert(noexcept(1337 == val), "Dart is misconfigured");
           static_assert(dart::convert::are_nothrow_comparable<int, number>::value, "Dart is misconfigured");
+        }
+
+        DYNAMIC_WHEN("arithmetic is performed with the value", idx) {
+          auto first = val + 1337;
+          auto second = val - 1337;
+          auto third = val * 2;
+          auto fourth = val / 2;
+
+          auto firstcpy = val;
+          firstcpy += 1337;
+          auto secondcpy = val;
+          secondcpy -= 1337;
+          auto thirdcpy = val;
+          thirdcpy *= 2;
+          auto fourthcpy = val;
+          fourthcpy /= 2;
+          auto fifthcpy = val;
+          auto fifth = fifthcpy++;
+          auto sixthcpy = val;
+          auto sixth = sixthcpy--;
+          auto seventhcpy = val;
+          auto seventh = ++seventhcpy;
+          auto eighthcpy = val;
+          auto eighth = --eighthcpy;
+          DYNAMIC_THEN("it takes on the value we expect", idx) {
+            REQUIRE(first == firstcpy);
+            REQUIRE(firstcpy == first);
+            REQUIRE(second == secondcpy);
+            REQUIRE(secondcpy == second);
+            REQUIRE(third == thirdcpy);
+            REQUIRE(thirdcpy == third);
+            REQUIRE(fourth == fourthcpy);
+            REQUIRE(fourthcpy == fourth);
+            REQUIRE(fifthcpy == fifth + 1);
+            REQUIRE(fifth + 1 == fifthcpy);
+            REQUIRE(sixthcpy == sixth - 1);
+            REQUIRE(sixth - 1 == sixthcpy);
+            REQUIRE(seventhcpy == seventh);
+            REQUIRE(seventh == seventhcpy);
+            REQUIRE(eighthcpy == eighth);
+            REQUIRE(eighth == eighthcpy);
+          }
         }
       }
 
