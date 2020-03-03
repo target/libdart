@@ -17,6 +17,14 @@ namespace dart {
   }
 
   template <class String>
+  template <class Str, class EnableIf>
+  basic_string<String>& basic_string<String>::operator +=(shim::string_view str) {
+    // Concat and re-assign
+    val = String::make_string(strv(),  str);
+    return *this;
+  }
+
+  template <class String>
   char const* basic_string<String>::str() const noexcept {
     return val.str();
   }

@@ -431,14 +431,16 @@ namespace dart {
   }
 
   template <class Number>
-  basic_number<Number>::operator int64_t() const noexcept {
-    if (is_integer()) return integer();
-    else return static_cast<int64_t>(decimal());
-  }
-
-  template <class Number>
-  basic_number<Number>::operator double() const noexcept {
-    return numeric();
+  template <class T,
+    std::enable_if_t<
+      std::is_integral<T>::value
+      ||
+      std::is_floating_point<T>::value
+    >*
+  >
+  basic_number<Number>::operator T() const noexcept {
+    if (is_integer()) return static_cast<T>(integer());
+    else return static_cast<T>(decimal());
   }
 
   template <class Object>

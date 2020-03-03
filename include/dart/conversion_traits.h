@@ -1080,14 +1080,18 @@ namespace dart {
       struct compare_impl<integer_tag> {
         template <class Packet>
         static bool compare(Packet const& pkt, int64_t val) noexcept {
-          return pkt.is_integer() && pkt.integer() == val;
+          if (pkt.is_integer()) return pkt.integer() == val;
+          else if (pkt.is_decimal()) return pkt.decimal() == val;
+          else return false;
         }
       };
       template <>
       struct compare_impl<decimal_tag> {
         template <class Packet>
         static bool compare(Packet const& pkt, double val) noexcept {
-          return pkt.is_decimal() && pkt.decimal() == val;
+          if (pkt.is_integer()) return pkt.integer() == val;
+          else if (pkt.is_decimal()) return pkt.decimal() == val;
+          else return false;
         }
       };
       template <>

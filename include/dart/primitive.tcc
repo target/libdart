@@ -28,6 +28,64 @@ namespace dart {
   }
 
   template <class Number>
+  template <class Arg, class EnableIf>
+  basic_number<Number>& basic_number<Number>::operator +=(Arg val) noexcept {
+    this->val = numeric() + val;
+    return *this;
+  }
+
+  template <class Number>
+  template <class Arg, class EnableIf>
+  basic_number<Number>& basic_number<Number>::operator -=(Arg val) noexcept {
+    this->val = numeric() - val;
+    return *this;
+  }
+
+  template <class Number>
+  template <class Arg, class EnableIf>
+  basic_number<Number>& basic_number<Number>::operator *=(Arg val) noexcept {
+    this->val = numeric() * val;
+    return *this;
+  }
+
+  template <class Number>
+  template <class Arg, class EnableIf>
+  basic_number<Number>& basic_number<Number>::operator /=(Arg val) noexcept {
+    this->val = numeric() / val;
+    return *this;
+  }
+
+  template <class Number>
+  template <class Num, class EnableIf>
+  basic_number<Number>& basic_number<Number>::operator ++() noexcept {
+    val = numeric() + 1;
+    return *this;
+  }
+
+  template <class Number>
+  template <class Num, class EnableIf>
+  basic_number<Number>& basic_number<Number>::operator --() noexcept {
+    val = numeric() - 1;
+    return *this;
+  }
+
+  template <class Number>
+  template <class Num, class EnableIf>
+  basic_number<Number> basic_number<Number>::operator ++(int) noexcept {
+    auto copy = *this;
+    val = numeric() + 1;
+    return copy;
+  }
+
+  template <class Number>
+  template <class Num, class EnableIf>
+  basic_number<Number> basic_number<Number>::operator --(int) noexcept {
+    auto copy = *this;
+    val = numeric() - 1;
+    return copy;
+  }
+
+  template <class Number>
   int64_t basic_number<Number>::integer() const {
     return val.integer();
   }

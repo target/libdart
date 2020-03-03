@@ -11,8 +11,8 @@ namespace dart {
 
   template <template <class> class RefCount>
   template <bool enabled, class EnableIf>
-  basic_heap<RefCount> basic_heap<RefCount>::make_string(shim::string_view val) {
-    return basic_heap(detail::string_tag {}, val);
+  basic_heap<RefCount> basic_heap<RefCount>::make_string(shim::string_view base, shim::string_view app) {
+    return basic_heap(detail::string_tag {}, base, app);
   }
 
   template <template <class> class RefCount>
@@ -43,23 +43,25 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
-  basic_heap<RefCount>::basic_heap(detail::string_tag, shim::string_view val) {
-    auto type = detail::identify_string<RefCount>(val);
+  basic_heap<RefCount>::basic_heap(detail::string_tag, shim::string_view base, shim::string_view app) {
+    auto len = base.size() + app.size();
+    auto type = detail::identify_string<RefCount>(base, app);
     switch (type) {
       case detail::raw_type::string:
       case detail::raw_type::big_string:
         {
           // String is too large for SSO.
           // Allocate some space and copy the string data in.
-          auto ptr = std::make_unique<char[]>(val.size() + 1);
-          std::copy(val.begin(), val.end(), ptr.get());
-          ptr[val.size()] = '\0';
+          auto ptr = std::make_unique<char[]>(len + 1);
+          std::copy(base.begin(), base.end(), ptr.get());
+          std::copy(app.begin(), app.end(), ptr.get() + base.size());
+          ptr[len] = '\0';
 
           // Move the data in.
           // FIXME: Turns out there's no portable way to use std::make_shared
           // to allocate an array of characters in C++14.
           auto shared = std::shared_ptr<char> {ptr.release(), +[] (char* ptr) { delete[] ptr; }};
-          data = detail::dynamic_string_layout {std::move(shared), val.size()};
+          data = detail::dynamic_string_layout {std::move(shared), len};
           break;
         }
       default:
@@ -68,15 +70,16 @@ namespace dart {
 
           // String is small enough for SSO, copy the string contents into the in-situ buffer.
           detail::inline_string_layout layout;
-          std::copy(val.begin(), val.end(), layout.buffer.begin());
+          std::copy(base.begin(), base.end(), layout.buffer.begin());
+          std::copy(app.begin(), app.end(), layout.buffer.begin() + base.size());
 
           // Terminate the string and set the number of remaining bytes.
           // These two operations may touch the same byte.
           // XXX: Have to access through std::array::data member as writing the null terminator
           // is intentionally allowed to access 1 byte out of range if the string is the max
           // SSO length, and MSVC asserts on out of bounds accesses in std::array.
-          layout.buffer.data()[val.size()] = '\0';
-          layout.left = static_cast<uint8_t>(sso_bytes) - static_cast<uint8_t>(val.size());
+          layout.buffer.data()[len] = '\0';
+          layout.left = static_cast<uint8_t>(sso_bytes) - static_cast<uint8_t>(len);
           data = layout;
         }
     }
