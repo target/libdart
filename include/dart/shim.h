@@ -130,8 +130,12 @@ namespace dart {
       _aligned_free(ptr);
     }
 
-    inline void localtime(time_t const* src, std::tm* out) {
-      localtime_s(out, src);
+    inline void gmtime(time_t const* src, std::tm* out) {
+      gmtime_s(out, src);
+    }
+
+    inline time_t timegm(std::tm* src) {
+      return _mkgmtime(src);
     }
 #else
     inline int aligned_alloc(void** memptr, size_t alignment, size_t size) {
@@ -142,8 +146,12 @@ namespace dart {
       free(ptr);
     }
 
-    inline void localtime(time_t const* src, std::tm* out) {
-      localtime_r(src, out);
+    inline void gmtime(time_t const* src, std::tm* out) {
+      gmtime_r(src, out);
+    }
+
+    inline time_t timegm(std::tm* src) {
+      return ::timegm(src);
     }
 #endif
 
