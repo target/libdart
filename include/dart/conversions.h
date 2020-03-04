@@ -1492,7 +1492,7 @@ namespace dart {
 
         // Convert into the actual worst type in the world
         std::tm time;
-        shim::localtime(&t, &time);
+        shim::gmtime(&t, &time);
 
         // Put this in a lambda so we can easily precalculate
         // how much space we'll need.
@@ -1530,7 +1530,7 @@ namespace dart {
 
         // With sscanf
         // Unbelievable
-        auto tp = std::chrono::system_clock::from_time_t(std::mktime(&time));
+        auto tp = std::chrono::system_clock::from_time_t(shim::timegm(&time));
         return std::chrono::time_point_cast<Duration>(tp);
       }
 
