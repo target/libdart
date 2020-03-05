@@ -4475,7 +4475,7 @@ namespace dart {
           meta::is_detected<make_boolean_t, Bool, bool>::value
         >
       >
-      explicit basic_flag(bool val) :
+      basic_flag(bool val) :
         val(value_type::make_boolean(val))
       {}
 
@@ -4689,7 +4689,7 @@ namespace dart {
        *  @details
        *  Returns the current boolean value for strongly typed booleans.
        */
-      explicit operator bool() const noexcept;
+      operator bool() const noexcept;
 
       /*----- Public API -----*/
 
