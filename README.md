@@ -29,6 +29,18 @@ and out of, **JSON**.
 Finally, as **Dart** can also be useful when working with config files, it also
 supports parsing **YAML** via [libyaml](https://github.com/yaml/libyaml.git).
 
+## Contents
+- [Quick Start](#quick-start)
+- [Installation](#compilation-and-installation)
+- [Performance](#performance)
+- [Basic Usage](#basic-usage)
+- [Strongly Typed API](#strongly-typed-api)
+- [API Lifecycle](#api-lifecycle)
+- [Explicit API Lifecycle](#explicit-api-lifecycle)
+- [Mutability and Copy-on-Write](#mutability-and-copy-on-write)
+- [Disabling Refcounting](#refcounted-by-default-disabled-by-request)
+- [Advanced Usage](#customization-points-and-advanced-usage)
+
 ## Quick Start
 This readme covers a wide variety of information for the library, but for the impatient among us,
 here are some at-a-glance examples. For examples of how to use the **C** binding layer,
@@ -72,7 +84,7 @@ int main() {
 }
 
 // => [1,"two",3.14159,true,null]
-// => [1,"two",3.14159,true,null,{"args":[3.14159,2.99792,"top","secret","2020-02-25T10:58:37Z"]}]
+// => [1,"two",3.14159,true,null,{"args":[3.14159,2.99792,"top","secret","2020-02-25T10:58:37.000Z"]}]
 ```
 
 The **Dart** container types (`dart::object` and `dart::array`) model the API
@@ -189,7 +201,13 @@ can be found here: [parsing performance](PARSING.md).
 Overly detailed usage examples can be obtained from the `test/` directory, or by building the
 included documentation, but some examples of basic usage are included below. For examples of
 how to use the **C** binding layer, see our [bindings](BINDINGS.md) document.
-Parsing a **JSON** string with **Dart**:
+
+`dart::packet` is the primary class of the library, the most generic, and is likely to be the
+most commonly interacted with. It's capable of representing any **JSON** type, has a _wide_
+variety of conversions defined to make interaction easier, and also contains a large number
+of accessors/introspection functions to work with the values it represents.
+
+An example of working with an some imaginary **HTTP** response encoded as **JSON**:
 ```c++
 // Get some JSON from somewhere.
 std::string json = input.read();
@@ -197,35 +215,59 @@ std::string json = input.read();
 // Get a packet.
 dart::packet pkt = dart::packet::from_json(json);
 
-// Do stuff with it.
+// operator[] always returns a new dart::packet instance by value
+// operator<< stringifies the packet and is defined for all types
 dart::packet header = pkt["header"];
 std::cout << header["User-Agent"] << std::endl;
 std::cout << header["Content-Type"] << std::endl;
 
-// When machine types are needed.
+// Type-specific accessors return machine types and will throw if
+// the packet instance is not of the requested type.
 auto resp = pkt["response"];
 switch (resp["code"].integer()) {
   case 200:
     {
+      // Explicit casts will also throw if not of the correct type
       std::string_view body {resp["body"]};
-      double elapsed = resp["elapsed_millis"].decimal();
+
+      // Optional accesses will never throw, regardless of runtime type
+      double elapsed = resp["elapsed_millis"].decimal_or(0.0);
       process_success(body, elapsed);
       break;
     }
   case 300:
+    // Object and array types support C++11 range-for
+    // If using range-for with an object, will iterate over values
+    // Will throw if resp["resources"] is not of object or array type
     for (auto res : resp["resources"]) {
-      resource_moved(res["path"].strv(), res["mods"][0]);
+      // Numeric subscript operator will throw if "mods" isn't an array,
+      // but will return a null packet instance if index is out of bounds.
+      // "at" member function will always throw if out of bounds
+      resource_moved(res["name"].strv(), res["mods"][0], res["paths"].at(0));
     }
     break;
   case 400:
     {
-      char const* err = resp["error"].str();
-      std::string_view warn = resp["warning"].strv();
+      char const* err = resp["user_error"].str();
+      std::string_view warn = resp["warning"].strv_or("");
       process_failure(err, warn);
       break;
     }
   default:
-    printf("Encountered internal error %s\n", resp["error"].str());
+    {
+      // If wishing to iterate over both the keys and values of an object,
+      // kvbegin() returns a tuple of iterators, which is convenient with C++17.
+      // Could also call key_begin() or begin() to get either individually
+      auto ctxt = resp["context"];
+      for (auto [k, v] = ctxt.kvbegin(); v != ctxt.end(); ++k, ++v) {
+        std::string msg = "Encountered internal error with context ";
+        msg += k->str();
+        msg += ": ";
+        msg += v->str();
+        report_internal_error(std::move(msg));
+      }
+      printf("Encountered internal error %s\n", resp["error"].str_or("Unknown error"));
+    }
 }
 ```
 
@@ -255,161 +297,94 @@ auto buffer = obj.finalize().get_bytes();
 socket.write(buffer.data(), buffer.size());
 ```
 
-## Conversion API
-As you've seen by now, **Dart** ships with a large number of type conversions predefined,
-allowing for expressive, and safe, interaction with a dynamically typed notation language
-from a statically typed programming language.
-Out-of-the-box, **Dart** can work with any machine type, and with most STL containers:
+## Strongly Typed API
+**Dart** is first and foremost a dynamically typed library, for interacting with a
+dynamically typed notation language, but as **C++** is a statically typed language, it
+can be useful to statically know the type of a variable at compile-time.
+
+To enable this use-case, **Dart** exposes a secondary interface, fully interoperable
+with the first, that enables static type enforcement.
 ```c++
-// Get a packet to test with.
-auto obj = dart::packet::make_object();
+// dart::object is an alias for dart::packet::object.
+// It implements a subset of the dart::packet API that pertains to objects
+// (no calls like integer(), push_back(), etc)
+dart::object obj {"c", 2.99792};
 
-// Machine types.
-obj.add_field("bool", true);
-obj.add_field("int", 5);
-obj.add_field("uint", 5U);
-obj.add_field("long", 5L);
-obj.add_field("ulong", 5UL);
-obj.add_field("long long", 5LL);
-obj.add_field("ulong long", 5ULL);
-obj.add_field("float", 5.0f);
-obj.add_field("double", 5.0);
-obj.add_field("str", "asdf");
-obj.add_field("null", nullptr);
+// dart::array is an alias for dart::packet::array.
+// It implements a subset of the dart::packet API that pertains to arrays
+// (no calls like decimal(), add_field(), etc)
+dart::array fib {1, 1, 2, 3, 5, 8};
+obj.add_field("data", std::move(fib));
 
-// STL types
-obj.add_field("arr", std::vector {1, 1, 2, 3, 5, 8});
-obj.add_field("maybe", std::optional {"present"});
-obj.add_field("oneof", std::variant<int, double> {5});
-obj.add_field("many", std::tuple {3.14159, 2.99792})
+// dart::string is an alias for dart::packet::string.
+// It implements a subset of the dart::packet API that pertains to strings
+// Also implements some type-specific convenience operators that dart::packet doesn't
+dart::string base = "hello world";
+dart::string msg = base + ", hello life";
+msg += "!";
+obj.add_field("msg", std::move(msg));
+
+// dart::number is an alias for dart::packet::number.
+// It implements a subset of the dart::packet API that pertains to numbers.
+// Also implements some type-specific convenience operators that dart::packet doesn't
+dart::number pi = 3.14159;
+dart::number twicepi = pi * 2;
+twicepi /= 2;
+obj.add_field("pi", std::move(twicepi));
+
+// dart::flag is an alias for dart::packet::flag.
+// It implements a subset of the dart::packet API that pertains to booleans.
+dart::flag truth = true;
+obj.add_field("truth", std::move(truth));
+
+// dart::null also exists for completeness, but isn't very useful
+obj.add_field("none", dart::null {});
+
+// {"c":2.99792,"pi":3.14159,"msg":"hello world, hello life!","data":[1,1,2,3,5,8],"none":null,"truth":true}
+std::cout << obj << std::endl;
 ```
 
-However, in addition to the pre-defined conversions, **Dart** exposes an API to allow for
-user defined conversions like so:
+A variety of conversions between the APIs are defined, allowing types to implicitly
+decay into other types which can safely subsume them, and requiring explicit casts
+where the conversion might fail.
+
+To give a concrete example, `dart::object` can decay into `dart::packet` implicitly,
+as `dart::packet` is more general and the operation will always succeed,
+but `dart::packet` to `dart::object` requires a cast as it might throw.
+
+_All_ **Dart** types are inter-comparable.
 ```c++
-#include <dart.h>
-#include <iostream>
+using namespace dart::literals;
 
-// A simple custom string class that Dart doesn't know about.
-struct my_string {
-  std::string str;
-};
+// Examples of some implicit conversions.
+dart::packet::object typed_obj {"rick", "sanchez", "morty", "smith"};
+dart::packet untyped_obj = typed_obj;
+dart::packet::object retyped_obj {untyped_obj};
 
-// We define an explicit specialization of dart::convert::conversion_traits,
-// which Dart will call to perform our conversion. All functions are optional
-namespace dart::convert {
-  template <>
-  struct conversion_traits<my_string> {
-    template <class Packet>
-    Packet to_dart(my_string const& s) {
-      return Packet::make_string(s.str);
-    }
-    template <class Packet>
-    my_string from_dart(Packet const& pkt) {
-      return my_string {pkt.str()};
-    }
-    template <class Packet>
-    bool compare(Packet const& pkt, my_string const& s) {
-      return pkt.is_str() && pkt.strv() == s.str;
-    }
-  };
-}
+// Since a JSON object can contain any type,
+// dart::object can't know what the type of a particular key is
+// And therefore still returns dart::packet from its subscript operator.
+dart::packet untyped_name = typed_obj["rick"];
+dart::packet::string typed_name {typed_obj["rick"]};
 
-int main() {
-  // If dart::convert::conversion_traits had not been specialized, this line would fail to
-  // compile with an error about an undefined overload of dart::packet::make_array.
-  auto arr = dart::packet::make_array(my_string {"one"}, my_string {"two"});
-
-  // The conversions are applied recursively, so we can also use STL containers
-  arr.push_back(std::optional<my_string> {});
-  arr.push_back(std::vector {my_string {"three"}, my_string {"four"}});
-  std::cout << arr << std::endl;
-
-  // Since we implemented all of dart::convert::conversion_traits, we can also convert
-  // Dart types back into our own or compare between the two.
-  my_string mystr(arr[0]);
-  assert(mystr == arr[0]);
-  std::cout << mystr.str << std::endl;
-}
-
-// => ["one", "two", null, ["three", "four"]]
-// => one
+assert(untyped_name == typed_name);
+assert(typed_obj == untyped_obj);
+assert(typed_obj != typed_name);
+assert(untyped_obj != untyped_name);
 ```
-For those who are meta-programming inclined, you can test if a **Dart** conversion is
-defined by using the type trait `dart::convert::is_castable`.
-
-## Mutability and Copy-on-Write
-By default, to keep memory in scope safely, **Dart** uses thread safe reference counting
-based on `std::shared_ptr`. This behavior is a configuration point for the library which
-will be covered later.
-
-To allow easy embedding in threaded applications, **Dart** follows a copy-on-write 
-data model in non-finalized mode, allowing for frictionless mutation of shared data.
-This "just works" for the most part without the user being very involved, but it can have
-some surprising implications:
-
-Example of it "just working":
-```c++
-// Create a base object.
-auto orig = dart::packet::make_object("hello", "world");
-assert(orig.refcount() == 1U);
-
-// Copy it.
-// At this point, copy and orig share the same underlying representation, only an atomic
-// increment was performed.
-auto copy = orig;
-assert(orig.refcount() == 2U);
-assert(copy.refcount() == orig.refcount());
-
-// Mutate the copy.
-// At this point, copy performs a shallow copy-out, copying only the immediate
-// level of an arbitrarily deep tree maintained by orig.
-copy.add_field("hello", "life");
-assert(orig.refcount() == 1U);
-assert(copy.refcount() == 1U);
-assert(copy != orig);
-
-// Will output:
-// {"hello":"world"}
-// {"hello":"life"}
-std::cout << orig << std::endl;
-std::cout << copy << std::endl;
-```
-
-Example of a surprising implication:
-```c++
-// Get an object with a nested array.
-auto arr = dart::packet::make_array("surprise");
-auto obj = dart::packet::make_object("nested", std::move(arr));
-
-// Attempt to remove something from the array.
-// Subscript operator returns a temporary packet instance, which is then mutated, copying out
-// in the processes, and is then destroyed at the semicolon, taking its modifications with it.
-// If you're on a supported compiler, this line will yield a warning about a discarded
-// result.
-obj["nested"].pop_back();
-
-// The original object was not modified, and so the following will abort.
-assert(obj["nested"].empty()); // <-- BOOM
-
-// What should have been done is the following:
-auto nested = obj["nested"].pop_back();
-obj.add_field("nested", std::move(nested));
-
-// This behavior also means that assigning to the subscript operator will not insert
-// as the user might expect, instead assigning to a temporary null value.
-// To avoid confusion on this point, the case is explicitly called out by the library.
-obj["oops"] = dart::packet::make_string("ouch"); // <-- WILL NOT COMPILE
-```
+It is worth noting that while this API is included as a convenience, to allow **Dart** to
+naturally express data across a variety of different domains and development workflows,
+it does _not_ come with any performance improvement.
 
 ## API Lifecycle
-The type `dart::packet` is the primary class of the library, is likely to be the type most
-commonly interacted with, and can be in two distinct states: "finalized" and non-"finalized".
+In addition to representing any type, `dart::packet` can be in one of two distinct states:
+"finalized" and non-"finalized"
 
 Finalized packets are represented internally as a contiguous buffer of bytes, are immutable,
 and are immediately ready to be sent over a network connection. In exchange for mutability,
 finalized packets come with **_significant_** performance improvements, with object key-lookups
-in particular seeing a 200%-300% performance increase.
+in particular seeing a 200%-300% performance increase, and object comparisons speeding up
+by about 100x.
 
 ```c++
 // Get an object, starts out mutable.
@@ -420,7 +395,8 @@ data.add_field("message", "OK");
 // Transition it into the finalized state.
 // Finalizing a packet requires making a single allocation, walking across the object tree,
 // and then freeing the original tree.
-data.finalize();
+assert(!data.is_finalized());
+data.finalize(); // <-- could also use data.lower();
 assert(data.is_finalized());
 
 // Key lookups are now much faster, but we can no longer mutate the packet.
@@ -433,9 +409,11 @@ gsl::span<gsl::byte const> bytes = data.get_bytes();
 file.write(bytes.data(), bytes.size());
 
 // We can transition back to being a mutable packet, ableit expensively, by calling:
-data.lift();
+assert(data.is_finalized());
+data.definalize(); // <-- could also use data.lift();
 assert(!data.is_finalized());
-data.add_field("can", "do it");
+
+data.add_field("can", "do it"); // <-- no explosion
 ```
 
 ## Explicit API Lifecycle
@@ -464,8 +442,8 @@ auto pkt = dart::heap::make_object("hello", "world");
 pkt.add_field("missing", nullptr);
 a_high_level_function(pkt);
 
-// Say that we now know that we want an immutable representation, we can
-// describe that in code using dart::buffer.
+// Say that we now know that we want an immutable representation,
+// we can describe that in code using dart::buffer.
 // dart::buffer exposes a smaller subset of the API presented by dart::packet,
 // but it still behaves like any other dart object.
 dart::buffer finalized = pkt.finalize();
@@ -487,7 +465,103 @@ dart::heap unfinalized {finalized};
 dart::buffer refinalized {unfinalized};
 ```
 
-## Reference Counting, When You Want It
+The explicit API lifecycle also mixes with the strongly typed API, allowing for
+code like the following:
+```c++
+// Definitely an object, might be mutable (starts out mutable).
+dart::packet::object dynamic {"pi", 3.14159, "c", 2.99792};
+
+// Definitely a mutable object.
+dart::heap::object mut {"pi", 3.14159, "c", 2.99792};
+
+// Definitely an immutable object.
+dart::buffer::object immut {"pi", 3.14159, "c", 2.99792};
+
+// Definitely an array, might be mutable (starts out mutable).
+dart::packet::array dynarr {1, "fish", 2, "fish"};
+
+// You get the point.
+dart::heap::array mutarr {"red", "fish", "blue", "fish"};
+
+// This also interplays with conversions as expected
+dart::buffer buff = immut;
+dart::packet::object dynimmut = immut;
+dart::packet pkt = dynimmut;
+
+assert(dynamic == mut);
+assert(mut == immut);
+assert(immut == dynamic);
+assert(buff == immut);
+assert(dynimmut == immut);
+assert(pkt == buff);
+assert(dynamic != dynarr);
+assert(mut != mutarr);
+```
+
+## Mutability and Copy-on-Write
+By default, to keep memory in scope safely, **Dart** uses thread safe reference counting
+based on `std::shared_ptr`. This behavior is a configuration point for the library which
+will be covered later.
+
+To allow easy embedding in threaded applications, **Dart** follows a **copy-on-write**
+data model in non-finalized mode, allowing for frictionless mutation of shared data.
+This "just works" for the most part without the user being very involved, but it can have
+some surprising implications:
+
+Example of it "just working":
+```c++
+// Create a base object.
+dart::object orig {"hello", "world"};
+assert(orig.refcount() == 1U);
+
+// Copy it.
+// At this point, copy and orig share the same underlying representation, only an atomic
+// increment was performed.
+auto copy = orig;
+assert(orig.refcount() == 2U);
+assert(copy.refcount() == orig.refcount());
+
+// Mutate the copy.
+// At this point, copy performs a shallow copy-out, copying only the immediate
+// level of an arbitrarily deep tree maintained by orig.
+copy.add_field("hello", "life");
+assert(orig.refcount() == 1U);
+assert(copy.refcount() == 1U);
+assert(copy != orig);
+
+// Will output:
+// {"hello":"world"}
+// {"hello":"life"}
+std::cout << orig << std::endl;
+std::cout << copy << std::endl;
+```
+
+Example of a surprising implication:
+```c++
+// Get an object with a nested array.
+dart::object obj {"nested", dart::array {"surprise"}};
+
+// Attempt to remove something from the array.
+// Subscript operator returns a temporary packet instance, which is then mutated, copying out
+// in the processes, and is then destroyed at the semicolon, taking its modifications with it.
+// If you're on a supported compiler, this line will yield a warning about a discarded
+// result.
+obj["nested"].pop_back();
+
+// The original object was not modified, and so the following will abort.
+assert(obj["nested"].empty()); // <-- BOOM
+
+// What should have been done is the following:
+auto nested = obj["nested"].pop_back();
+obj.add_field("nested", std::move(nested));
+
+// This behavior also means that assigning to the subscript operator will not insert
+// as the user might expect, instead assigning to a temporary null value.
+// To avoid confusion on this point, the case is explicitly called out by the library.
+obj["oops"] = dart::string {"ouch"}; // <-- WILL NOT COMPILE
+```
+
+## Refcounted by Default, Disabled by Request
 Thread-safe reference counting is ideal for many applications. It strikes a nice
 balance between performance (predictable memory usage, no GC-pauses, etc) and safety,
 while also making it trivially easy to share data across threads. Nothing is for free,
@@ -500,9 +574,9 @@ user to generically customize every facet of how **Dart** implements reference c
 useful to be able to selectively _disable_ reference counting for just a particular section
 of code; the **Dart** `view` API allows for this.
 
-All of the types mentioned previously (`dart::heap`, `dart::buffer`, and `dart::packet`)
-contain the nested type `view`, which is respectively interoperable, and exports a read-only
-subset of the associated API.
+All of the types mentioned thus far (`dart::heap`, `dart::buffer`, `dart::packet`,
+and their strongly typed counterparts) contain the nested type `view`, which is
+respectively interoperable, and exports a read-only subset of the associated API.
 
 As a motivating example:
 ```c++
@@ -547,8 +621,9 @@ int64_t process_data(dart::packet data) {
 As you can see, we've added a new type, `dart::packet::view`, which is implicitly
 constructible from any instance of `dart::packet`.
 On the surface, `view` types appear to behave like any other **Dart** type, however,
-internally they do _**not**_ participate in reference counting, which, in the
-right circumstances, can be a huge performance win.
+internally they do _**not**_ participate in reference counting, instead caching a
+pointer to the instance they were constructed from, which, in the right circumstances,
+can be a huge performance win.
 
 Because we're using a `view` type, `work_really_hard` has become a pure function,
 spinning over its input without mutation and accumulating into a local (probably register backed)
@@ -582,93 +657,6 @@ dart::packet update_cache(dart::packet::view data) {
 }
 ```
 
-## Type-Safe API
-**Dart** is first and foremost a dynamically typed library, for interacting with a
-dynamically typed notation language, but as **C++** is a statically typed language, it
-can be useful to statically know the type of a variable at compile-time.
-
-To enable this use-case, **Dart** exposes a secondary interface, fully interoperable
-with the first, that enables static type enforcement.
-```c++
-// Definitely an object, might be mutable.
-// dart::object is an alias for dart::packet::object.
-dart::object dynamic {"pi", 3.14159, "c", 2.99792};
-dart::packet::object copyobj = dynamic;
-
-// Definitely a mutable object.
-dart::heap::object mut {"pi", 3.14159, "c", 2.99792};
-
-// Definitely an immutable object.
-dart::buffer::object immut {"pi", 3.14159, "c", 2.99792};
-
-// Definitely an array, might be mutable.
-// dart::array is an alias for dart::packet::array
-dart::array dynarr {1, "fish", 2, "fish"};
-dart::packet::array copyarr = dynarr;
-
-// Definitely a mutable array.
-dart::heap::array mutarr {"red", "fish", "blue", "fish"};
-
-assert(dynamic == mut);
-assert(mut == immut);
-assert(immut == dynamic);
-assert(dynamic != dynarr);
-assert(mut != mutarr);
-```
-
-A variety of conversions between the APIs are defined, but generally speaking, if
-the conversion can be performed safely and inexpensively, without throwing an
-exception or allocating memory, it's allowed implicitly, otherwise it requires a cast.
-```c++
-using namespace dart::literals;
-
-// Examples of some implicit conversions.
-dart::buffer::object fin {"rick", "sanchez", "morty", "smith"};
-dart::buffer untyped = fin;
-dart::packet::object dynamic = fin;
-dart::packet untyped_dynamic = dynamic;
-
-// Mixing the type-safe/non API.
-dart::packet str = "world"_dart;
-dart::packet::object obj {"hello", str};
-obj.insert(dart::heap::string {"yes"}, dart::heap::make_string("no"));
-```
-It is worth noting that while this API is included as a convenience, to allow **Dart** to
-naturally express data across a variety of different domains and development workflows,
-it does _not_ come with any performance improvement.
-
-The type-safe API is implemented on top of the API described up to this point, should exhibit
-identical performance characteristics, and exists solely for the purposes of
-code-organization/developer quality of life improvements.
-
-A consequence of all this conversion logic, and becoming especially compelling with
-class template argument deduction in **C++17**, is that code like this is actually valid:
-```c++
-#include <map>
-#include <dart.h>
-#include <vector>
-#include <variant>
-#include <iostream>
-
-int main() {
-  std::cout << dart::packet::object {
-    "a key", "a value",
-    "a homogenous array", std::vector {1, 1, 2, 3, 5, 8, 13},
-    "a heterogenous array", std::tuple {false, 0.0, "hello"},
-    "an object", dart::packet::object {
-      "oneof", std::variant<int, float, bool> {false},
-      "maybe_null", std::optional {"present"}
-    }
-  } << std::endl;
-}
-```
-Which outputs:
-```
-{"a heterogenous array":[false,0.0,"hello"],"a homogenous array":[1,1,2,3,5,8,13],"a key":"a value","an object":{"maybe_null":"present","oneof":false}}
-```
-Deciding as to whether it's actually sensible/ethical/_practically useful_ to do so
-is left as an exercise to the reader.
-
-## Customization Points/Expert Usage
+## Customization Points and Advanced Usage
 For a guide on the customization points the library exposes, see our
 [Advanced Usage](ADVANCED.md) document.
