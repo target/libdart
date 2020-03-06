@@ -23,6 +23,7 @@
 #include <limits.h>
 #include <algorithm>
 
+
 #if DART_HAS_RAPIDJSON
 #include <rapidjson/reader.h>
 #include <rapidjson/writer.h>
@@ -1302,7 +1303,20 @@ namespace dart {
 
     template <template <class> class RefCount, size_t static_elems = 8, class Spannable, class Callback>
     decltype(auto) sort_spannable(Spannable const& elems, Callback&& cb) {
-      using value_type = typename Spannable::value_type;
+      // XXX: This is necessary because I'm supporting an ANCIENT version of gsl-lite that
+      // doesn't contain the nested type alias value_type, only element_type
+      // Modern versions of gsl-lite, and Microsoft GSL, and std::span, include a value_type
+      // As a fix, meta::spannable_value_type_t returns value_type if it exists,
+      // next element_type if it exists,
+      // and finally meta::nonesuch if neither alias exists
+      using value_type = meta::spannable_value_type_t<Spannable>;
+      static_assert(
+        !std::is_same<
+          value_type,
+          meta::nonesuch
+        >::value,
+        "Sort spannable only supports types that conform to the std::span interface"
+      );
 
       // Check if we can perform the sorting statically.
       dart_comparator<RefCount> comp;

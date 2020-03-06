@@ -16,10 +16,20 @@ before_install:
     if [ -z "$ARCH" ]; then
       BUILD_DIR=$(mktemp -d)
       pushd $BUILD_DIR
-      curl -sL "https://github.com/microsoft/GSL/archive/v2.0.0.tar.gz" | tar xzf -
-      cd GSL-2.0.0
-      sudo cp -r include/gsl /usr/local/include/gsl
-      cd ..
+      if [ "${USE_GSL_LITE}" = "true" ]; then
+        curl -sL "https://github.com/gsl-lite/gsl-lite/archive/v0.36.0.tar.gz" | tar xzf -
+        cd gsl-lite-0.36.0
+        mkdir build
+        cd build
+        cmake .. -DGSL_LITE_OPT_INSTALL_COMPAT_HEADER=ON
+        sudo make install
+        cd ../..
+      else
+        curl -sL "https://github.com/microsoft/GSL/archive/v2.0.0.tar.gz" | tar xzf -
+        cd GSL-2.0.0
+        sudo cp -r include/gsl /usr/local/include/gsl
+        cd ..
+      fi
       curl -sL "https://github.com/Tencent/rapidjson/archive/v1.1.0.tar.gz" | tar xzf -
       cd rapidjson-1.1.0
       sudo cp -r include/rapidjson /usr/local/include/rapidjson
@@ -54,7 +64,9 @@ install:
 # Build matrix
 matrix:
   include:
-    - env: VERSION=5
+    - env:
+        VERSION: 5
+        USE_GSL_LITE: true
       os: linux
       compiler: gcc
       addons:
@@ -64,7 +76,8 @@ matrix:
           packages:
             - rapidjson-dev
             - g++-5
-    - env: VERSION=6
+    - env:
+        VERSION: 6
       os: linux
       compiler: gcc
       addons:
@@ -77,6 +90,7 @@ matrix:
     - env:
         VERSION: 7
         GEN_COVERAGE: true
+        USE_GSL_LITE: true
       os: linux
       compiler: gcc
       addons:
@@ -86,7 +100,8 @@ matrix:
           packages:
             - rapidjson-dev
             - g++-7
-    - env: VERSION=8
+    - env:
+        VERSION: 8
       os: linux
       compiler: gcc
       addons:
@@ -107,6 +122,7 @@ matrix:
         - sudo docker run --privileged test_harness
     - env:
         VERSION: 3.8
+        USE_GSL_LITE: true
         IS_SLOW_AS_MOLASSES: true
       os: linux
       compiler: clang
@@ -131,7 +147,9 @@ matrix:
             - rapidjson-dev
             - clang-3.9
             - g++-7
-    - env: VERSION=4.0
+    - env:
+        VERSION: 4.0
+        USE_GSL_LITE: true
       os: linux
       compiler: clang
       addons:
@@ -142,7 +160,8 @@ matrix:
             - rapidjson-dev
             - clang-4.0
             - g++-7
-    - env: VERSION=5.0
+    - env:
+        VERSION: 5.0
       os: linux
       compiler: clang
       addons:
@@ -153,7 +172,9 @@ matrix:
             - rapidjson-dev
             - clang-5.0
             - g++-7
-    - env: VERSION=6.0
+    - env:
+        VERSION: 6.0
+        USE_GSL_LITE: true
       os: linux
       compiler: clang
       addons:
@@ -164,7 +185,8 @@ matrix:
             - rapidjson-dev
             - clang-6.0
             - g++-7
-    - env: VERSION=7
+    - env:
+        VERSION: 7
       os: linux
       compiler: clang
       addons:
@@ -180,6 +202,7 @@ matrix:
       compiler: clang
       osx_image: xcode8.3
       env:
+        USE_GSL_LITE: true
         IS_SLOW_AS_MOLASSES: true
     - os: osx
       compiler: clang
@@ -190,6 +213,7 @@ matrix:
       compiler: clang
       osx_image: xcode10.1
       env:
+        USE_GSL_LITE: true
         IS_SLOW_AS_MOLASSES: true
 
 # Build and run.

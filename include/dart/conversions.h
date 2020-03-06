@@ -170,8 +170,13 @@ namespace dart {
     }
 
     // Specialization for interoperability with gsl::span
+#ifdef DART_USING_GSL_LITE
+    template <class T>
+    struct conversion_traits<gsl::span<T>> {
+#else
     template <class T, std::ptrdiff_t extent>
     struct conversion_traits<gsl::span<T, extent>> {
+#endif
       // Copy conversion
       template <class Packet, class =
         std::enable_if_t<
@@ -186,12 +191,16 @@ namespace dart {
       }
 
       // Equality
+      // Span is taken by const& here because for whatever reason
+      // the gsl-lite span copy/move constructor isn't marked
+      // noexcept on specific versions of gcc, which confuses our
+      // noexcept calculation logic
       template <class Packet, class =
         std::enable_if_t<
           convert::are_comparable<T, Packet>::value
         >
       >
-      bool compare(Packet const& pkt, gsl::span<T const> span)
+      bool compare(Packet const& pkt, gsl::span<T const> const& span)
         noexcept(convert::are_nothrow_comparable<T, Packet>::value)
       {
         if (!pkt.is_array()) return false;

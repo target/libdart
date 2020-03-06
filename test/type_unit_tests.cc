@@ -678,11 +678,14 @@ SCENARIO("all objects can inject additional keys", "[type unit]") {
       };
 
       // Generate the final object.
+      // XXX: const_cast craziness here is necessary because I'm supporting an ANCIENT version
+      // of gsl-lite that gets confused by the make_object overload set otherwise
       auto pairs = get_arr(keys);
-      auto obj = object {packet::make_object(pairs)};
+      auto span = gsl::make_span(const_cast<std::vector<packet> const&>(pairs));
+      auto obj = object {packet::make_object(span)};
 
       DYNAMIC_WHEN("we inject the orignal key value pairs", idx) {
-        auto injected = obj.inject(pairs);
+        auto injected = obj.inject(span);
         DYNAMIC_THEN("we end up with the original object", idx) {
           REQUIRE(obj == injected);
         }
@@ -696,7 +699,11 @@ SCENARIO("all objects can inject additional keys", "[type unit]") {
           moar.insert(std::move(str));
         }
 
-        auto injected = obj.inject(get_arr(moar));
+        // XXX: const_cast craziness here is necessary because I'm supporting an ANCIENT version
+        // of gsl-lite that gets confused by the make_object overload set otherwise
+        auto inj = get_arr(moar);
+        auto span = gsl::make_span(const_cast<std::vector<packet> const&>(inj));
+        auto injected = obj.inject(span);
         DYNAMIC_THEN("the size of the object doubles, and all keys are reachable", idx) {
           REQUIRE(injected.size() == obj.size() * 2);
           for (auto& k : moar) REQUIRE(injected.has_key(k));
