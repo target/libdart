@@ -111,6 +111,18 @@ using ssize_t = SSIZE_T;
 #include "support/string_view.h"
 #endif
 
+// We support two versions of GSL, but unfortunately they don't agree about
+// the template signature of gsl::span (why would we expect two production-ready
+// implementations of the same exact specification to agree about something like
+// that), so we have to declare some of our partial specializations differently
+// depending on what we included.
+#include <gsl/gsl>
+#ifndef gsl_lite_VERSION
+#define DART_USING_GSL
+#else
+#define DART_USING_GSL_LITE
+#endif
+
 // Conditionally pull each of those types into our namespace.
 namespace dart {
   namespace shim {

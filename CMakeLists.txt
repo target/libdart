@@ -28,7 +28,8 @@ endif ()
 
 # GSL is our only hard dependency, error out if it's not here.
 if (NOT libgsl)
-  message(FATAL_ERROR "Microsoft GSL must be installed")
+  message(FATAL_ERROR "Microsoft GSL, or gsl-lite must be installed. \
+                      If installing gsl-lite, must be built with -DGSL_LITE_OPT_INSTALL_COMPAT_HEADER=ON")
 endif ()
 
 # Decide if we can build the YAML features or not.

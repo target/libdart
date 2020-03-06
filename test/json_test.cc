@@ -329,7 +329,7 @@ void compare_rj_dart_abi(rj::Value const& obj, AbiType const* pkt) {
           // Run the check.
           auto val = dart_arr_get(pkt, index);
           auto guard = make_scope_guard([&] { dart_destroy(&val); });
-          compare_rj_dart_abi(rj_arr[index], &val);
+          compare_rj_dart_abi(rj_arr[static_cast<rj::SizeType>(index)], &val);
         }
         break;
       }

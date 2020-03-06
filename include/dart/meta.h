@@ -4,7 +4,7 @@
 /*----- System Includes -----*/
 
 #include <memory>
-#include <gsl/span>
+#include <gsl/gsl>
 #include <type_traits>
 
 /*----- Local Includes -----*/
@@ -264,8 +264,13 @@ namespace dart {
 
     template <class T>
     struct is_span : std::false_type {};
+#ifdef DART_USING_GSL_LITE
+    template <class T>
+    struct is_span<gsl::span<T>> : std::true_type {};
+#else
     template <class T, std::ptrdiff_t extent>
     struct is_span<gsl::span<T, extent>> : std::true_type {};
+#endif
 
     template <class T>
     struct is_std_smart_ptr : std::false_type {};
@@ -324,6 +329,18 @@ namespace dart {
       >
     {};
 
+    template <class T>
+    struct spannable_value_type {
+      template <class U>
+      static typename U::value_type detect(priority_tag<1>);
+      template <class U>
+      static typename U::element_type detect(priority_tag<0>);
+      template <class U>
+      static nonesuch detect(...);
+      using type = std::remove_cv_t<decltype(detect<T>(priority_tag<1> {}))>;
+    };
+    template <class T>
+    using spannable_value_type_t = typename spannable_value_type<T>::type;
   }
 
 }

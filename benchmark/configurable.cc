@@ -1,6 +1,7 @@
 /*----- System Includes -----*/
 
 #include <fstream>
+#include <numeric>
 #include <algorithm>
 #include <benchmark/benchmark.h>
 

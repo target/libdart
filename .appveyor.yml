@@ -29,3 +29,14 @@ build_script:
   - cmake .. -G "%GENERATOR%" -A x64 -Dbuild_abi=ON -Dextended_test=ON
   - cmake --build . --config %BUILD_TYPE%
   - ctest --output-on-failure --build-config %BUILD_TYPE%
+  - cd ..\tmp
+  - rmdir /q /s ..\include\extern\gsl
+  - curl -fsSL "https://github.com/gsl-lite/gsl-lite/archive/v0.36.0.zip" -o gsl.zip
+  - 7z x gsl.zip
+  - Xcopy /E /I gsl-lite-0.36.0\include\gsl ..\include\extern\gsl
+  - cd ..
+  - mkdir build2
+  - cd build2
+  - cmake .. -G "%GENERATOR%" -A x64 -Dbuild_abi=ON -Dextended_test=ON
+  - cmake --build . --config %BUILD_TYPE%
+  - ctest --output-on-failure --build-config %BUILD_TYPE%

@@ -41,7 +41,6 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 #include <memory>
 #include <cstddef>
 #include <sstream>
-#include <gsl/gsl>
 #include <cstring>
 #include <algorithm>
 #include <type_traits>
@@ -8109,6 +8108,23 @@ namespace dart {
           enabled
         >
       >
+      explicit basic_buffer(RefCount<gsl::byte const> buffer) :
+        raw({detail::raw_type::object, buffer.get()}),
+        buffer_ref(validate_pointer(shareable_ptr<RefCount<gsl::byte const>> {std::move(buffer)}))
+      {}
+
+      /**
+       *  @brief
+       *  Network object constructor.
+       *
+       *  @details
+       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       */
+      template <bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
       explicit basic_buffer(shareable_ptr<RefCount<gsl::byte const>> buffer) :
         raw({detail::raw_type::object, buffer.get()}),
         buffer_ref(validate_pointer(std::move(buffer)))
@@ -10448,6 +10464,22 @@ namespace dart {
       >
       explicit basic_packet(gsl::span<gsl::byte const> buffer) :
         impl(basic_buffer<RefCount>(buffer))
+      {}
+
+      /**
+       *  @brief
+       *  Network object constructor.
+       *
+       *  @details
+       *  Reconstitutes a previously finalized packet from a buffer of bytes.
+       */
+      template <bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      explicit basic_packet(RefCount<gsl::byte const> buffer) :
+        impl(basic_buffer<RefCount>(std::move(buffer)))
       {}
 
       /**
