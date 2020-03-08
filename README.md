@@ -354,20 +354,31 @@ but `dart::packet` to `dart::object` requires a cast as it might throw.
 
 _All_ **Dart** types are inter-comparable.
 ```c++
-using namespace dart::literals;
-
-// Examples of some implicit conversions.
-dart::packet::object typed_obj {"rick", "sanchez", "morty", "smith"};
+// Examples of some implicit/explicit conversions.
+dart::object typed_obj {"rick", "sanchez", "morty", "smith"};
 dart::packet untyped_obj = typed_obj;
-dart::packet::object retyped_obj {untyped_obj};
+dart::object retyped_obj {untyped_obj};
 
 // Since a JSON object can contain any type,
-// dart::object can't know what the type of a particular key is
-// And therefore still returns dart::packet from its subscript operator.
+// dart::object can't know what the type of a particular key is,
+// and therefore still returns dart::packet from its subscript operator.
 dart::packet untyped_name = typed_obj["rick"];
-dart::packet::string typed_name {typed_obj["rick"]};
+dart::string typed_name {typed_obj["rick"]};
+
+// If we know in advance that a key will refer to a particular type,
+// we can tell Dart like so
+dart::string retyped_name = typed_obj["rick"].as<dart::string>();
+
+// We can also cast to non-dart types using this method
+std::string name = typed_obj["rick"].as<std::string>();
+
+// Finally, if we're not sure, we can use
+std::optional<std::string> opt_name = typed_obj["rick"].maybe_as<std::string>();
 
 assert(untyped_name == typed_name);
+assert(typed_name == retyped_name);
+assert(typed_name == name);
+assert(name == *opt_name);
 assert(typed_obj == untyped_obj);
 assert(typed_obj != typed_name);
 assert(untyped_obj != untyped_name);

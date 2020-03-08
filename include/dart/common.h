@@ -149,6 +149,25 @@ namespace dart {
     template <class T>
     struct is_dart_api_type<dart::basic_null<T>> : std::true_type {};
 
+    template <class T>
+    struct maybe_cast_return {
+      template <class U, class =
+        std::enable_if_t<
+          std::is_pointer<U>::value
+          ||
+          is_dart_type<U>::value
+        >
+      >
+      static U detect(int);
+
+      template <class U>
+      static shim::optional<U> detect(...);
+
+      using type = decltype(detect<T>(0));
+    };
+    template <class T>
+    using maybe_cast_return_t = typename maybe_cast_return<T>::type;
+
     /**
      *  @brief
      *  Enum encodes the type of an individual packet instance.
