@@ -78,6 +78,46 @@ namespace dart {
   }
 
   template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  T basic_buffer<RefCount>::as() const& {
+    return convert::cast<T>(*this);
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  decltype(auto) basic_buffer<RefCount>::as() && {
+    return convert::cast<T>(std::move(*this));
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  detail::maybe_cast_return_t<T> basic_buffer<RefCount>::maybe_as() const& noexcept {
+    using ret_type = detail::maybe_cast_return_t<T>;
+
+    // Attempt the conversion, default construct if something goes wrong.
+    // Note that ret_type may be a specialization of shim::optional here.
+    try {
+      return ret_type {convert::cast<T>(*this)};
+    } catch (...) {
+      return ret_type {};
+    }
+  }
+
+  template <template <class> class RefCount>
+  template <class T, class EnableIf>
+  detail::maybe_cast_return_t<T> basic_buffer<RefCount>::maybe_as() && noexcept {
+    using ret_type = detail::maybe_cast_return_t<T>;
+
+    // Attempt the conversion, default construct if something goes wrong.
+    // Note that ret_type may be a specialization of shim::optional here.
+    try {
+      return ret_type {convert::cast<T>(std::move(*this))};
+    } catch (...) {
+      return ret_type {};
+    }
+  }
+
+  template <template <class> class RefCount>
   basic_buffer<RefCount> basic_buffer<RefCount>::make_null() noexcept {
     return basic_buffer {};
   }

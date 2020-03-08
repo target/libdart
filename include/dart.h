@@ -55,7 +55,7 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 
 // Version macros for conditional compilation/feature checks.
 #define DART_MAJOR_VERSION          1
-#define DART_MINOR_VERSION          0
+#define DART_MINOR_VERSION          1
 #define DART_PATCH_VERSION          0
 
 /*----- Type Declarations -----*/
@@ -668,9 +668,9 @@ namespace dart {
        */
       template <class Key, class Value, class Comp, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
           &&
-          convert::is_castable<value_type, Value>::value
+          convert::is_castable<value_type const&, Value>::value
         >
       >
       explicit operator std::map<Key, Value, Comp, Alloc>() const;
@@ -681,9 +681,9 @@ namespace dart {
        */
       template <class Key, class Value, class Comp, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
           &&
-          convert::is_castable<value_type, Value>::value
+          convert::is_castable<value_type const&, Value>::value
         >
       >
       explicit operator std::multimap<Key, Value, Comp, Alloc>() const;
@@ -694,9 +694,9 @@ namespace dart {
        */
       template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
           &&
-          convert::is_castable<value_type, Value>::value
+          convert::is_castable<value_type const&, Value>::value
         >
       >
       explicit operator std::unordered_map<Key, Value, Hash, Equal, Alloc>() const;
@@ -707,9 +707,9 @@ namespace dart {
        */
       template <class Key, class Value, class Hash, class Equal, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
           &&
-          convert::is_castable<value_type, Value>::value
+          convert::is_castable<value_type const&, Value>::value
         >
       >
       explicit operator std::unordered_multimap<Key, Value, Hash, Equal, Alloc>() const;
@@ -2365,7 +2365,7 @@ namespace dart {
        */
       template <class T, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, T>::value
+          convert::is_castable<value_type const&, T>::value
         >
       >
       explicit operator std::vector<T, Alloc>() const;
@@ -2376,7 +2376,7 @@ namespace dart {
        */
       template <class T, size_t len, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, T>::value
+          convert::is_castable<value_type const&, T>::value
         >
       >
       explicit operator std::array<T, len>() const;
@@ -2387,7 +2387,7 @@ namespace dart {
        */
       template <class T, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, T>::value
+          convert::is_castable<value_type const&, T>::value
         >
       >
       explicit operator std::deque<T, Alloc>() const;
@@ -2398,7 +2398,7 @@ namespace dart {
        */
       template <class T, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, T>::value
+          convert::is_castable<value_type const&, T>::value
         >
       >
       explicit operator std::list<T, Alloc>() const;
@@ -2409,7 +2409,7 @@ namespace dart {
        */
       template <class T, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, T>::value
+          convert::is_castable<value_type const&, T>::value
         >
       >
       explicit operator std::forward_list<T, Alloc>() const;
@@ -2420,7 +2420,7 @@ namespace dart {
        */
       template <class Key, class Compare, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
         >
       >
       explicit operator std::set<Key, Compare, Alloc>() const;
@@ -2431,7 +2431,7 @@ namespace dart {
        */
       template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
         >
       >
       explicit operator std::unordered_set<Key, Hash, KeyEq, Alloc>() const;
@@ -2442,7 +2442,7 @@ namespace dart {
        */
       template <class Key, class Compare, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
         >
       >
       explicit operator std::multiset<Key, Compare, Alloc>() const;
@@ -2453,7 +2453,7 @@ namespace dart {
        */
       template <class Key, class Hash, class KeyEq, class Alloc, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<value_type, Key>::value
+          convert::is_castable<value_type const&, Key>::value
         >
       >
       explicit operator std::unordered_multiset<Key, Hash, KeyEq, Alloc>() const;
@@ -5612,7 +5612,7 @@ namespace dart {
           &&
           !detail::is_wrapper_type<T>::value
           &&
-          convert::is_castable<basic_heap, T>::value
+          convert::is_castable<basic_heap const&, T>::value
         >
       >
       explicit operator T() const&;
@@ -5627,12 +5627,98 @@ namespace dart {
           &&
           !detail::is_wrapper_type<T>::value
           &&
-          convert::is_castable<basic_heap, T>::value
+          convert::is_castable<basic_heap&&, T>::value
         >
       >
       explicit operator T() &&;
 
       /*----- Public API -----*/
+
+      /*----- Conversion DSL Functions -----*/
+
+      /**
+       *  @brief
+       *  Explicit, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"nested", dart::object {}};
+       *  dart::object nested = obj["nested"].as<dart::object>();
+       *  ```
+       *  In the previous situation, we know that nested refers to an
+       *  object type, but that information is lost to runtime, forcing
+       *  Dart to return a packet type.
+       *  as allows us to convert back to the requested type.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_heap const&, T>::value
+        >
+      >
+      T as() const&;
+
+      /**
+       *  @brief
+       *  Explicit, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"nested", dart::object {}};
+       *  dart::object nested = obj["nested"].as<dart::object>();
+       *  ```
+       *  In the previous situation, we know that nested refers to an
+       *  object type, but that information is lost to runtime, forcing
+       *  Dart to return a packet type.
+       *  as allows us to convert back to the requested type.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_heap&&, T>::value
+        >
+      >
+      decltype(auto) as() &&;
+
+      /**
+       *  @brief
+       *  Explicit, optional, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"maybe_int", "not an int"};
+       *  std::optional<int> maybe = obj["maybe_int"].maybe_as<int>();
+       *  ```
+       *  Allows for explicit casting to a given type without throwing
+       *  an exception if the type assertion turns out to be wrong.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_heap const&, T>::value
+        >
+      >
+      detail::maybe_cast_return_t<T> maybe_as() const& noexcept;
+
+      /**
+       *  @brief
+       *  Explicit, optional, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"maybe_int", "not an int"};
+       *  std::optional<int> maybe = obj["maybe_int"].maybe_as<int>();
+       *  ```
+       *  Allows for explicit casting to a given type without throwing
+       *  an exception if the type assertion turns out to be wrong.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_heap&&, T>::value
+        >
+      >
+      detail::maybe_cast_return_t<T> maybe_as() && noexcept;
 
       /*----- Factory Functions -----*/
 
@@ -6530,7 +6616,7 @@ namespace dart {
         std::enable_if_t<
           refcount::is_owner<RefCount>::value
           &&
-          convert::is_castable<T, basic_heap>::value
+          convert::is_castable<T const&, basic_heap>::value
         >
       >
       void resize(size_type count, T const& def = T {});
@@ -8475,7 +8561,7 @@ namespace dart {
           &&
           !detail::is_wrapper_type<T>::value
           &&
-          convert::is_castable<basic_buffer, T>::value
+          convert::is_castable<basic_buffer const&, T>::value
         >
       >
       explicit operator T() const&;
@@ -8490,12 +8576,98 @@ namespace dart {
           &&
           !detail::is_wrapper_type<T>::value
           &&
-          convert::is_castable<basic_buffer, T>::value
+          convert::is_castable<basic_buffer&&, T>::value
         >
       >
       explicit operator T() &&;
 
       /*----- Public API -----*/
+
+      /*----- Conversion DSL Functions -----*/
+
+      /**
+       *  @brief
+       *  Explicit, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"nested", dart::object {}};
+       *  dart::object nested = obj["nested"].as<dart::object>();
+       *  ```
+       *  In the previous situation, we know that nested refers to an
+       *  object type, but that information is lost to runtime, forcing
+       *  Dart to return a packet type.
+       *  as allows us to convert back to the requested type.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_buffer const&, T>::value
+        >
+      >
+      T as() const&;
+
+      /**
+       *  @brief
+       *  Explicit, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"nested", dart::object {}};
+       *  dart::object nested = obj["nested"].as<dart::object>();
+       *  ```
+       *  In the previous situation, we know that nested refers to an
+       *  object type, but that information is lost to runtime, forcing
+       *  Dart to return a packet type.
+       *  as allows us to convert back to the requested type.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_buffer&&, T>::value
+        >
+      >
+      decltype(auto) as() &&;
+
+      /**
+       *  @brief
+       *  Explicit, optional, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"maybe_int", "not an int"};
+       *  std::optional<int> maybe = obj["maybe_int"].maybe_as<int>();
+       *  ```
+       *  Allows for explicit casting to a given type without throwing
+       *  an exception if the type assertion turns out to be wrong.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_buffer const&, T>::value
+        >
+      >
+      detail::maybe_cast_return_t<T> maybe_as() const& noexcept;
+
+      /**
+       *  @brief
+       *  Explicit, optional, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"maybe_int", "not an int"};
+       *  std::optional<int> maybe = obj["maybe_int"].maybe_as<int>();
+       *  ```
+       *  Allows for explicit casting to a given type without throwing
+       *  an exception if the type assertion turns out to be wrong.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_buffer&&, T>::value
+        >
+      >
+      detail::maybe_cast_return_t<T> maybe_as() && noexcept;
 
       /*----- Factory Functions -----*/
 
@@ -10862,7 +11034,7 @@ namespace dart {
           &&
           !detail::is_wrapper_type<T>::value
           &&
-          convert::is_castable<basic_packet, T>::value
+          convert::is_castable<basic_packet const&, T>::value
         >
       >
       explicit operator T() const&;
@@ -10877,12 +11049,98 @@ namespace dart {
           &&
           !detail::is_wrapper_type<T>::value
           &&
-          convert::is_castable<basic_packet, T>::value
+          convert::is_castable<basic_packet&&, T>::value
         >
       >
       explicit operator T() &&;
 
       /*----- Public API -----*/
+
+      /*----- Conversion DSL Functions -----*/
+
+      /**
+       *  @brief
+       *  Explicit, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"nested", dart::object {}};
+       *  dart::object nested = obj["nested"].as<dart::object>();
+       *  ```
+       *  In the previous situation, we know that nested refers to an
+       *  object type, but that information is lost to runtime, forcing
+       *  Dart to return a packet type.
+       *  as allows us to convert back to the requested type.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet const&, T>::value
+        >
+      >
+      T as() const&;
+
+      /**
+       *  @brief
+       *  Explicit, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"nested", dart::object {}};
+       *  dart::object nested = obj["nested"].as<dart::object>();
+       *  ```
+       *  In the previous situation, we know that nested refers to an
+       *  object type, but that information is lost to runtime, forcing
+       *  Dart to return a packet type.
+       *  as allows us to convert back to the requested type.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet&&, T>::value
+        >
+      >
+      decltype(auto) as() &&;
+
+      /**
+       *  @brief
+       *  Explicit, optional, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"maybe_int", "not an int"};
+       *  std::optional<int> maybe = obj["maybe_int"].maybe_as<int>();
+       *  ```
+       *  Allows for explicit casting to a given type without throwing
+       *  an exception if the type assertion turns out to be wrong.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet const&, T>::value
+        >
+      >
+      detail::maybe_cast_return_t<T> maybe_as() const& noexcept;
+
+      /**
+       *  @brief
+       *  Explicit, optional, generic, cast member function.
+       *
+       *  @details
+       *  Function is intended for use in situations like the following:
+       *  ```
+       *  dart::object obj {"maybe_int", "not an int"};
+       *  std::optional<int> maybe = obj["maybe_int"].maybe_as<int>();
+       *  ```
+       *  Allows for explicit casting to a given type without throwing
+       *  an exception if the type assertion turns out to be wrong.
+       */
+      template <class T, class EnableIf =
+        std::enable_if_t<
+          convert::is_castable<basic_packet&&, T>::value
+        >
+      >
+      detail::maybe_cast_return_t<T> maybe_as() && noexcept;
 
       /*----- Factory Functions -----*/
 
@@ -11778,7 +12036,7 @@ namespace dart {
        */
       template <class T = std::nullptr_t, class EnableIf =
         std::enable_if_t<
-          convert::is_castable<T, basic_packet>::value
+          convert::is_castable<T const&, basic_packet>::value
         >
       >
       void resize(size_type count, T const& def = T {});

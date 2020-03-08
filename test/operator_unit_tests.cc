@@ -901,7 +901,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a vector", idx) {
         auto v = vec {1337, 3.14159, "there are many like it, but this vector is mine", dart::shim::nullopt};
         val = v;
-        auto rv = dart::convert::cast<vec>(val);
+        auto rv = val.template as<vec>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(v == rv);
           REQUIRE(rv == v);
@@ -919,7 +919,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a deque", idx) {
         auto d = deq {1337, 3.14159, "there are many like it, but this deque is mine", dart::shim::nullopt};
         val = d;
-        auto rd = dart::convert::cast<deq>(val);
+        auto rd = val.template as<deq>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(d == rd);
           REQUIRE(rd == d);
@@ -935,7 +935,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from an array", idx) {
         auto a = arr {{1337, 3.14159, "there are many like it, but this array is mine", dart::shim::nullopt}};
         val = a;
-        auto ra = dart::convert::cast<arr>(val);
+        auto ra = val.template as<arr>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(a == ra);
           REQUIRE(ra == a);
@@ -953,7 +953,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a list", idx) {
         auto l = lst {1337, 3.14159, "there are many like it, but this list is mine", dart::shim::nullopt};
         val = l;
-        auto rl = dart::convert::cast<lst>(val);
+        auto rl = val.template as<lst>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(l == rl);
           REQUIRE(rl == l);
@@ -971,7 +971,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a forward list", idx) {
         auto fl = flst {1337, 3.14159, "there are many like it, but this list is mine", dart::shim::nullopt};
         val = fl;
-        auto rfl = dart::convert::cast<flst>(val);
+        auto rfl = val.template as<flst>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(fl == rfl);
           REQUIRE(rfl == fl);
@@ -989,7 +989,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a map", idx) {
         auto m = map {{"hello", "world"}, {"yes", "no"}};
         val = m;
-        auto rm = dart::convert::cast<map>(val);
+        auto rm = val.template as<map>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(m == rm);
           REQUIRE(rm == m);
@@ -1007,7 +1007,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from an unordered map", idx) {
         auto um = umap {{"hello", "world"}, {"yes", "no"}};
         val = um;
-        auto rum = dart::convert::cast<umap>(val);
+        auto rum = val.template as<umap>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(um == rum);
           REQUIRE(rum == um);
@@ -1025,7 +1025,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a multimap", idx) {
         auto m = mmap {{"hello", "world"}, {"yes", "no"}};
         val = m;
-        auto rm = dart::convert::cast<mmap>(val);
+        auto rm = val.template as<mmap>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(m == rm);
           REQUIRE(rm == m);
@@ -1043,7 +1043,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a multimap", idx) {
         auto um = ummap {{"hello", "world"}, {"yes", "no"}};
         val = um;
-        auto rum = dart::convert::cast<ummap>(val);
+        auto rum = val.template as<ummap>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(um == rum);
           REQUIRE(rum == um);
@@ -1061,7 +1061,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a set", idx) {
         auto s = set {"dark side", "meddle", "the wall", "animals"};
         val = s;
-        auto rs = dart::convert::cast<set>(val);
+        auto rs = val.template as<set>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(s == rs);
           REQUIRE(rs == s);
@@ -1079,7 +1079,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a unordered_set", idx) {
         auto s = uset {"dark side", "meddle", "the wall", "animals"};
         val = s;
-        auto rs = dart::convert::cast<uset>(val);
+        auto rs = val.template as<uset>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(s == rs);
           REQUIRE(rs == s);
@@ -1097,7 +1097,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a multiset", idx) {
         auto m = mset {"dark side", "meddle", "meddle", "the wall", "animals"};
         val = m;
-        auto rm = dart::convert::cast<mset>(val);
+        auto rm = val.template as<mset>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(m == rm);
           REQUIRE(rm == m);
@@ -1115,7 +1115,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a unordered multiset", idx) {
         auto m = umset {"dark side", "meddle", "meddle", "the wall", "animals"};
         val = m;
-        auto rm = dart::convert::cast<umset>(val);
+        auto rm = val.template as<umset>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(m == rm);
           REQUIRE(rm == m);
@@ -1132,7 +1132,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a pair", idx) {
         auto p = pair {"first", "second"};
         val = p;
-        auto rp = dart::convert::cast<pair>(val);
+        auto rp = val.template as<pair>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(p == rp);
           REQUIRE(rp == p);
@@ -1162,7 +1162,7 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
       DYNAMIC_WHEN("the value is assigned from a time point", idx) {
         auto t = clock::now();
         val = t;
-        auto rt = dart::convert::cast<clock::time_point>(val);
+        auto rt = val.template as<clock::time_point>();
         DYNAMIC_THEN("it takes on the value we expect", idx) {
           REQUIRE(std::chrono::time_point_cast<std::chrono::seconds>(t) == rt);
           REQUIRE(rt == std::chrono::time_point_cast<std::chrono::seconds>(t));
@@ -1711,6 +1711,85 @@ SCENARIO("mutable dart types can be assigned to from many types", "[operator uni
           static_assert(noexcept(val == nullptr), "Dart is misconfigured");
           static_assert(noexcept(nullptr == val), "Dart is misconfigured");
           static_assert(dart::convert::are_nothrow_comparable<std::nullptr_t, null>::value, "Dart is misconfigured");
+        }
+      }
+    });
+  }
+}
+
+SCENARIO("mutable dart types can be optionally converted to different types", "[operator unit]") {
+  GIVEN("a generic type constructed as a particular type") {
+    dart::mutable_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+
+      // Construct a number.
+      pkt val {1337};
+
+      DYNAMIC_WHEN("we try to convert to a dart type", idx) {
+        DYNAMIC_THEN("it works", idx) {
+          auto conv = val.template as<pkt>();
+          REQUIRE(conv == val);
+          REQUIRE(val == conv);
+          REQUIRE(conv == 1337);
+          REQUIRE(1337 == conv);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to optionally convert to a dart type", idx) {
+        DYNAMIC_THEN("it returns a dart instance", idx) {
+          pkt conv = val.template maybe_as<pkt>();
+          REQUIRE(conv == val);
+          REQUIRE(val == conv);
+          REQUIRE(conv == 1337);
+          REQUIRE(1337 == conv);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to convert to a string", idx) {
+        DYNAMIC_THEN("it refuses", idx) {
+          REQUIRE_THROWS_AS(val.template as<std::string>(), dart::type_error);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to optionally convert to a string", idx) {
+        DYNAMIC_THEN("it returns shim::nullopt", idx) {
+          auto conv = val.template maybe_as<std::string>();
+          REQUIRE(!conv);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to optionally convert to a raw string", idx) {
+        DYNAMIC_THEN("it returns nullptr", idx) {
+          auto* conv = val.template maybe_as<char const*>();
+          REQUIRE(conv == nullptr);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to convert to an integer", idx) {
+        DYNAMIC_THEN("it works", idx) {
+          auto conv = val.template as<int>();
+          REQUIRE(conv == 1337);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to optionally convert to an integer", idx) {
+        DYNAMIC_THEN("it returns a set optional", idx) {
+          auto conv = val.template maybe_as<int>();
+          REQUIRE(!!conv);
+          REQUIRE(*conv == 1337);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to convert to a decimal", idx) {
+        DYNAMIC_THEN("it works", idx) {
+          REQUIRE_THROWS_AS(val.template as<double>(), dart::type_error);
+        }
+      }
+
+      DYNAMIC_WHEN("we try to optionally convert to a decimal", idx) {
+        DYNAMIC_THEN("it returns shim::nullopt", idx) {
+          auto conv = val.template maybe_as<double>();
+          REQUIRE(!conv);
         }
       }
     });
