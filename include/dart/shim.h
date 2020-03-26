@@ -83,7 +83,7 @@ using ssize_t = SSIZE_T;
 #define DART_ASSERT(cond)                                                                                     \
   if (DART_UNLIKELY(!(cond))) {                                                                               \
     auto& msg = "dart::packet has detected fatal memory corruption and cannot continue execution.\n"          \
-      "\"" DART_STRINGIFY(cond) "\" violated.\nSee " __FILE__ ":" DART_STRINGIFY(__LINE__);                   \
+      "\"" DART_STRINGIFY(cond) "\" violated.\nSee " __FILE__ ":" DART_STRINGIFY(__LINE__) "\n";              \
     int errfd = DART_STDERR_FILENO;                                                                           \
     ssize_t spins {0}, written {0}, total {sizeof(msg)};                                                      \
     do {                                                                                                      \
