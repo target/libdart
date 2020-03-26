@@ -980,7 +980,7 @@ SCENARIO("arrays can optionally access non-existent elements with a fallback", "
 
       auto arr = pkt::make_array();
       DYNAMIC_WHEN("we attempt to optionally access a non-existent index", idx) {
-        auto key = dart::conversion_helper<pkt>(0_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_integer(0));
         auto opt_one = arr.get_or(0, 1);
         auto opt_two = arr.get_or(key, 1.0);
         auto opt_three = arr.get_or(0, "not here");
@@ -998,7 +998,7 @@ SCENARIO("arrays can optionally access non-existent elements with a fallback", "
 
       DYNAMIC_WHEN("we attempt to optionally access a non-existent index on a temporary", idx) {
         arr.push_back(nullptr);
-        auto key = dart::conversion_helper<pkt>(0_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_integer(0));
         auto opt_one = arr[0].get_or(0, 1);
         auto opt_two = arr[0].get_or(key, 1.0);
         auto opt_three = arr[0].get_or(0, "not here");
@@ -1022,7 +1022,7 @@ SCENARIO("arrays can optionally access non-existent elements with a fallback", "
           DYNAMIC_WHEN("the array is finalized", idx) {
             a = pkt::make_object("arr", a).finalize()["arr"];
 
-            auto key = dart::conversion_helper<pkt>(0_dart);
+            auto key = dart::conversion_helper<pkt>(dart::packet::make_integer(0));
             auto opt_one = a.get_or(0, 1);
             auto opt_two = a.get_or(key, 1.0);
             auto opt_three = a.get_or(0, "not here");

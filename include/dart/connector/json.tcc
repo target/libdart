@@ -114,6 +114,24 @@ namespace dart {
     if (finalized) return basic_buffer<RefCount>::template from_json<parse_stack_size>(json);
     else return basic_heap<RefCount>::template from_json<parse_stack_size>(json);
   }
+
+  template <template <class> class RefCount>
+  template <unsigned parse_stack_size, bool, class EnableIf>
+  basic_heap<RefCount> basic_heap<RefCount>::parse(shim::string_view json) {
+    return basic_heap::from_json<parse_stack_size>(json);
+  }
+
+  template <template <class> class RefCount>
+  template <unsigned parse_stack_size, bool, class EnableIf>
+  basic_buffer<RefCount> basic_buffer<RefCount>::parse(shim::string_view json) {
+    return basic_buffer::from_json<parse_stack_size>(json);
+  }
+
+  template <template <class> class RefCount>
+  template <unsigned parse_stack_size, bool, class EnableIf>
+  basic_packet<RefCount> basic_packet<RefCount>::parse(shim::string_view json, bool finalized) {
+    return basic_packet::from_json(json, finalized);
+  }
 #elif DART_HAS_RAPIDJSON
   template <template <class> class RefCount>
   template <unsigned flags, bool enabled, class EnableIf>
@@ -178,6 +196,24 @@ namespace dart {
   basic_packet<RefCount> basic_packet<RefCount>::from_json(shim::string_view json, bool finalized) {
     if (finalized) return basic_buffer<RefCount>::template from_json<flags>(json);
     else return basic_heap<RefCount>::template from_json<flags>(json);
+  }
+
+  template <template <class> class RefCount>
+  template <unsigned flags, bool enabled, class EnableIf>
+  basic_heap<RefCount> basic_heap<RefCount>::parse(shim::string_view json) {
+    return basic_heap::from_json<flags>(json);
+  }
+
+  template <template <class> class RefCount>
+  template <unsigned flags, bool enabled, class EnableIf>
+  basic_buffer<RefCount> basic_buffer<RefCount>::parse(shim::string_view json) {
+    return basic_buffer::from_json<flags>(json);
+  }
+
+  template <template <class> class RefCount>
+  template <unsigned flags, bool enabled, class EnableIf>
+  basic_packet<RefCount> basic_packet<RefCount>::parse(shim::string_view json, bool finalized) {
+    return basic_packet::from_json<flags>(json, finalized);
   }
 #endif
 

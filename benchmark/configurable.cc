@@ -22,9 +22,143 @@
 #include <nlohmann/json.hpp>
 #endif
 
+#if DART_HAS_FLEXBUFFERS
+#include <flatbuffers/flexbuffers.h>
+#endif
+
 /*----- Local Includes -----*/
 
 #include "../include/dart.h"
+
+/*----- Globals -----*/
+
+auto extract_directory(dart::shim::string_view path) noexcept {
+  return path.substr(0, path.find_last_of("/"));
+}
+
+static auto base_dir = extract_directory(__FILE__);
+static auto byte_counter = [] (auto a, auto& s) { return a + s.size(); };
+static std::string const json_input = std::string {base_dir} + "/input.json";
+
+/*----- Type Declarations -----*/
+
+#ifdef DART_HAS_NLJSON
+namespace nl = nlohmann;
+#endif
+namespace rj = rapidjson;
+
+using unsafe_heap = dart::basic_heap<dart::unsafe_ptr>;
+using unsafe_buffer = dart::basic_buffer<dart::unsafe_ptr>;
+using unsafe_packet = dart::basic_packet<dart::unsafe_ptr>;
+
+#ifdef DART_HAS_YAJL
+struct yajl_owner {
+  yajl_owner() = default;
+  yajl_owner(yajl_val val) noexcept : val(val) {}
+  yajl_owner(yajl_owner const&) = delete;
+  yajl_owner(yajl_owner&& other) noexcept : val(other.val) {
+    other.val = nullptr;
+  }
+  ~yajl_owner() {
+    if (val) yajl_tree_free(val);
+  }
+
+  yajl_owner& operator =(yajl_owner const&) = delete;
+  yajl_owner& operator =(yajl_owner&& other) noexcept {
+    if (this == &other) return *this;
+    this->~yajl_owner();
+    new(this) yajl_owner(std::move(other));
+    return *this;
+  }
+  yajl_owner& operator =(yajl_val other) noexcept {
+    this->~yajl_owner();
+    new(this) yajl_owner(other);
+    return *this;
+  }
+
+  yajl_val val;
+};
+#endif
+
+#ifdef DART_HAS_JANSSON
+struct jansson_owner {
+  jansson_owner() = default;
+  jansson_owner(json_t* val) : val(val) {}
+  jansson_owner(jansson_owner const&) = delete;
+  jansson_owner(jansson_owner&& other) noexcept : val(other.val) {
+    other.val = nullptr;
+  }
+  ~jansson_owner() {
+    if (val) json_decref(val);
+  }
+
+  jansson_owner& operator =(jansson_owner const&) = delete;
+  jansson_owner& operator =(jansson_owner&& other) noexcept {
+    if (this == &other) return *this;
+    this->~jansson_owner();
+    new(this) jansson_owner(std::move(other));
+    return *this;
+  }
+  jansson_owner& operator =(json_t* other) noexcept {
+    this->~jansson_owner();
+    new(this) jansson_owner(other);
+    return *this;
+  }
+
+  json_t* val;
+};
+#endif
+
+struct benchmark_helper : benchmark::Fixture {
+
+  /*----- Test Construction/Destruction Functions -----*/
+
+  void SetUp(benchmark::State const&) override;
+  void TearDown(benchmark::State const&) override {}
+
+  /*----- Helpers -----*/
+
+  std::vector<std::string> load_input(dart::shim::string_view path) const;
+  std::vector<unsafe_buffer> parse_input_dart(gsl::span<std::string const> packets) const;
+  std::vector<unsafe_heap> parse_mutable_dart(gsl::span<std::string const> packets) const;
+  std::vector<rj::Document> parse_input_rj(gsl::span<std::string const> packets) const;
+#ifdef DART_USE_SAJSON
+  std::vector<sajson::document> parse_input_sajson(gsl::span<std::string const> packets) const;
+#endif
+#ifdef DART_HAS_NLJSON
+  std::vector<nl::json> parse_input_nljson(gsl::span<std::string const> packets) const;
+#endif
+#ifdef DART_HAS_YAJL
+  std::vector<yajl_owner> parse_input_yajl(gsl::span<std::string const> packets) const;
+#endif
+#ifdef DART_HAS_JANSSON
+  std::vector<jansson_owner> parse_input_jansson(gsl::span<std::string const> packets) const;
+#endif
+  std::vector<std::vector<std::string>> discover_keys(gsl::span<unsafe_buffer const> packets) const;
+
+  /*----- Members -----*/
+
+  std::vector<std::string> input;
+  std::vector<unsafe_buffer> parsed_dart;
+  std::vector<unsafe_heap> mutable_dart;
+  std::vector<rj::Document> parsed_rj;
+#ifdef DART_USE_SAJSON
+  std::vector<sajson::document> parsed_sajson;
+#endif
+#ifdef DART_HAS_NLJSON
+  std::vector<nl::json> parsed_nljson;
+#endif
+#ifdef DART_HAS_YAJL
+  std::vector<yajl_owner> parsed_yajl;
+#endif
+#ifdef DART_HAS_JANSSON
+  std::vector<jansson_owner> parsed_jansson;
+#endif
+  std::vector<std::vector<std::string>> keys;
+
+  benchmark::Counter rate_counter;
+
+};
 
 /*----- Helpers -----*/
 
@@ -35,10 +169,6 @@ constexpr bool all_equal(Idx) {
 template <class Lhs, class Rhs, class... Idxs>
 constexpr bool all_equal(Lhs lidx, Rhs ridx, Idxs... lens) {
   return lidx == ridx && all_equal(ridx, lens...);
-}
-
-auto extract_directory(dart::shim::string_view path) noexcept {
-  return path.substr(0, path.find_last_of("/"));
 }
 
 template <class... Containers, class Func>
@@ -128,129 +258,63 @@ void yajl_serialize(yajl_val curr, yajl_gen handle) {
 }
 #endif
 
-/*----- Globals -----*/
+#if DART_HAS_FLEXBUFFERS
+void convert_dart_to_fb(unsafe_buffer pkt, flexbuffers::Builder& fbb, char const* currkey = nullptr) {
+  switch (pkt.get_type()) {
+    case unsafe_buffer::type::object:
+      {
+        unsafe_buffer::iterator k, v;
+        std::tie(k, v) = pkt.kvbegin();
+        
+        // Flexbuffer builder API is kind of awkward to use
+        // in a recursive function like this, but we can get it done
+        auto work = [&] {
+          while (v != pkt.end()) {
+            convert_dart_to_fb(*v, fbb, k->str());
+            ++k, ++v;
+          }
+        };
 
-static auto base_dir = extract_directory(__FILE__);
-static auto byte_counter = [] (auto a, auto& s) { return a + s.size(); };
-static std::string const json_input = std::string {base_dir} + "/input.json";
+        // Need to call differently depending on if we're already
+        // in the process of building an object
+        if (currkey) fbb.Map(currkey, work);
+        else fbb.Map(work);
+      }
+      break;
+    case unsafe_buffer::type::array:
+      {
+        // Flexbuffer builder API is kind of awkward to use
+        // in a recursive function like this, but we can get it done
+        auto work = [&] {
+          for (auto v : pkt) {
+            convert_dart_to_fb(v, fbb);
+          }
+        };
 
-/*----- Type Declarations -----*/
-
-#ifdef DART_HAS_NLJSON
-namespace nl = nlohmann;
-#endif
-namespace rj = rapidjson;
-
-using unsafe_heap = dart::basic_heap<dart::unsafe_ptr>;
-using unsafe_buffer = dart::basic_buffer<dart::unsafe_ptr>;
-using unsafe_packet = dart::basic_packet<dart::unsafe_ptr>;
-
-#ifdef DART_HAS_YAJL
-struct yajl_owner {
-  yajl_owner() = default;
-  yajl_owner(yajl_val val) noexcept : val(val) {}
-  yajl_owner(yajl_owner const&) = delete;
-  yajl_owner(yajl_owner&& other) noexcept : val(other.val) {
-    other.val = nullptr;
+        // Need to call differently depending on if we're already
+        // in the process of building an object
+        if (currkey) fbb.Vector(currkey, work);
+        else fbb.Vector(work);
+      }
+      break;
+    case unsafe_buffer::type::string:
+      fbb.String(pkt.str());
+      break;
+    case unsafe_buffer::type::integer:
+      fbb.Int(pkt.integer());
+      break;
+    case unsafe_buffer::type::decimal:
+      fbb.Float(pkt.decimal());
+      break;
+    case unsafe_buffer::type::boolean:
+      fbb.Bool(pkt.boolean());
+      break;
+    default:
+      fbb.Null();
+      break;
   }
-  ~yajl_owner() {
-    if (val) yajl_tree_free(val);
-  }
-
-  yajl_owner& operator =(yajl_owner const&) = delete;
-  yajl_owner& operator =(yajl_owner&& other) noexcept {
-    if (this == &other) return *this;
-    this->~yajl_owner();
-    new(this) yajl_owner(std::move(other));
-    return *this;
-  }
-  yajl_owner& operator =(yajl_val other) noexcept {
-    this->~yajl_owner();
-    new(this) yajl_owner(other);
-    return *this;
-  }
-
-  yajl_val val;
-};
+}
 #endif
-
-#ifdef DART_HAS_JANSSON
-struct jansson_owner {
-  jansson_owner() = default;
-  jansson_owner(json_t* val) : val(val) {}
-  jansson_owner(jansson_owner const&) = delete;
-  jansson_owner(jansson_owner&& other) noexcept : val(other.val) {
-    other.val = nullptr;
-  }
-  ~jansson_owner() {
-    if (val) json_decref(val);
-  }
-
-  jansson_owner& operator =(jansson_owner const&) = delete;
-  jansson_owner& operator =(jansson_owner&& other) noexcept {
-    if (this == &other) return *this;
-    this->~jansson_owner();
-    new(this) jansson_owner(std::move(other));
-    return *this;
-  }
-  jansson_owner& operator =(json_t* other) noexcept {
-    this->~jansson_owner();
-    new(this) jansson_owner(other);
-    return *this;
-  }
-
-  json_t* val;
-};
-#endif
-
-struct benchmark_helper : benchmark::Fixture {
-
-  /*----- Test Construction/Destruction Functions -----*/
-
-  void SetUp(benchmark::State const&) override;
-  void TearDown(benchmark::State const&) override {}
-
-  /*----- Helpers -----*/
-
-  std::vector<std::string> load_input(dart::shim::string_view path) const;
-  std::vector<unsafe_buffer> parse_input_dart(gsl::span<std::string const> packets) const;
-  std::vector<rj::Document> parse_input_rj(gsl::span<std::string const> packets) const;
-#ifdef DART_USE_SAJSON
-  std::vector<sajson::document> parse_input_sajson(gsl::span<std::string const> packets) const;
-#endif
-#ifdef DART_HAS_NLJSON
-  std::vector<nl::json> parse_input_nljson(gsl::span<std::string const> packets) const;
-#endif
-#ifdef DART_HAS_YAJL
-  std::vector<yajl_owner> parse_input_yajl(gsl::span<std::string const> packets) const;
-#endif
-#ifdef DART_HAS_JANSSON
-  std::vector<jansson_owner> parse_input_jansson(gsl::span<std::string const> packets) const;
-#endif
-  std::vector<std::vector<std::string>> discover_keys(gsl::span<unsafe_buffer const> packets) const;
-
-  /*----- Members -----*/
-
-  std::vector<std::string> input;
-  std::vector<unsafe_buffer> parsed_dart;
-  std::vector<rj::Document> parsed_rj;
-#ifdef DART_USE_SAJSON
-  std::vector<sajson::document> parsed_sajson;
-#endif
-#ifdef DART_HAS_NLJSON
-  std::vector<nl::json> parsed_nljson;
-#endif
-#ifdef DART_HAS_YAJL
-  std::vector<yajl_owner> parsed_yajl;
-#endif
-#ifdef DART_HAS_JANSSON
-  std::vector<jansson_owner> parsed_jansson;
-#endif
-  std::vector<std::vector<std::string>> keys;
-
-  benchmark::Counter rate_counter;
-
-};
 
 /*----- Benchmark Definitions -----*/
 
@@ -318,9 +382,9 @@ BENCHMARK_F(benchmark_helper, dart_nontrivial_json_key_lookups) (benchmark::Stat
 BENCHMARK_F(benchmark_helper, dart_nontrivial_json_finalizing) (benchmark::State& state) {
   int64_t bytes = 0;
   for (auto _ : state) {
-    for (auto const& pkt : input) {
-      auto parsed = unsafe_buffer::from_json(pkt);
-      auto buf = parsed.get_bytes();
+    for (auto const& pkt : mutable_dart) {
+      auto finalized = pkt.lower();
+      auto buf = finalized.get_bytes();
       benchmark::DoNotOptimize(buf.data());
       rate_counter++;
       bytes += buf.size();
@@ -330,6 +394,27 @@ BENCHMARK_F(benchmark_helper, dart_nontrivial_json_finalizing) (benchmark::State
   state.SetBytesProcessed(bytes);
   state.counters["parsed packets"] = rate_counter;
 }
+
+#if DART_HAS_FLEXBUFFERS
+BENCHMARK_F(benchmark_helper, flexbuffer_nontrivial_json_finalizing) (benchmark::State& state) {
+  int64_t bytes = 0;
+  for (auto _ : state) {
+    for (auto const& pkt : parsed_dart) {
+      // Lay out the flexbuffer
+      flexbuffers::Builder fbb;
+      convert_dart_to_fb(pkt, fbb);
+
+      // Finish it.
+      fbb.Finish();
+      rate_counter++;
+      bytes += fbb.GetBuffer().size();
+    }
+  }
+
+  state.SetBytesProcessed(bytes);
+  state.counters["parsed packets"] = rate_counter;
+}
+#endif
 
 BENCHMARK_F(benchmark_helper, rapidjson_nontrivial_insitu_json_test) (benchmark::State& state) {
   auto chunk = input.size();
@@ -566,6 +651,7 @@ BENCHMARK_MAIN();
 void benchmark_helper::SetUp(benchmark::State const&) {
   input = load_input(json_input);
   parsed_dart = parse_input_dart(input);
+  mutable_dart = parse_mutable_dart(input);
   parsed_rj = parse_input_rj(input);
 #ifdef DART_USE_SAJSON
   parsed_sajson = parse_input_sajson(input);
@@ -596,6 +682,14 @@ std::vector<unsafe_buffer> benchmark_helper::parse_input_dart(gsl::span<std::str
   std::vector<unsafe_buffer> parsed(packets.size());
   std::transform(packets.begin(), packets.end(), parsed.begin(), [] (auto& pkt) {
     return unsafe_buffer::from_json(pkt);
+  });
+  return parsed;
+}
+
+std::vector<unsafe_heap> benchmark_helper::parse_mutable_dart(gsl::span<std::string const> packets) const {
+  std::vector<unsafe_heap> parsed(packets.size());
+  std::transform(packets.begin(), packets.end(), parsed.begin(), [] (auto& pkt) {
+    return unsafe_heap::from_json(pkt);
   });
   return parsed;
 }

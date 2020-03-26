@@ -1172,16 +1172,16 @@ namespace dart {
 
   inline namespace literals {
 
-    inline packet operator ""_dart(char const* val, size_t len) {
-      return packet::make_string({val, len});
+    inline string operator ""_dart(char const* val, size_t len) {
+      return string {shim::string_view {val, len}};
     }
 
-    inline packet operator ""_dart(unsigned long long val) {
-      return packet::make_integer(val);
+    inline number operator ""_dart(unsigned long long val) {
+      return number {val};
     }
 
-    inline packet operator ""_dart(long double val) {
-      return packet::make_decimal(val);
+    inline number operator ""_dart(long double val) {
+      return number {val};
     }
 
   }

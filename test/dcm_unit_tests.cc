@@ -54,7 +54,7 @@ SCENARIO("decimals can supply a default value", "[decimal unit]") {
       }
 
       DYNAMIC_WHEN("retrieving a decimal", idx) {
-        opt = dart::conversion_helper<pkt>(2.99792_dart);
+        opt = dart::conversion_helper<pkt>(dart::packet::make_decimal(2.99792));
         DYNAMIC_THEN("it returns the real value", idx) {
           REQUIRE(opt.decimal_or(3.14159) == 2.99792);
         }

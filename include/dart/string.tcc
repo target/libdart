@@ -25,6 +25,12 @@ namespace dart {
   }
 
   template <class String>
+  char basic_string<String>::operator [](size_type idx) const noexcept {
+    if (idx >= size()) return '\0';
+    else return str()[idx];
+  }
+
+  template <class String>
   char const* basic_string<String>::str() const noexcept {
     return val.str();
   }
@@ -52,6 +58,50 @@ namespace dart {
       std::copy_n(str, len, data());
       data()[len] = '\0';
     }
+
+// Unfortunately some versions of GCC and MSVC aren't smart enough to figure
+// out that if this function is declared noexcept the throwing cases are dead code
+#if DART_USING_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wterminate"
+#elif DART_USING_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4297)
+#endif
+
+    template <class SizeType>
+    template <bool silent>
+    bool basic_string<SizeType>::is_valid(size_t bytes) const noexcept(silent) {
+      // Check if we even have enough space left for the string header
+      if (bytes < header_len) {
+        if (silent) return false;
+        else throw validation_error("Serialized string is truncated");
+      }
+
+      // We now know it's safe to access the string length, but it could still be garbage,
+      // so check if the string claims to be larger than the total buffer.
+      auto total_size = get_sizeof();
+      if (total_size > bytes) {
+        if (silent) return false;
+        else throw validation_error("Serialized string length is out of bounds");
+      }
+
+      // We now know that the total string is within bounds, but it could still be garbage,
+      // so, since we can't generically calculate if the string contents are "correct",
+      // use the existence of the null terminator as a proxy for lack of corruption.
+      if (data()[size()] != '\0') {
+        if (silent) return false;
+        else throw validation_error("Serialized string is corrupted, internal consistency checks failed");
+      }
+      return true;
+    }
+
+#if DART_USING_GCC
+#pragma GCC diagnostic pop
+#elif DART_USING_MSVC
+#pragma warning(pop)
+#endif
 
     template <class SizeType>
     size_t basic_string<SizeType>::size() const noexcept {

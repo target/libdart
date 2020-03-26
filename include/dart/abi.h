@@ -7914,6 +7914,24 @@ extern "C" {
 
   /**
    *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  DART_ABI_EXPORT int dart_buffer_is_valid(void const* bytes, size_t len);
+
+  /**
+   *  @brief
    *  Function default-initializes a Dart iterator.
    *
    *  @remarks

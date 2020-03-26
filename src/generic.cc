@@ -1586,6 +1586,10 @@ extern "C" {
     return dart_take_bytes_rc_err_impl(dst, rc, bytes);
   }
 
+  int dart_buffer_is_valid(void const* bytes, size_t len) {
+    return dart::is_valid(reinterpret_cast<gsl::byte const*>(bytes), len);
+  }
+
   dart_err_t dart_iterator_init_err(dart_iterator_t* dst) {
     // Initialize.
     dst->rtti.p_id = DART_PACKET;

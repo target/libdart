@@ -55,7 +55,7 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 
 // Version macros for conditional compilation/feature checks.
 #define DART_MAJOR_VERSION          1
-#define DART_MINOR_VERSION          1
+#define DART_MINOR_VERSION          2
 #define DART_PATCH_VERSION          0
 
 /*----- Type Declarations -----*/
@@ -3581,6 +3581,16 @@ namespace dart {
 
       /**
        *  @brief
+       *  Subscript operator.
+       *
+       *  @details
+       *  Returns the character at the given index.
+       *  Operator returns a temporary character, and does not allow writes
+       */
+      char operator [](size_type idx) const noexcept;
+
+      /**
+       *  @brief
        *  Dereference operator.
        *
        *  @details
@@ -6924,6 +6934,31 @@ namespace dart {
         >
       >
       static basic_heap from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_heap parse(shim::string_view json);
 #elif DART_HAS_RAPIDJSON
       /**
        *  @brief
@@ -6949,6 +6984,31 @@ namespace dart {
         >
       >
       static basic_heap from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned flags = parse_default,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_heap parse(shim::string_view json);
 #endif
 
 #if DART_HAS_RAPIDJSON
@@ -9180,6 +9240,31 @@ namespace dart {
         >
       >
       static basic_buffer from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_buffer parse(shim::string_view json);
 #elif DART_HAS_RAPIDJSON
       /**
        *  @brief
@@ -9205,6 +9290,31 @@ namespace dart {
         >
       >
       static basic_buffer from_json(shim::string_view json);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::buffer::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::buffer::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::buffer::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::buffer::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned flags = parse_default,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_buffer parse(shim::string_view json);
 #endif
 
 #if DART_HAS_RAPIDJSON
@@ -12286,6 +12396,31 @@ namespace dart {
         >
       >
       static basic_packet from_json(shim::string_view json, bool finalized = true);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::heap::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::heap::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::heap::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::heap::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned parse_stack_size = default_parse_stack_size,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_packet parse(shim::string_view json, bool finalized = true);
 #elif DART_HAS_RAPIDJSON
       /**
        *  @brief
@@ -12311,6 +12446,31 @@ namespace dart {
         >
       >
       static basic_packet from_json(shim::string_view json, bool finalize = false);
+
+      /**
+       *  @brief
+       *  Function constructs an optionally finalized packet to represent the given JSON string.
+       *
+       *  @details
+       *  Parsing is based on RapidJSON, and so exposes the same parsing customization points as
+       *  RapidJSON.
+       *  If your JSON has embedded comments in it, NaN or +/-Infinity values, or trailing commas,
+       *  you can parse in the following ways:
+       *  ```
+       *  auto json = input.read();
+       *  auto comments = dart::packet::from_json<dart::parse_comments>(json);
+       *  auto nan_inf = dart::packet::from_json<dart::parse_nan>(json);
+       *  auto commas = dart::packet::from_json<dart::parse_trailing_commas>(json);
+       *  auto all_of_it = dart::packet::from_json<dart::parse_permissive>(json);
+       *  ```
+       */
+      template <unsigned flags = parse_default,
+               bool enabled = refcount::is_owner<RefCount>::value, class EnableIf =
+        std::enable_if_t<
+          enabled
+        >
+      >
+      static basic_packet parse(shim::string_view json, bool finalize = false);
 #endif
 
 #if DART_HAS_RAPIDJSON
@@ -13730,13 +13890,315 @@ namespace dart {
 
   inline namespace literals {
 
-    inline packet operator ""_dart(char const* val, size_t len);
-    inline packet operator ""_dart(unsigned long long val);
-    inline packet operator ""_dart(long double val);
+    inline string operator ""_dart(char const* val, size_t len);
+    inline number operator ""_dart(unsigned long long val);
+    inline number operator ""_dart(long double val);
 
   }
 
   /*----- Global Free Functions -----*/
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline bool is_valid(gsl::span<gsl::byte const> buffer) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.data()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, buffer.size());
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline bool is_valid(gsl::byte const* buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte, Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte[], Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte const, Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  bool is_valid(std::unique_ptr<gsl::byte const[], Del> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline bool is_valid(std::shared_ptr<gsl::byte const> const& buffer, size_t len) noexcept {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    return detail::valid_buffer<true, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline void validate(gsl::span<gsl::byte const> buffer) {
+    detail::raw_element raw {detail::raw_type::object, buffer.data()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, buffer.size());
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline void validate(gsl::byte const* buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte, Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte[], Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte const, Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  template <class Del>
+  void validate(std::unique_ptr<gsl::byte const[], Del> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
+
+  /**
+   *  @brief
+   *  Function provides a way to check if an arbitrary buffer of bytes
+   *  can be successfully interpreted as a Dart buffer.
+   *
+   *  @details
+   *  Function validates whether the given network buffer is well formed.
+   *  If the function returns true it does NOT mean that the given buffer
+   *  definitely wasn't corrupted in any way, just that the whole buffer
+   *  is safely traversable, all necessary invariants hold, and it can be
+   *  used without worry of undefined behavior.
+   *
+   *  @remarks
+   *  Function is largely intended to be used when the buffer in question
+   *  came from an untrusted source.
+   */
+  inline void validate(std::shared_ptr<gsl::byte const> const& buffer, size_t len) {
+    detail::raw_element raw {detail::raw_type::object, buffer.get()};
+    detail::valid_buffer<false, std::shared_ptr>(raw, len);
+  }
 
 #ifdef DART_USE_SAJSON
   /**

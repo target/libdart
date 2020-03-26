@@ -2254,6 +2254,39 @@ SCENARIO("finalized objects with unsafe refcounting have unique object represent
   }
 }
 
+SCENARIO("finalized objects can be checked for validity", "[generic abi unit]") {
+  GIVEN("a finalized object with some contents") {
+    constexpr auto custom_len = 1024;
+
+    auto obj = dart_obj_init_va("sass,oidb,sidbn",
+        "hello", "world", "arr", "one", "two",
+        "obj", "nest_int", 1337, "nest_dcm", 3.14159, "nest_bool", true,
+        "yes", "no", "int", 1337, "dcm", 3.14159, "bool", true, "none");
+    auto fin = dart_finalize(&obj);
+    auto guard = make_scope_guard([&] {
+      dart_destroy(&fin);
+      dart_destroy(&obj);
+    });
+
+    WHEN("we grab access to the underlying network buffer") {
+      size_t len;
+      void const* buff = dart_get_bytes(&fin, &len);
+      THEN("it validates successfully") {
+        REQUIRE(dart_buffer_is_valid(buff, len));
+      }
+    }
+
+    WHEN("we create our own buffer") {
+      void* buff = malloc(custom_len);
+      auto guard = make_scope_guard([&] { free(buff); });
+      std::memset(buff, 0, custom_len);
+      THEN("it fails to validate") {
+        REQUIRE(!dart_buffer_is_valid(buff, custom_len));
+      }
+    }
+  }
+}
+
 SCENARIO("arrays can be constructed with many values", "[generic abi unit]") {
   GIVEN("many test cases to run") {
     WHEN("an array is constructed with many values") {
