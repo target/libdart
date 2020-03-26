@@ -508,6 +508,116 @@ namespace dart {
       bytes = static_cast<uint32_t>(offset);
     }
 
+// Unfortunately some versions of GCC and MSVC aren't smart enough to figure
+// out that if this function is declared noexcept the throwing cases are dead code
+#if DART_USING_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wterminate"
+#elif DART_USING_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4297)
+#endif
+
+    template <template <class> class RefCount>
+    template <bool silent>
+    bool object<RefCount>::is_valid(size_t bytes) const noexcept(silent) {
+      // Check if we even have enough space left for the object header.
+      if (bytes < header_len) {
+        if (silent) return false;
+        else throw validation_error("Serialized object is truncated");
+      }
+
+      // We now know it's safe to access the object length, but it still could be garbage,
+      // so check if the object claims to be larger than our total buffer.
+      // After this check, all other length checks will use the length reported by the object
+      // itself to validate internal consistency
+      // Signed comparison warnings are the actual worst
+      auto total_size = static_cast<std::ptrdiff_t>(get_sizeof());
+      if (total_size > static_cast<ssize_t>(bytes)) {
+        if (silent) return false;
+        else throw validation_error("Serialized object length is out of bounds");
+      }
+
+      // The object reports a reasonable total length,
+      // so now check if the vtable is within bounds.
+      auto* vtable_end = raw_vtable() + (size() * sizeof(object_entry));
+      if (vtable_end - DART_FROM_THIS > total_size) {
+        if (silent) return false;
+        else throw validation_error("Serialized object vtable length is out of bounds");
+      }
+
+      // We now know that the vtable is fully within bounds, but it could still be full of crap
+      // Check that every element in the vtable has a valid type
+      for (size_t i = 0; i < size(); ++i) {
+        if (!valid_type(vtable()[i].get_type())) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value is of no known type");
+        }
+      }
+
+      // We now know the entire vtable is within bounds,
+      // so iterate over it and check all contained children.
+      void const* prev = this;
+      auto key_it = key_begin(), val_it = begin();
+      while (val_it != end()) {
+        // We know the whole vtable is within bounds, but it could still specify offsets that aren't,
+        // so load the base address of the key and verify that it's within bounds
+        // We compare against the size of the object here as we already know it's within bounds
+        auto raw_key = *key_it;
+        auto key_offset = raw_key.buffer - DART_FROM_THIS;
+        if (key_offset > total_size) {
+          // Key offset is out of bounds
+          if (silent) return false;
+          else throw validation_error("Serialized object key offset is out of bounds");
+        } else if (raw_key.buffer <= prev) {
+          if (silent) return false;
+          else throw validation_error("Serialized object key contained a negative or cyclic offset");
+        } else if (align_pointer<RefCount>(raw_key.buffer, raw_key.type) != raw_key.buffer) {
+          if (silent) return false;
+          else throw validation_error("Serialized object key offset does not meet alignment requirements");
+        }
+        prev = raw_key.buffer;
+
+        // We now know that at least up to the base of the key is within bounds, so recurse on the key.
+        // If the buffer validation routine returns false, it means we're not throwing errors.
+        // It would be unsafe to dereference the value iterator at this point, because doing so
+        // loads offset information from the key, and we haven't check if it's safe yet.
+        auto valid_key = valid_buffer<silent, RefCount>(raw_key, total_size - key_offset);
+        if (!valid_key) return false;
+
+        // Now we can dereference the value iterator since we know the key appears reasonable.
+        // Load the base address of the value and verify that it's within bounds.
+        auto raw_val = *val_it;
+        auto val_offset = raw_val.buffer - DART_FROM_THIS;
+        if (val_offset > total_size) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value offset is out of bounds");
+        } else if (raw_val.buffer <= prev) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value contained a negative or cyclic offset");
+        } else if (align_pointer<RefCount>(raw_val.buffer, raw_val.type) != raw_val.buffer) {
+          if (silent) return false;
+          else throw validation_error("Serialized object value offset does not meet alignment requirements");
+        }
+        prev = raw_val.buffer;
+
+        // We now know that at least up to the base of the value is within bounds, so recurse on the value.
+        auto valid_val = valid_buffer<silent, RefCount>(raw_val, total_size - val_offset);
+        if (!valid_val) return false;
+
+        // Check the next pair.
+        ++key_it, ++val_it;
+      }
+      return true;
+    }
+
+#if DART_USING_GCC
+#pragma GCC diagnostic pop
+#elif DART_USING_MSVC
+#pragma warning(pop)
+#endif
+
     template <template <class> class RefCount>
     size_t object<RefCount>::size() const noexcept {
       return elems;
@@ -691,6 +801,16 @@ namespace dart {
     object_entry const* object<RefCount>::vtable() const noexcept {
       auto* base = DART_FROM_THIS + sizeof(bytes) + sizeof(elems);
       return shim::launder(reinterpret_cast<object_entry const*>(base));
+    }
+
+    template <template <class> class RefCount>
+    gsl::byte* object<RefCount>::raw_vtable() noexcept {
+      return DART_FROM_THIS_MUT + sizeof(bytes) + sizeof(elems);
+    }
+
+    template <template <class> class RefCount>
+    gsl::byte const* object<RefCount>::raw_vtable() const noexcept {
+      return DART_FROM_THIS + sizeof(bytes) + sizeof(elems);
     }
 
   }

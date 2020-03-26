@@ -79,7 +79,7 @@ SCENARIO("strings can supply a default value", "[string unit]") {
       }
 
       DYNAMIC_WHEN("retrieving a string", idx) {
-        auto new_opt = dart::conversion_helper<pkt>("goodbye"_dart);
+        auto new_opt = dart::conversion_helper<pkt>(dart::packet::make_string("goodbye"));
         DYNAMIC_THEN("it returns the real value", idx) {
           REQUIRE(new_opt.strv_or("hello") == "goodbye");
           REQUIRE_FALSE(strcmp(new_opt.str_or("hello"), "goodbye"));
@@ -160,7 +160,7 @@ SCENARIO("naked strings cannot be finalized", "[string unit]") {
   GIVEN("a string") {
     dart::mutable_api_test([] (auto tag, auto idx) {
       using pkt = typename decltype(tag)::type;
-      auto str = dart::conversion_helper<pkt>("hello world!"_dart);
+      auto str = dart::conversion_helper<pkt>(dart::packet::make_string("hello world!"));
       DYNAMIC_WHEN("the string is finalized directly", idx) {
         DYNAMIC_THEN("it refuses", idx) {
           REQUIRE_THROWS_AS(str.finalize(), std::logic_error);

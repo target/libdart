@@ -38,6 +38,7 @@ endif (libyaml)
 # Link against flatbuffers if we have it
 if (libflatbuffers)
   target_compile_options(static_bench PUBLIC -DDART_HAS_FLEXBUFFERS)
+  target_compile_options(configurable_bench PUBLIC -DDART_HAS_FLEXBUFFERS)
 endif ()
 
 # Handle YAJL

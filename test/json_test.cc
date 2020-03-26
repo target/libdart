@@ -47,7 +47,8 @@ auto make_scope_guard(Func&& cb) {
 }
 
 #if DART_HAS_RAPIDJSON
-void compare_rj_dart(rj::Value const& obj, dart::packet const& pkt);
+template <class Packet>
+void compare_rj_dart(rj::Value const& obj, typename Packet::view pkt);
 template <class AbiType>
 void compare_rj_dart_abi(rj::Value const& obj, AbiType const* pkt);
 void compare_rj_rj(rj::Value const& obj, rj::Value const& dup);
@@ -73,24 +74,57 @@ TEST_CASE("dart::packet parses JSON via RapidJSON", "[json unit]") {
   for (size_t index = 0; index < parsed.size(); ++index) {
     // Construct the packet.
     auto& packet = parsed[index];
-    auto pkt = dart::parse(packets[index], true);
+    auto pktone = dart::packet::from_json(packets[index], false);
+    auto pkttwo = dart::packet::parse(packets[index], true);
+    auto pktthree = dart::heap::from_json(packets[index]);
+    auto pktfour = dart::heap::parse(packets[index]);
+    auto pktfive = dart::buffer::from_json(packets[index]);
+    auto pktsix = dart::buffer::parse(packets[index]);
 
     // Validate against the reference.
-    compare_rj_dart(packet, pkt);
+    // Function is generic, but declares ones of its parameters
+    // as a dependent name, and is therefore non-deducible
+    // Ugly, but a simple way to increase coverage
+    compare_rj_dart<decltype(pktone)>(packet, pktone);
+    compare_rj_dart<decltype(pkttwo)>(packet, pkttwo);
+    compare_rj_dart<decltype(pktthree)>(packet, pktthree);
+    compare_rj_dart<decltype(pktfour)>(packet, pktfour);
+    compare_rj_dart<decltype(pktfive)>(packet, pktfive);
+    compare_rj_dart<decltype(pktsix)>(packet, pktsix);
 
     // Validate the underlying buffer.
-    dart::packet dup(pkt.dup_bytes());
-    compare_rj_dart(packet, dup);
+    dart::packet duptwo(pkttwo.dup_bytes());
+    dart::buffer dupfive(pktfive.dup_bytes());
+    dart::buffer dupsix(pktsix.dup_bytes());
+    compare_rj_dart<decltype(duptwo)>(packet, duptwo);
+    compare_rj_dart<decltype(dupfive)>(packet, dupfive);
+    compare_rj_dart<decltype(dupsix)>(packet, dupsix);
 
     // Generate JSON, reparse it, and validate it's still the same.
-    rj::Document rj_dup;
-    auto json = pkt.to_json();
-    rj_dup.Parse(json.data());
-    compare_rj_rj(packet, rj_dup);
+    rj::Document rj_dupone, rj_duptwo, rj_dupthree, rj_dupfour, rj_dupfive, rj_dupsix;
+    auto jsonone = pktone.to_json();
+    auto jsontwo = pkttwo.to_json();
+    auto jsonthree = pktthree.to_json();
+    auto jsonfour = pktfour.to_json();
+    auto jsonfive = pktfive.to_json();
+    auto jsonsix = pktsix.to_json();
+    rj_dupone.Parse(jsonone.data());
+    rj_duptwo.Parse(jsontwo.data());
+    rj_dupthree.Parse(jsonthree.data());
+    rj_dupfour.Parse(jsonfour.data());
+    rj_dupfive.Parse(jsonfive.data());
+    rj_dupsix.Parse(jsonsix.data());
+    compare_rj_rj(packet, rj_dupone);
+    compare_rj_rj(packet, rj_duptwo);
+    compare_rj_rj(packet, rj_dupthree);
+    compare_rj_rj(packet, rj_dupfour);
+    compare_rj_rj(packet, rj_dupfive);
+    compare_rj_rj(packet, rj_dupsix);
   }
 }
 
-void compare_rj_dart(rj::Value const& obj, dart::packet const& pkt) {
+template <class Packet>
+void compare_rj_dart(rj::Value const& obj, typename Packet::view pkt) {
   switch (obj.GetType()) {
     case rj::kObjectType:
       {
@@ -107,7 +141,7 @@ void compare_rj_dart(rj::Value const& obj, dart::packet const& pkt) {
           REQUIRE(pkt.has_key(member.name.GetString()));
 
           // Recursively check the value.
-          compare_rj_dart(member.value, pkt[member.name.GetString()]);
+          compare_rj_dart<Packet>(member.value, pkt[member.name.GetString()]);
         }
         break;
       }
@@ -123,7 +157,7 @@ void compare_rj_dart(rj::Value const& obj, dart::packet const& pkt) {
         // Iterate over the values and recursively check each one.
         for (size_t index = 0; index < obj.Size(); ++index) {
           // Run the check.
-          compare_rj_dart(rj_arr[static_cast<rj::SizeType>(index)], pkt[index]);
+          compare_rj_dart<Packet>(rj_arr[static_cast<rj::SizeType>(index)], pkt[index]);
         }
         break;
       }

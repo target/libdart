@@ -65,6 +65,20 @@ install:
 matrix:
   include:
     - env:
+        VERSION: 7
+        FUZZ: true
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-xenial-7
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - clang-7
+            - g++-7
+    - env:
         VERSION: 5
         USE_GSL_LITE: true
       os: linux
@@ -215,26 +229,38 @@ matrix:
       env:
         USE_GSL_LITE: true
         IS_SLOW_AS_MOLASSES: true
+    - os: osx
+      compiler: clang
+      osx_image: xcode11.3
+      env:
+        IS_SLOW_AS_MOLASSES: true
 
 # Build and run.
 script:
-  - mkdir build
-  - cd build
-  - while true; do sleep 60; echo 'still here!'; done &
-  - KEEPALIVE_PID=$!
   - |
-    if [ "${IS_SLOW_AS_MOLASSES}" = "true" ]; then
-      cmake .. -Dbenchmark=ON -Duse_sajson=ON -Dbuild_abi=ON -Duse_asan=ON
+    if [ "${FUZZ}" = "true" ]; then
+      cd test
+      clang++ -std=c++14 -g -O3 -fsanitize=fuzzer,address -o fuzz fuzz_tests.cc
+      mkdir discoveries
+      timeout --preserve-status 600 ./fuzz fuzzer_input discoveries
     else
-      cmake .. -Dbenchmark=ON -Duse_sajson=ON -Dextended_test=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
+      mkdir build
+      cd build
+      while true; do sleep 60; echo 'still here!'; done &
+      KEEPALIVE_PID=$!
+      if [ "${IS_SLOW_AS_MOLASSES}" = "true" ]; then
+        cmake .. -Dbenchmark=ON -Duse_sajson=ON -Dbuild_abi=ON -Duse_asan=ON
+      else
+        cmake .. -Dbenchmark=ON -Duse_sajson=ON -Dextended_test=ON -Dbuild_abi=ON -Dgen_coverage=ON -Duse_asan=ON
+      fi
+      make VERBOSE=1
+      kill -9 $KEEPALIVE_PID
+      ctest --output-on-failure
     fi
-  - make VERBOSE=1
-  - kill -9 $KEEPALIVE_PID
-  - ctest --output-on-failure
-  - cd ..
 
 after_success:
   - |
+    cd ..
     if [ "${TRAVIS_OS_NAME}" = "linux" ] && [ "${GEN_COVERAGE}" = "true" ]; then
       coveralls --gcov gcov-7 -r . -b build/ -i include/ -i src/ -E '.*(catch|variant).*' --gcov-options '\-lp'
     fi

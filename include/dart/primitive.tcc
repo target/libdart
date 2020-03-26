@@ -107,6 +107,35 @@ namespace dart {
 
   namespace detail {
 
+// Unfortunately some versions of GCC and MSVC aren't smart enough to figure
+// out that if this function is declared noexcept the throwing cases are dead code
+#if DART_USING_GCC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wterminate"
+#elif DART_USING_MSVC
+#pragma warning(push)
+#pragma warning(disable: 4297)
+#endif
+
+    template <class T>
+    template <bool silent>
+    bool primitive<T>::is_valid(size_t bytes) const noexcept(silent) {
+      // With a primitive value, there's only the header, so check to ensure
+      // it's within bounds
+      if (bytes < header_len) {
+        if (silent) return false;
+        else throw validation_error("Serialized primitive value is truncated");
+      }
+      return true;
+    }
+
+#if DART_USING_GCC
+#pragma GCC diagnostic pop
+#elif DART_USING_MSVC
+#pragma warning(pop)
+#endif
+
     template <class T>
     size_t primitive<T>::get_sizeof() const noexcept {
       return sizeof(T);

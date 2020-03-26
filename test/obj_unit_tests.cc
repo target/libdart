@@ -188,6 +188,80 @@ SCENARIO("finalized objects can be deep copied", "[object unit]") {
   }
 }
 
+SCENARIO("finalized objects can be validated", "[object unit]") {
+  GIVEN("a finalized object with some contents") {
+    dart::finalized_api_test([] (auto tag, auto idx) {
+      using pkt = typename decltype(tag)::type;
+      constexpr auto custom_len = 1024;
+
+      auto obj = pkt::make_object("hello", "world!").finalize();
+      DYNAMIC_WHEN("we grab access to the underlying network buffer", idx) {
+        size_t len;
+        auto buf = obj.get_bytes();
+        auto dup = obj.dup_bytes(len);
+
+        std::shared_ptr<gsl::byte const> ptr {
+          obj.dup_bytes().release(),
+          [] (auto* ptr) { dart::shim::aligned_free(const_cast<gsl::byte*>(ptr)); }
+        };
+        DYNAMIC_THEN("it validates successfully", idx) {
+          REQUIRE(dart::is_valid(buf));
+          REQUIRE(dart::is_valid(buf.data(), buf.size()));
+          REQUIRE(dart::is_valid(dup, len));
+          REQUIRE(dart::is_valid(ptr, buf.size()));
+          REQUIRE_NOTHROW(dart::validate(buf));
+          REQUIRE_NOTHROW(dart::validate(buf.data(), buf.size()));
+          REQUIRE_NOTHROW(dart::validate(dup, len));
+          REQUIRE_NOTHROW(dart::validate(ptr, buf.size()));
+        }
+
+        DYNAMIC_WHEN("we corrupt the buffer", idx) {
+          // This isn't great, but it's the easiest way to check what happens
+          // if the buffer is corrupted and a string becomes unterminated.
+          // The underlying buffer isn't ACTUALLY const, const is added to
+          // the type when returned, so I'm going to let it slide.
+          // All of the ridiculous reinterpret business is necessary because
+          // gsl_lite declares gsl::byte to be a struct instead of an enum
+          auto curr = len - 1;
+          char replacement = '!';
+          while (*reinterpret_cast<char const*>(&dup[curr]) != '!') --curr;
+          const_cast<gsl::byte&>(dup[curr + 1]) = *reinterpret_cast<gsl::byte*>(&replacement);
+
+          DYNAMIC_THEN("it fails to validate", idx) {
+            REQUIRE(!dart::is_valid(dup.get(), len));
+            REQUIRE_THROWS_AS(dart::validate(dup.get(), len), dart::validation_error);
+          }
+        }
+
+        DYNAMIC_WHEN("we truncate the buffer", idx) {
+          auto curr = len;
+          while (--curr != 0) {
+            DYNAMIC_THEN("it fails to validate", idx) {
+              REQUIRE(!dart::is_valid(dup.get(), curr));
+              REQUIRE_THROWS_AS(dart::validate(dup.get(), curr), dart::validation_error);
+            }
+          }
+        }
+      }
+
+      DYNAMIC_WHEN("we create our own buffer", idx) {
+        auto buf = std::make_unique<gsl::byte const[]>(custom_len);
+        std::shared_ptr<gsl::byte const> dup(new gsl::byte[custom_len](), [] (auto* ptr) { delete[] ptr; });
+        DYNAMIC_THEN("it fails to validate", idx) {
+          REQUIRE(!dart::is_valid(gsl::make_span(buf.get(), custom_len)));
+          REQUIRE(!dart::is_valid(buf.get(), custom_len));
+          REQUIRE(!dart::is_valid(buf, custom_len));
+          REQUIRE(!dart::is_valid(dup, custom_len));
+          REQUIRE_THROWS_AS(dart::validate(gsl::make_span(buf.get(), custom_len)), dart::validation_error);
+          REQUIRE_THROWS_AS(dart::validate(buf.get(), custom_len), dart::validation_error);
+          REQUIRE_THROWS_AS(dart::validate(buf, custom_len), dart::validation_error);
+          REQUIRE_THROWS_AS(dart::validate(dup, custom_len), dart::validation_error);
+        }
+      }
+    });
+  }
+}
+
 SCENARIO("aliased objects lazily copy data when mutated", "[object unit]") {
   GIVEN("an object") {
     dart::mutable_api_test([] (auto tag, auto idx) {
@@ -928,7 +1002,7 @@ SCENARIO("objects can optionally access non-existent keys with a fallback", "[ob
 
       auto obj = pkt::make_object();
       DYNAMIC_WHEN("we attempt to optionally access a non-existent key", idx) {
-        auto key = dart::conversion_helper<pkt>("nope"_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_string("nope"));
         auto opt_one = obj.get_or("nope", 1);
         auto opt_two = obj.get_or(key, 1.0);
         auto opt_three = obj.get_or("nope", "not here");
@@ -945,7 +1019,7 @@ SCENARIO("objects can optionally access non-existent keys with a fallback", "[ob
       }
 
       DYNAMIC_WHEN("we attempt to optionally access a non-existent key on a temporary", idx) {
-        auto key = dart::conversion_helper<pkt>("double_nope"_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_string("double_nope"));
         auto opt_one = obj["nope"].get_or("double_nope", 1);
         auto opt_two = obj["nope"].get_or(key, 1.0);
         auto opt_three = obj["nope"].get_or("double_nope", "not here");
@@ -963,7 +1037,7 @@ SCENARIO("objects can optionally access non-existent keys with a fallback", "[ob
 
       DYNAMIC_WHEN("the object is finalized", idx) {
         obj.finalize();
-        auto key = dart::conversion_helper<pkt>("nope"_dart);
+        auto key = dart::conversion_helper<pkt>(dart::packet::make_string("nope"));
         auto opt_one = obj.get_or("nope", 1);
         auto opt_two = obj.get_or(key, 1.0);
         auto opt_three = obj.get_or("nope", "not here");

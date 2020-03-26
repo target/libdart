@@ -52,7 +52,7 @@ SCENARIO("integers can supply a default value", "[integer unit]") {
       }
 
       DYNAMIC_WHEN("retrieving an integer", idx) {
-        opt = dart::conversion_helper<pkt>(28008_dart);
+        opt = dart::conversion_helper<pkt>(dart::packet::make_integer(28008));
         DYNAMIC_THEN("it returns the real value", idx) {
           REQUIRE(opt.integer_or(1337) == 28008);
         }
@@ -151,7 +151,7 @@ SCENARIO("naked integers cannot be finalized", "[integer unit]") {
   GIVEN("a integer") {
     dart::mutable_api_test([] (auto tag, auto idx) {
       using pkt = typename decltype(tag)::type;
-      auto integer = dart::conversion_helper<pkt>(1337_dart);
+      auto integer = dart::conversion_helper<pkt>(dart::packet::make_integer(1337));
       DYNAMIC_WHEN("the integer is finalized directly", idx) {
         DYNAMIC_THEN("it refuses", idx) {
           REQUIRE_THROWS_AS(integer.finalize(), std::logic_error);
