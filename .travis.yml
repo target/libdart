@@ -125,6 +125,17 @@ matrix:
           packages:
             - rapidjson-dev
             - g++-8
+    - env:
+        VERSION: 9
+      os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - g++-9
     - env: VERSION=5 ARCH=powerpc-linux
       os: linux
       compiler: gcc
@@ -211,6 +222,19 @@ matrix:
           packages:
             - rapidjson-dev
             - clang-7
+            - g++-7
+    - env:
+        VERSION: 8
+      os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-xenial-7
+            - ubuntu-toolchain-r-test
+          packages:
+            - rapidjson-dev
+            - clang-8
             - g++-7
     - os: osx
       compiler: clang
