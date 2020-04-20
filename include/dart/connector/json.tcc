@@ -143,7 +143,7 @@ namespace dart {
     detail::heap_parser<RefCount> context;
 
     // Parse!
-    rapidjson::StringStream ss(json.data());
+    rapidjson::MemoryStream ss(json.data(), json.size());
     if (reader.Parse<flags>(ss, context)) {
       return context.curr_obj;
     } else {
@@ -152,7 +152,7 @@ namespace dart {
       std::string errmsg = "dart::heap could not parse the given string due to: \"";
       errmsg += rapidjson::GetParseError_En(err);
       errmsg += "\" near  \"";
-      errmsg += std::string {json.substr(off ? off - 1 : off, 10)};
+      errmsg += std::string {json.substr(off ? off - 1 : off, off + 10 < json.size() ? 10 : shim::string_view::npos)};
       errmsg += "\"";
       throw parse_error(errmsg.data());
     }
