@@ -3,7 +3,7 @@ cmake_policy(SET CMP0025 NEW)
 cmake_policy(SET CMP0048 NEW)
 
 # Name the project.
-project(libdart VERSION 1.2.1)
+project(libdart VERSION 1.2.2)
 cmake_minimum_required(VERSION 3.1.0)
 include(CheckIncludeFileCXX)
 
