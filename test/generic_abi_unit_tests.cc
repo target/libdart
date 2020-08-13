@@ -4,10 +4,13 @@
 #pragma warning(disable: 4805)
 #endif
 
-/*----- Local Includes -----*/
+/*----- System Includes -----*/
 
 #include <cstring>
 #include <iostream>
+
+/*----- Local Includes -----*/
+
 #include "../include/dart/abi.h"
 #include "../include/extern/catch.h"
 

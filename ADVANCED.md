@@ -3,6 +3,12 @@
 being its [conversion API](#conversion-api) and [reference counting API](#reference-counting-api),
 which are covered in this document.
 
+Additionally, **Dart** exposes two entirely separate APIs,
+a header-only [C++ API](README.md), and an ABI-stable [C89 API](BINDINGS.md).
+Efficient interoperability between these APIs, within the context of a single
+program, without copies/allocation/additional overhead, is possible and is
+covered in the [interoperability section](#interoperability-between-cc).
+
 ## Conversion API
 As you've seen by now, **Dart** ships with a large number of type conversions predefined,
 allowing for expressive, and safe, interaction with a dynamically typed notation language
@@ -369,3 +375,73 @@ int main() {
 }
 ```
 Otherwise, **Dart** types are not interoperable across reference counter implementations.
+
+## Interoperability Between C/C++
+In addition to the [C++ API](README.md) covered so far, **Dart** exposes an ABI-stable
+[C89 API](BINDINGS.md) for the purposes of creating higher-level language bindings,
+among others.
+
+If your use-case requires using both of these APIs within the same program, it would be
+extremely useful to be able to pass objects back and forth between the two APIs without
+having to go through additional serialization overhead, and for this reason, **Dart**
+exposes the following functions in its `<dart/api_swap.h>` header:
+```c++
+#include <iostream>
+
+#include <dart.h>
+#include <dart/abi.h>
+#include <dart/api_swap.h>
+
+int main() {
+  // Get some mock data
+  dart::object orig {"hello", "world", "data", dart::array {1, 2, 3, 4, 5}};
+
+  // Check refcount
+  std::cout << orig.refcount() << std::endl;      //  => 1
+
+  // Perform the conversion into the C type
+  dart_packet_t conv;
+  dart::unsafe_api_swap(&conv, orig);
+
+  // Check refcounts again
+  std::cout << orig.refcount() << std::endl;      //  => 2
+  std::cout << dart_refcount(&conv) << std::endl; //  => 2
+
+  // Modify the C type, copies out
+  dart_obj_insert_str(&conv, "yes", "no");
+  dart_obj_insert_str(&conv, "stop", "go");
+
+  // Check refcounts again
+  std::cout << orig.refcount() << std::endl;      //  => 1
+  std::cout << dart_refcount(&conv) << std::endl; //  => 1
+
+  // Convert back into a C++ type
+  dart::packet dup;
+  dart::unsafe_api_swap(dup, &conv);
+
+  // Check refcounts again
+  std::cout << orig.refcount() << std::endl;      //  => 1
+  std::cout << dup.refcount() << std::endl;       //  => 2
+  std::cout << dart_refcount(&conv) << std::endl; //  => 2
+
+  // Print our objects
+  char* json = dart_to_json(&conv, nullptr);
+  std::cout << orig << std::endl; // => {"data":[1,2,3,4,5],"hello":"world"}
+  std::cout << dup << std::endl;  // => {"yes":"no","data":[1,2,3,4,5],"stop":"go","hello":"world"}
+  std::cout << json << std::endl; // => {"yes":"no","data":[1,2,3,4,5],"stop":"go","hello":"world"}
+
+  // Cleanup
+  free(json);
+  dart_destroy(&conv);
+}
+```
+When using these functions, you **must keep in mind** that while the **C** API is
+ABI stable, the **C++** API is **NOT**.
+
+If your program compiles against one version of the **C++** API, but then
+dynamically links against an instance of `libdart_abi` that was compiled from
+a _different_ version of the **C++** API, and you call these functions, your program
+will explode in biblical fashion.
+
+This API can lead to HUGE performance wins, but there's a reason it's documented in
+the advanced section.
