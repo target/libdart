@@ -332,6 +332,9 @@ SCENARIO("objects can be initialized with contents", "[object unit]") {
           REQUIRE_FALSE(obj_four["false"_dart]);
         }
 
+        // XXX: Something about this ICEs some versions of MSVC, and I'm sick of arguing with it.
+        // This behavior is definitely already covered elsewhere, so I'm not concerned
+#ifndef DART_USING_MSVC
         if (dart::meta::is_packet<pkt>::value || dart::meta::is_buffer<pkt>::value) {
           DYNAMIC_WHEN("they're finalized", idx) {
             obj_one.finalize();
@@ -351,6 +354,7 @@ SCENARIO("objects can be initialized with contents", "[object unit]") {
             }
           }
         }
+#endif
       }
     });
   }
@@ -404,6 +408,9 @@ SCENARIO("objects can add all types of values", "[object unit]") {
           REQUIRE(obj["absent"].get_type() == dart::packet::type::null);
         }
 
+        // XXX: Something about this ICEs some versions of MSVC, and I'm sick of arguing with it.
+        // This behavior is definitely already covered elsewhere, so I'm not concerned
+#ifndef DART_USING_MSVC
         if (dart::meta::is_packet<pkt>::value) {
           DYNAMIC_WHEN("the packet is finalized", idx) {
             obj.finalize();
@@ -427,6 +434,7 @@ SCENARIO("objects can add all types of values", "[object unit]") {
             }
           }
         }
+#endif
       }
     });
   }

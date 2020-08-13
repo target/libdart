@@ -55,8 +55,8 @@ static_assert(false, "libdart requires a c++14 enabled compiler.");
 
 // Version macros for conditional compilation/feature checks.
 #define DART_MAJOR_VERSION          1
-#define DART_MINOR_VERSION          2
-#define DART_PATCH_VERSION          2
+#define DART_MINOR_VERSION          3
+#define DART_PATCH_VERSION          0
 
 /*----- Type Declarations -----*/
 
@@ -13835,12 +13835,23 @@ namespace dart {
   using buffer = basic_buffer<std::shared_ptr>;
   using packet = basic_packet<std::shared_ptr>;
 
+  using unsafe_heap = basic_heap<unsafe_ptr>;
+  using unsafe_buffer = basic_buffer<unsafe_ptr>;
+  using unsafe_packet = basic_packet<unsafe_ptr>;
+
   using object = packet::object;
   using array = packet::array;
   using string = packet::string;
   using number = packet::number;
   using flag = packet::flag;
   using null = packet::null;
+
+  using unsafe_object = unsafe_packet::object;
+  using unsafe_array = unsafe_packet::array;
+  using unsafe_string = unsafe_packet::string;
+  using unsafe_number = unsafe_packet::number;
+  using unsafe_flag = unsafe_packet::flag;
+  using unsafe_null = unsafe_packet::null;
 
   // Make sure everything has noexcept moves as expected to avoid unnecessary bottlenecks.
   static_assert(std::is_nothrow_move_constructible<heap>::value

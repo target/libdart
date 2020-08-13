@@ -45,7 +45,13 @@ target_compile_options(unit_tests PUBLIC ${dart_default_compile_options} ${dart_
 
 # Configure to build our ABI if requested.
 if (build_abi)
-  add_executable(abi_tests heap_abi_unit_tests.cc buffer_abi_unit_tests.cc generic_abi_unit_tests.cc $<TARGET_OBJECTS:catch>)
+  add_executable(abi_tests
+    heap_abi_unit_tests.cc
+    buffer_abi_unit_tests.cc
+    generic_abi_unit_tests.cc
+    api_swap_unit_tests.cc
+    $<TARGET_OBJECTS:catch>
+  )
 
   # Asan has to come first in linked libraries, so check if we need to link it.
   if (use_asan AND MSVC)
