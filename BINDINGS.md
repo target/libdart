@@ -40,7 +40,7 @@ cd build
 # After install, the Dart ABI can be linked against using
 # -ldart_abi, or -ldart_abi_static if static linking is
 # desired.
-cmake .. -Dbuild_abi=ON
+cmake .. -Dbuild_abi=ON -DCMAKE_BUILD_TYPE=Release
 make -j 4
 ctest
 make install
