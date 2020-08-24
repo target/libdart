@@ -268,7 +268,7 @@ namespace dart {
     template <class T>
     struct is_span<gsl::span<T>> : std::true_type {};
 #else
-    template <class T, std::ptrdiff_t extent>
+    template <class T, std::size_t extent>
     struct is_span<gsl::span<T, extent>> : std::true_type {};
 #endif
 
