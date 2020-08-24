@@ -17,9 +17,9 @@ environment:
 build_script:
   - mkdir tmp
   - cd tmp
-  - curl -fsSL "https://github.com/microsoft/GSL/archive/v2.0.0.zip" -o gsl.zip
+  - curl -fsSL "https://github.com/microsoft/GSL/archive/v3.1.0.zip" -o gsl.zip
   - 7z x gsl.zip
-  - Xcopy /E /I GSL-2.0.0\include\gsl ..\include\extern\gsl\
+  - Xcopy /E /I GSL-3.1.0\include\gsl ..\include\extern\gsl\
   - curl -fsSL "https://github.com/Tencent/rapidjson/archive/v1.1.0.zip" -o rapidjson.zip
   - 7z x rapidjson.zip
   - Xcopy /E /I rapidjson-1.1.0\include\rapidjson ..\include\extern\rapidjson

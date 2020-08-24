@@ -174,7 +174,7 @@ namespace dart {
     template <class T>
     struct conversion_traits<gsl::span<T>> {
 #else
-    template <class T, std::ptrdiff_t extent>
+    template <class T, std::size_t extent>
     struct conversion_traits<gsl::span<T, extent>> {
 #endif
       // Copy conversion
@@ -206,7 +206,7 @@ namespace dart {
         if (!pkt.is_array()) return false;
         else if (pkt.size() != static_cast<size_t>(span.size())) return false;
 
-        auto it = span.cbegin();
+        auto it = span.begin();
         typename Packet::view v = pkt;
         for (auto val : v) {
           if (val != *it) return false;
