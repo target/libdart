@@ -17,11 +17,16 @@
 
 #include "../include/dart.h"
 
+#ifdef DART_HAS_ABI
+#include "../include/dart/abi.h"
+#include "../include/dart/api_swap.h"
+#endif
+
 /*----- Type Declarations -----*/
 
-using unsafe_heap = dart::basic_heap<dart::unsafe_ptr>;
-using unsafe_buffer = dart::basic_buffer<dart::unsafe_ptr>;
-using unsafe_packet = dart::basic_packet<dart::unsafe_ptr>;
+using dart::unsafe_heap;
+using dart::unsafe_buffer;
+using dart::unsafe_packet;
 
 struct benchmark_helper : benchmark::Fixture {
 
@@ -137,6 +142,23 @@ BENCHMARK_F(benchmark_helper, lookup_finalized_fields) (benchmark::State& state)
   state.counters["finalized field lookups"] = rate_counter;
 }
 
+#ifdef DART_HAS_ABI
+BENCHMARK_F(benchmark_helper, abi_lookup_finalized_fields) (benchmark::State& state) {
+  dart_buffer_t abi_flat_fin;
+  dart::unsafe_api_swap(&abi_flat_fin, unsafe_buffer {flat_fin});
+  for (auto _ : state) {
+    for (auto const& key : flat_keys) {
+      dart_buffer_t val = dart_buffer_obj_get_len(&abi_flat_fin, key.data(), key.size());
+      benchmark::DoNotOptimize(dart_str_get(&val));
+      dart_buffer_destroy(&val);
+    }
+    rate_counter += flat_keys.size();
+  }
+  dart_buffer_destroy(&abi_flat_fin);
+  state.counters["finalized field lookups"] = rate_counter;
+}
+#endif
+
 BENCHMARK_DEFINE_F(benchmark_helper, lookup_finalized_random_fields) (benchmark::State& state) {
   // Generate some random strings.
   std::vector<std::string> keys(state.range(0));
@@ -157,6 +179,37 @@ BENCHMARK_DEFINE_F(benchmark_helper, lookup_finalized_random_fields) (benchmark:
 }
 
 BENCHMARK_REGISTER_F(benchmark_helper, lookup_finalized_random_fields)->Ranges({{1, 255}, {4, 255}});
+
+#ifdef DART_HAS_ABI
+BENCHMARK_DEFINE_F(benchmark_helper, abi_lookup_finalized_random_fields) (benchmark::State& state) {
+  // Generate some random strings.
+  std::vector<std::string> keys(state.range(0));
+  std::generate(keys.begin(), keys.end(), [&] { return rand_string(state.range(1)); });
+
+  // Generate a packet.
+  dart_heap_t pkt = dart_heap_obj_init_rc(DART_RC_UNSAFE);
+  for (auto const& key : keys) {
+    dart_heap_obj_insert_str(&pkt, key.c_str(), key.c_str());
+  }
+
+  // Run the test.
+  dart_buffer_t data = dart_heap_finalize(&pkt);
+  auto size = dart_size(&pkt);
+  for (auto _ : state) {
+    for (auto const& key : keys) {
+      dart_buffer_t val = dart_buffer_obj_get_len(&data, key.data(), key.size());
+      benchmark::DoNotOptimize(dart_str_get(&val));
+      dart_buffer_destroy(&val);
+    }
+    rate_counter += size;
+  }
+  dart_buffer_destroy(&data);
+  dart_heap_destroy(&pkt);
+  state.counters["finalized random field lookups"] = rate_counter;
+}
+
+BENCHMARK_REGISTER_F(benchmark_helper, abi_lookup_finalized_random_fields)->Ranges({{1, 255}, {4, 255}});
+#endif
 
 BENCHMARK_DEFINE_F(benchmark_helper, lookup_finalized_colliding_fields) (benchmark::State& state) {
   struct hasher {

@@ -17,8 +17,8 @@ before_install:
       BUILD_DIR=$(mktemp -d)
       pushd $BUILD_DIR
       if [ "${USE_GSL_LITE}" = "true" ]; then
-        curl -sL "https://github.com/gsl-lite/gsl-lite/archive/v0.36.0.tar.gz" | tar xzf -
-        cd gsl-lite-0.36.0
+        curl -sL "https://github.com/gsl-lite/gsl-lite/archive/v0.37.0.tar.gz" | tar xzf -
+        cd gsl-lite-0.37.0
         mkdir build
         cd build
         cmake .. -DGSL_LITE_OPT_INSTALL_COMPAT_HEADER=ON
