@@ -8,6 +8,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 # We need to install rapidjson to build our
 # parsing tests, and unfortunately the
 # version on APT is 3 years out of date.
+RUN apt-get update
 RUN apt-get install -y curl
 RUN BUILD_DIR=$(mktemp -d)                                                                \
   && pushd $BUILD_DIR                                                                     \
