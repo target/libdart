@@ -140,26 +140,14 @@ namespace dart {
 
   template <class Object>
   template <class KeyType, class EnableIf>
-  auto basic_object<Object>::operator [](KeyType const& key) const& -> value_type {
+  auto basic_object<Object>::operator [](KeyType const& key) const -> value_type {
     return val[key];
   }
 
   template <class Object>
   template <class KeyType, class EnableIf>
-  decltype(auto) basic_object<Object>::operator [](KeyType const& key) && {
-    return std::move(val)[key];
-  }
-
-  template <class Object>
-  template <class KeyType, class EnableIf>
-  auto basic_object<Object>::get(KeyType const& key) const& -> value_type {
+  auto basic_object<Object>::get(KeyType const& key) const -> value_type {
     return val.get(key);
-  }
-
-  template <class Object>
-  template <class KeyType, class EnableIf>
-  decltype(auto) basic_object<Object>::get(KeyType const& key) && {
-    return std::move(val).get(key);
   }
 
   template <class Object>
@@ -175,14 +163,8 @@ namespace dart {
 
   template <class Object>
   template <class KeyType, class EnableIf>
-  auto basic_object<Object>::at(KeyType const& key) const& -> value_type {
+  auto basic_object<Object>::at(KeyType const& key) const -> value_type {
     return val.at(key);
-  }
-
-  template <class Object>
-  template <class KeyType, class EnableIf>
-  decltype(auto) basic_object<Object>::at(KeyType const& key) && {
-    return std::move(val).at(key);
   }
 
   template <class Object>

@@ -115,26 +115,14 @@ namespace dart {
 
   template <class Array>
   template <class Index, class EnableIf>
-  auto basic_array<Array>::operator [](Index const& idx) const& -> value_type {
+  auto basic_array<Array>::operator [](Index const& idx) const -> value_type {
     return val[idx];
   }
 
   template <class Array>
   template <class Index, class EnableIf>
-  decltype(auto) basic_array<Array>::operator [](Index const& idx) && {
-    return std::move(val)[idx];
-  }
-
-  template <class Array>
-  template <class Index, class EnableIf>
-  auto basic_array<Array>::get(Index const& idx) const& -> value_type {
+  auto basic_array<Array>::get(Index const& idx) const -> value_type {
     return val.get(idx);
-  }
-
-  template <class Array>
-  template <class Index, class EnableIf>
-  decltype(auto) basic_array<Array>::get(Index const& idx) && {
-    return std::move(val).get(idx);
   }
 
   template <class Array>
@@ -145,44 +133,23 @@ namespace dart {
 
   template <class Array>
   template <class Index, class EnableIf>
-  auto basic_array<Array>::at(Index const& idx) const& -> value_type {
+  auto basic_array<Array>::at(Index const& idx) const -> value_type {
     return val.at(idx);
   }
 
   template <class Array>
-  template <class Index, class EnableIf>
-  decltype(auto) basic_array<Array>::at(Index const& idx) && {
-    return std::move(val).at(idx);
-  }
-
-  template <class Array>
-  auto basic_array<Array>::at_front() const& -> value_type {
+  auto basic_array<Array>::at_front() const -> value_type {
     return val.at_front();
   }
 
   template <class Array>
-  decltype(auto) basic_array<Array>::at_front() && {
-    return std::move(val).at_front();
-  }
-
-  template <class Array>
-  auto basic_array<Array>::at_back() const& -> value_type {
+  auto basic_array<Array>::at_back() const -> value_type {
     return val.at_back();
   }
 
   template <class Array>
-  decltype(auto) basic_array<Array>::at_back() && {
-    return std::move(val).at_back();
-  }
-
-  template <class Array>
-  auto basic_array<Array>::front() const& -> value_type {
+  auto basic_array<Array>::front() const -> value_type {
     return val.front();
-  }
-
-  template <class Array>
-  decltype(auto) basic_array<Array>::front() && {
-    return std::move(val).front();
   }
 
   template <class Array>
@@ -192,13 +159,8 @@ namespace dart {
   }
 
   template <class Array>
-  auto basic_array<Array>::back() const& -> value_type {
+  auto basic_array<Array>::back() const -> value_type {
     return val.back();
-  }
-
-  template <class Array>
-  decltype(auto) basic_array<Array>::back() && {
-    return std::move(val).back();
   }
 
   template <class Array>

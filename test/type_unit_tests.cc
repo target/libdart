@@ -589,6 +589,23 @@ SCENARIO("objects can be cleared", "[type unit]") {
           REQUIRE(obj["hello"].is_null());
           REQUIRE(obj["pi"].is_null());
           REQUIRE(obj["c"].is_null());
+          REQUIRE(obj.get_or("hello", "goodbye") == "goodbye");
+          REQUIRE_THROWS_AS(obj.at("pi"), std::out_of_range);
+        }
+      }
+
+      DYNAMIC_WHEN("individual fields are removed", idx) {
+        obj.remove_field("hello");
+        obj.remove_field("pi");
+        obj.remove_field("c");
+        DYNAMIC_THEN("nothing is left in it", idx) {
+          REQUIRE(obj.empty());
+          REQUIRE(obj.size() == 0U);
+          REQUIRE(obj["hello"].is_null());
+          REQUIRE(obj["pi"].is_null());
+          REQUIRE(obj["c"].is_null());
+          REQUIRE(obj.get_or("hello", "goodbye") == "goodbye");
+          REQUIRE_THROWS_AS(obj.at("pi"), std::out_of_range);
         }
       }
     });

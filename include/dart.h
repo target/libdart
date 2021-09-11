@@ -585,39 +585,7 @@ namespace dart {
           meta::is_detected<subscript_operator_t, value_type const&, KeyType const&>::value
         >
       >
-      auto operator [](KeyType const& key) const& -> value_type;
-
-      /**
-       *  @brief
-       *  Object subscript operator.
-       *
-       *  @details
-       *  Assuming this is an object, returns the value associated with the given
-       *  key, or a null packet if not such mapping exists.
-       *
-       *  @remarks
-       *  Function returns null if the requested mapping isn't present, but cannot
-       *  be marked noexcept due to the possibility that the user might pass a
-       *  dart::packet which is not a string.
-       *  If you pass this function reasonable things, it'll never throw an exception.
-       *
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto obj = some_object();
-       *  auto deep = obj["first"]["second"]["third"];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      template <class KeyType, class EnableIf =
-        std::enable_if_t<
-          probable_string<KeyType>::value
-          &&
-          meta::is_detected<subscript_operator_t, value_type&&, KeyType const&>::value
-        >
-      >
-      decltype(auto) operator [](KeyType const& key) &&;
+      auto operator [](KeyType const& key) const -> value_type;
 
       /**
        *  @brief
@@ -1124,33 +1092,7 @@ namespace dart {
           meta::is_detected<get_t, value_type const&, KeyType const&>::value
         >
       >
-      auto get(KeyType const& key) const& -> value_type;
-
-      /**
-       *  @brief
-       *  Object access method, precisely equivalent to the corresponding subscript operator.
-       *
-       *  @details
-       *  Function will return the requested key-value pair as a new packet.
-       *
-       *  @remarks
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto obj = some_object();
-       *  auto deep = obj["first"]["second"]["third"];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      template <class KeyType, class EnableIf =
-        std::enable_if_t<
-          probable_string<KeyType>::value
-          &&
-          meta::is_detected<get_t, value_type&&, KeyType const&>::value
-        >
-      >
-      decltype(auto) get(KeyType const& key) &&;
+      auto get(KeyType const& key) const -> value_type;
 
       /**
        *  @brief
@@ -1197,33 +1139,7 @@ namespace dart {
           meta::is_detected<at_t, value_type const&, KeyType const&>::value
         >
       >
-      auto at(KeyType const& key) const& -> value_type;
-
-      /**
-       *  @brief
-       *  Object access method, precisely equivalent to the corresponding subscript operator.
-       *
-       *  @details
-       *  Function will return the requested key-value pair as a new packet.
-       *
-       *  @remarks
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto obj = some_object();
-       *  auto deep = obj["first"]["second"]["third"];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      template <class KeyType, class EnableIf =
-        std::enable_if_t<
-          probable_string<KeyType>::value
-          &&
-          meta::is_detected<at_t, value_type&&, KeyType const&>::value
-        >
-      >
-      decltype(auto) at(KeyType const& key) &&;
+      auto at(KeyType const& key) const -> value_type;
 
       /**
        *  @brief
@@ -2278,43 +2194,7 @@ namespace dart {
           meta::is_detected<subscript_operator_t, value_type const&, Index const&>::value
         >
       >
-      auto operator [](Index const& idx) const& -> value_type;
-
-      /**
-       *  @brief
-       *  Array subscript operator.
-       *
-       *  @details
-       *  Will return the requested array index as a new packet.
-       *
-       *  @remarks
-       *  Function returns null if the requested mapping isn't present, but cannot
-       *  be marked noexcept due to the possibility that the user might pass a
-       *  dart::packet which is not an integer.
-       *  If you pass this function reasonable things, it'll never throw an exception.
-       *
-       *  Not throwing an exception, and simply returning null, in the case of an out
-       *  of bounds access is potentially a contentious design move.
-       *  It was done in order to keep the "logical" exception behavior of element access
-       *  in line with std::vector, but with different preconditions.
-       *
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto arr = some_array();
-       *  auto deep = arr[0][1][2];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      template <class Index, class EnableIf =
-        std::enable_if_t<
-          probable_integer<Index>::value
-          &&
-          meta::is_detected<subscript_operator_t, value_type&&, Index const&>::value
-        >
-      >
-      decltype(auto) operator [](Index const& idx) &&;
+      auto operator [](Index const& idx) const -> value_type;
 
       /**
        *  @brief
@@ -2773,34 +2653,7 @@ namespace dart {
           meta::is_detected<get_t, value_type const&, Index const&>::value
         >
       >
-      auto get(Index const& idx) const& -> value_type;
-
-      /**
-       *  @brief
-       *  Array access method, precisely equivalent to the corresponding subscript operator.
-       *
-       *  @details
-       *  Assuming the requested index is within bounds, will return the requested array index
-       *  as a new packet.
-       *
-       *  @remarks
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto arr = some_array();
-       *  auto deep = arr[0][1][2];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      template <class Index, class EnableIf =
-        std::enable_if_t<
-          probable_integer<Index>::value
-          &&
-          meta::is_detected<get_t, value_type&&, Index const&>::value
-        >
-      >
-      decltype(auto) get(Index const& idx) &&;
+      auto get(Index const& idx) const -> value_type;
 
       /**
        *  @brief
@@ -2841,34 +2694,7 @@ namespace dart {
           meta::is_detected<at_t, value_type const&, Index const&>::value
         >
       >
-      auto at(Index const& idx) const& -> value_type;
-
-      /**
-       *  @brief
-       *  Array access method, precisely equivalent to the corresponding subscript operator.
-       *
-       *  @details
-       *  Assuming the requested index is within bounds, will return the requested array index
-       *  as a new packet.
-       *
-       *  @remarks
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto arr = some_array();
-       *  auto deep = arr[0][1][2];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      template <class Index, class EnableIf =
-        std::enable_if_t<
-          probable_integer<Index>::value
-          &&
-          meta::is_detected<at_t, value_type&&, Index const&>::value
-        >
-      >
-      decltype(auto) at(Index const& idx) &&;
+      auto at(Index const& idx) const -> value_type;
 
       /**
        *  @brief
@@ -2877,26 +2703,7 @@ namespace dart {
        *  @details
        *  Return the first element or throws if the array is empty.
        */
-      auto at_front() const& -> value_type;
-
-      /**
-       *  @brief
-       *  Function returns the first element in an array.
-       *
-       *  @details
-       *  Return the first element or throws if the array is empty.
-       *
-       *  @remarks
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto arr = some_array();
-       *  auto deep = arr[0][1][2];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      decltype(auto) at_front() &&;
+      auto at_front() const -> value_type;
 
       /**
        *  @brief
@@ -2905,26 +2712,7 @@ namespace dart {
        *  @details
        *  Returns the last element or throws if the array is empty.
        */
-      auto at_back() const& -> value_type;
-
-      /**
-       *  @brief
-       *  Function returns the last element in an array.
-       *
-       *  @details
-       *  Returns the last element or throws if the array is empty.
-       *
-       *  @remarks
-       *  dart::buffer is able to profitably use an rvalue overloaded subscript
-       *  operator to skip unnecessary refcount increments/decrements in expressions
-       *  like the following:
-       *  ```
-       *  auto arr = some_array();
-       *  auto deep = arr[0][1][2];
-       *  ```
-       *  and so all classes that can wrap dart::buffer also implement this overload.
-       */
-      decltype(auto) at_back() &&;
+      auto at_back() const -> value_type;
 
       /**
        *  @brief
@@ -2933,16 +2721,7 @@ namespace dart {
        *  @details
        *  Returns the first element or null.
        */
-      auto front() const& -> value_type;
-
-      /**
-       *  @brief
-       *  Function returns the first element in an array.
-       *
-       *  @details
-       *  Returns the first element or null.
-       */
-      decltype(auto) front() &&;
+      auto front() const -> value_type;
 
       /**
        *  @brief
@@ -2968,17 +2747,7 @@ namespace dart {
        *  If this has at least one thing in it, returns the last element.
        *  Throws otherwise.
        */
-      auto back() const& -> value_type;
-
-      /**
-       *  @brief
-       *  Function returns the last element in an array.
-       *
-       *  @details
-       *  If this has at least one thing in it, returns the last element.
-       *  Throws otherwise.
-       */
-      decltype(auto) back() &&;
+      auto back() const -> value_type;
 
       /**
        *  @brief
