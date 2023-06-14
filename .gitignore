@@ -7,3 +7,4 @@ out/*
 build/*
 docs/*
 benchmark/build/*
+.vscode
