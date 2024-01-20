@@ -33,6 +33,22 @@
 #define DART_ABI_EXPORT
 #endif
 
+// Figure out how to align data on this platform.
+// Hello from 2024, didn't expect to be coming back to this :(
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define DART_ALIGNAS(x) _Alignas(x)
+#elif defined(_MSC_VER)
+#define DART_ALIGNAS(x) __declspec(align(x))
+#elif defined(__GNUC__)
+#define DART_ALIGNAS(x) __attribute__ ((aligned(x)))
+#else
+#error "Dart cannot determine how to align data on this platform."
+#endif
+
+// XXX: Does not protect against double evaluation, watch out
+#define DART_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define DART_MAX_ALIGN DART_MAX(DART_MAX(sizeof(long long), sizeof(double)), sizeof(void*))
+
 #define DART_BUFFER_MAX_SIZE      (1U << 5U)
 #define DART_HEAP_MAX_SIZE        (1U << 6U)
 #define DART_PACKET_MAX_SIZE      DART_HEAP_MAX_SIZE
@@ -217,7 +233,7 @@ extern "C" {
    */
   struct dart_iterator {
     dart_type_id_t rtti;
-    char bytes[DART_ITERATOR_MAX_SIZE];
+    DART_ALIGNAS(DART_MAX_ALIGN) char bytes[DART_ITERATOR_MAX_SIZE];
   };
   typedef struct dart_iterator dart_iterator_t;
 
@@ -240,7 +256,7 @@ extern "C" {
    */
   struct dart_heap {
     dart_type_id_t rtti;
-    char bytes[DART_HEAP_MAX_SIZE];
+    DART_ALIGNAS(DART_MAX_ALIGN) char bytes[DART_HEAP_MAX_SIZE];
   };
   typedef struct dart_heap dart_heap_t;
 
@@ -264,7 +280,7 @@ extern "C" {
    */
   struct dart_buffer {
     dart_type_id_t rtti;
-    char bytes[DART_BUFFER_MAX_SIZE];
+    DART_ALIGNAS(DART_MAX_ALIGN) char bytes[DART_BUFFER_MAX_SIZE];
   };
   typedef struct dart_buffer dart_buffer_t;
 
@@ -287,7 +303,7 @@ extern "C" {
    */
   struct dart_packet {
     dart_type_id_t rtti;
-    char bytes[DART_PACKET_MAX_SIZE];
+    DART_ALIGNAS(DART_MAX_ALIGN) char bytes[DART_PACKET_MAX_SIZE];
   };
   typedef struct dart_packet dart_packet_t;
 
@@ -301,6 +317,8 @@ extern "C" {
     size_t len;
   };
   typedef struct dart_string_view dart_string_view_t;
+
+#undef DART_MAX
 
   /*----- Public Function Declarations -----*/
 
